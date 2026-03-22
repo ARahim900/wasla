@@ -70,8 +70,22 @@ export default function InspectionForm() {
           });
         }
       } catch (err) {
-        toast.error("Failed to load data.");
+        toast.error("Failed to load data. Please check your connection.");
         console.error("Failed to load data:", err);
+        // Create default inspection so form still renders (for new inspections)
+        if (!inspectionId) {
+          setInspection({
+            client_id: "",
+            client_name: "",
+            property_id: "",
+            property_type: "villa",
+            inspector_name: "",
+            inspection_date: new Date().toISOString().split("T")[0],
+            inspection_type: "pre_purchase",
+            status: "scheduled",
+            areas: [{ id: crypto.randomUUID(), name: "General", items: [] }],
+          });
+        }
       } finally {
         setIsLoading(false);
       }
@@ -160,8 +174,27 @@ export default function InspectionForm() {
     }
   };
 
-  if (isLoading || !inspection) {
-    return <div className="p-8 text-center">Loading inspection form...</div>;
+  if (isLoading) {
+    return (
+      <div className="p-8 text-center">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-slate-600">Loading inspection form...</p>
+      </div>
+    );
+  }
+
+  if (!inspection) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-red-600 mb-4">Failed to load inspection data.</p>
+        <Button
+          variant="outline"
+          onClick={() => navigate(createPageUrl("Inspections"))}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Inspections
+        </Button>
+      </div>
+    );
   }
   
   const selectedClient = clients.find(c => c.id === inspection.client_id);
