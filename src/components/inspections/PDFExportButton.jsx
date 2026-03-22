@@ -59,6 +59,57 @@ export default function PDFExportButton({ inspection, client, property, disabled
       return;
     }
 
+    // IMPORTANT: Open window IMMEDIATELY on user click to avoid mobile popup blockers
+    // Mobile browsers block window.open() if it's not directly triggered by user action
+    const reportWindow = window.open('', 'wasla_report');
+
+    if (!reportWindow || reportWindow.closed) {
+      toast.error("Please allow pop-ups for this site to view the report.");
+      return;
+    }
+
+    // Show loading state in the new window
+    reportWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Loading Report...</title>
+        <style>
+          body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+          }
+          .loader {
+            text-align: center;
+          }
+          .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #10b981;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="loader">
+          <div class="spinner"></div>
+          <p>Generating report...</p>
+        </div>
+      </body>
+      </html>
+    `);
+
     setIsExporting(true);
     const toastId = toast.loading("Generating inspection report...", { duration: 10000 });
 
@@ -69,22 +120,24 @@ export default function PDFExportButton({ inspection, client, property, disabled
       // Validate that we have some content to display
       if (!reportData.areas || reportData.areas.length === 0) {
         toast.warning("This inspection has no areas to report. Add inspection areas first.", { id: toastId });
+        reportWindow.close();
         setIsExporting(false);
         return;
       }
 
       // Import and generate the report
       const { generateInspectionReport } = await import('../utils/htmlReportGenerator');
-      
+
       console.log('Calling generateInspectionReport with data:', reportData);
-      
-      // Generate report - opens in new window
-      const result = await generateInspectionReport(reportData, { 
+
+      // Generate report - pass the already-opened window
+      const result = await generateInspectionReport(reportData, {
         autoPrint: false,
         pageSize: 'A4',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        targetWindow: reportWindow
       });
-      
+
       if (result && result.success) {
         toast.success("Report opened! Click the Print button in the report to print.", { id: toastId });
       } else {
@@ -92,7 +145,8 @@ export default function PDFExportButton({ inspection, client, property, disabled
       }
     } catch (error) {
       console.error('Export error:', error);
-      
+      reportWindow.close();
+
       // Provide specific error messages based on error type
       if (error.message && error.message.includes('pop-up')) {
         toast.error("Please allow pop-ups for this site to view the report.", { id: toastId });

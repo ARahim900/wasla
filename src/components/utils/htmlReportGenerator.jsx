@@ -30,33 +30,33 @@ class InspectionReportGenerator {
       .replace(/'/g, "&#39;");
   }
 
-  // Main generation function - opens HTML in new window
+  // Main generation function - writes HTML to window
   async generateReport(inspectionData, options = {}) {
     try {
       console.log('Starting report generation...');
-      
+
       // Validate input data
       if (!inspectionData || typeof inspectionData !== 'object') {
         throw new Error('Invalid inspection data provided');
       }
-      
+
       // Configure page settings
       this.page = {
         size: options.pageSize || 'A4',
         orientation: options.orientation || 'portrait',
         margin: options.margin || '0'
       };
-      
+
       const reportData = this.processInspectionData(inspectionData);
       const htmlContent = await this.buildCompleteHTML(reportData);
-      
-      // Enhanced pop-up blocker detection with window naming
-      const reportWindow = window.open('', 'wasla_report');
-      
+
+      // Use pre-opened window if provided (for mobile compatibility), otherwise open new
+      const reportWindow = options.targetWindow || window.open('', 'wasla_report');
+
       if (!reportWindow || reportWindow.closed || typeof reportWindow.closed === 'undefined') {
         throw new Error('Pop-up blocked. Please allow pop-ups for this site to view the report. Check your browser settings or the address bar for a blocked pop-up icon.');
       }
-      
+
       // Attach onload BEFORE writing content to prevent race condition
       const onLoaded = () => {
         console.log('Report loaded successfully');
@@ -66,9 +66,9 @@ class InspectionReportGenerator {
           }, 500);
         }
       };
-      
+
       reportWindow.addEventListener('load', onLoaded, { once: true });
-      
+
       // Optional: Close window after printing when autoPrint is enabled
       try {
         reportWindow.addEventListener('afterprint', () => {
@@ -80,16 +80,16 @@ class InspectionReportGenerator {
         // Some browsers don't support afterprint
         console.log('afterprint event not supported');
       }
-      
+
       reportWindow.document.open();
       reportWindow.document.write(htmlContent);
       reportWindow.document.close();
-      
+
       // Fallback for DOMContentLoaded
       reportWindow.document.addEventListener('DOMContentLoaded', onLoaded, { once: true });
-      
+
       return { success: true, html: htmlContent, window: reportWindow };
-      
+
     } catch (error) {
       console.error('Report generation failed:', error);
       throw error;
