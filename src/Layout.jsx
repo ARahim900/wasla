@@ -62,7 +62,10 @@ export default function Layout({ children, currentPageName }) {
           if (typeof me.darkMode === "boolean") setIsDark(me.darkMode);
           else if (me.theme) setIsDark(me.theme === "dark");
         }
-      } catch {}
+      } catch (err) {
+        // Silently ignore - theme will use localStorage fallback
+        console.debug('Theme sync failed:', err);
+      }
     };
     init();
   }, []);
@@ -81,7 +84,10 @@ export default function Layout({ children, currentPageName }) {
     setIsDark(next);
     try {
       await User.updateMe({ darkMode: next, theme: next ? "dark" : "light" });
-    } catch {}
+    } catch (err) {
+      // Silently ignore - theme change still works locally
+      console.debug('Theme save failed:', err);
+    }
   };
 
   return (
