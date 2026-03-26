@@ -7,6 +7,7 @@ import InspectionForm from './pages/InspectionForm';
 import InvoiceForm from './pages/InvoiceForm';
 import Properties from './pages/Properties';
 import InspectionReport from './pages/InspectionReport';
+import Login from './pages/Login';
 import Layout from './Layout.jsx';
 
 
@@ -20,6 +21,7 @@ export const PAGES = {
     "InvoiceForm": InvoiceForm,
     "Properties": Properties,
     "InspectionReport": InspectionReport,
+    "Login": Login,
 }
 
 export const pagesConfig = {
