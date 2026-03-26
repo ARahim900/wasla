@@ -41,9 +41,9 @@ export default function InvoiceForm() {
       try {
         // Fetch properties along with clients and inspections
         const [clientData, inspectionData, propertyData] = await Promise.all([
-          Client.list({ sort: "-created_date" }),
-          Inspection.list({ sort: "-created_date" }),
-          Property.list() // Fetch properties
+          Client.list("-created_at"),
+          Inspection.list("-created_at"),
+          Property.list()
         ]);
         
         setClients(clientData || []);
@@ -69,13 +69,13 @@ export default function InvoiceForm() {
             issue_date: new Date().toISOString().split('T')[0],
             due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             status: "draft",
-            line_items: [], // Initialize as empty array
-            subtotal: 0, // Initialize to 0
+            items: [],
+            subtotal: 0,
             tax_rate: 5,
-            tax_amount: 0, // Initialize to 0
-            total: 0, // Initialize to 0
+            tax_amount: 0,
+            total: 0,
             notes: "",
-            payment_terms: "Payment due upon receipt." // Updated payment terms
+            payment_terms: "Payment due upon receipt."
           });
         }
       } catch (error) {
@@ -96,7 +96,7 @@ export default function InvoiceForm() {
 
     // Default values from current invoice state
     let newClientId = invoice.client_id;
-    let newLineItems = invoice.line_items;
+    let newLineItems = invoice.items;
     let newSubtotal = invoice.subtotal;
 
     const selectedInspection = inspections.find(i => i.id === invoice.inspection_id);
@@ -151,9 +151,9 @@ export default function InvoiceForm() {
     const newTotal = newSubtotal + newTaxAmount;
 
     // Only update state if something has actually changed to prevent infinite loops.
-    // Use JSON.stringify for deep comparison of line_items array
+    // Use JSON.stringify for deep comparison of items array
     const clientChanged = invoice.client_id !== newClientId;
-    const lineItemsChanged = JSON.stringify(invoice.line_items) !== JSON.stringify(newLineItems);
+    const lineItemsChanged = JSON.stringify(invoice.items) !== JSON.stringify(newLineItems);
     const subtotalChanged = invoice.subtotal !== newSubtotal;
     const taxAmountChanged = invoice.tax_amount !== newTaxAmount;
     const totalChanged = invoice.total !== newTotal;
@@ -162,7 +162,7 @@ export default function InvoiceForm() {
       setInvoice(prev => ({
         ...prev,
         client_id: newClientId,
-        line_items: newLineItems,
+        items: newLineItems,
         subtotal: newSubtotal,
         tax_amount: newTaxAmount,
         total: newTotal
@@ -184,7 +184,7 @@ export default function InvoiceForm() {
       toast.error("Please select a client.");
       return;
     }
-    if (invoice.line_items.length === 0) {
+    if (invoice.items.length === 0) {
         toast.error("Please add at least one line item to the invoice.");
         return;
     }
@@ -249,12 +249,12 @@ export default function InvoiceForm() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="inspection_id">Link to Inspection (Optional)</Label>
-                <Select value={invoice.inspection_id || ""} onValueChange={(value) => handleFieldChange("inspection_id", value)}>
+                <Select value={invoice.inspection_id || "none"} onValueChange={(value) => handleFieldChange("inspection_id", value === "none" ? "" : value)}>
                   <SelectTrigger id="inspection_id">
                     <SelectValue placeholder="Select inspection" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {inspections.map(insp => (
                       <SelectItem key={insp.id} value={insp.id}>
                         {insp.client_name || 'N/A'} - {insp.inspection_type?.replace(/_/g, ' ') || 'N/A'} ({insp.inspection_date ? format(new Date(insp.inspection_date), "MMM d, yyyy") : 'No date'})
@@ -314,7 +314,7 @@ export default function InvoiceForm() {
             
             <div className="border rounded-lg p-4 space-y-4">
                 <h3 className="font-semibold text-slate-800">Billing Details</h3>
-                {invoice.line_items?.map((item, index) => (
+                {invoice.items?.map((item, index) => (
                     <div key={index} className="flex flex-wrap items-end gap-4">
                         <div className="flex-grow space-y-1 min-w-[150px]">
                             <Label className="text-xs">Description</Label>
@@ -334,7 +334,7 @@ export default function InvoiceForm() {
                         </div>
                     </div>
                 ))}
-                {invoice.line_items?.length === 0 && <p className="text-sm text-slate-500 text-center py-4">Select an inspection to auto-fill or add items manually.</p>}
+                {invoice.items?.length === 0 && <p className="text-sm text-slate-500 text-center py-4">Select an inspection to auto-fill or add items manually.</p>}
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t">
                     <div className="col-span-1 hidden sm:block"></div>

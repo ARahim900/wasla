@@ -40,19 +40,13 @@ export default function Inspections() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      console.log("Loading inspections data...");
-
       const [inspectionData, propertyData, clientData] = await Promise.all([
-        Inspection.list().catch(err => { console.error("Error loading inspections:", err); return []; }),
-        Property.list().catch(err => { console.error("Error loading properties:", err); return []; }),
-        Client.list().catch(err => { console.error("Error loading clients:", err); return []; })
+        Inspection.list().catch(() => []),
+        Property.list().catch(() => []),
+        Client.list().catch(() => [])
       ]);
 
-      console.log("Loaded inspections:", inspectionData);
-      console.log("Loaded properties:", propertyData);
-      console.log("Loaded clients:", clientData);
-
-      setInspections(inspectionData.sort((a, b) => new Date(b.created_date) - new Date(a.created_date)) || []);
+      setInspections(inspectionData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) || []);
       setProperties(propertyData || []);
       setClients(clientData || []);
 

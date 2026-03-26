@@ -72,7 +72,7 @@ export default function PropertyDetailView({ property, onEdit }) {
   }
 
   const sortedInspections = [...inspections].sort((a, b) => 
-    new Date(b.inspection_date || b.created_date) - new Date(a.inspection_date || a.created_date)
+    new Date(b.inspection_date || b.created_at) - new Date(a.inspection_date || a.created_at)
   );
 
   return (

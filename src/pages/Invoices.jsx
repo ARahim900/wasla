@@ -34,65 +34,29 @@ export default function Invoices() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
-  const [debugInfo, setDebugInfo] = useState("");
-
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      console.log("=== INVOICES DEBUG START ===");
-      
       try {
-        console.log("Testing entity availability:");
-        console.log("Invoice entity:", Invoice);
-        console.log("Client entity:", Client);
-        console.log("Inspection entity:", Inspection);
-        console.log("Property entity:", Property);
-        
-        // Test each entity separately
-        const invoiceResult = await Invoice.list().catch(err => {
-          console.error("Invoice.list() failed:", err);
-          return [];
-        });
-        
-        const clientResult = await Client.list().catch(err => {
-          console.error("Client.list() failed:", err);
-          return [];
-        });
-        
-        const inspectionResult = await Inspection.list().catch(err => {
-          console.error("Inspection.list() failed:", err);
-          return [];
-        });
-        
-        const propertyResult = await Property.list().catch(err => {
-          console.error("Property.list() failed:", err);
-          return [];
-        });
-        
-        console.log("Results:");
-        console.log("Invoices:", invoiceResult?.length || 0, invoiceResult);
-        console.log("Clients:", clientResult?.length || 0, clientResult);
-        console.log("Inspections:", inspectionResult?.length || 0, inspectionResult);
-        console.log("Properties:", propertyResult?.length || 0, propertyResult);
-        
-        setDebugInfo(`I:${invoiceResult?.length||0} C:${clientResult?.length||0} Ins:${inspectionResult?.length||0} P:${propertyResult?.length||0}`);
-        
+        const [invoiceResult, clientResult, inspectionResult, propertyResult] = await Promise.all([
+          Invoice.list().catch(() => []),
+          Client.list().catch(() => []),
+          Inspection.list().catch(() => []),
+          Property.list().catch(() => []),
+        ]);
+
         setInvoices(Array.isArray(invoiceResult) ? invoiceResult : []);
         setClients(Array.isArray(clientResult) ? clientResult : []);
         setInspections(Array.isArray(inspectionResult) ? inspectionResult : []);
         setProperties(Array.isArray(propertyResult) ? propertyResult : []);
-        
       } catch (error) {
-        console.error("=== CRITICAL ERROR IN INVOICES ===");
-        console.error("Error:", error);
+        console.error("Failed to load invoice data:", error);
         toast.error(`Failed to load invoice data: ${error.message}`);
-        setDebugInfo(`Error: ${error.message}`);
       } finally {
         setIsLoading(false);
-        console.log("=== INVOICES DEBUG END ===");
       }
     };
-    
+
     loadData();
   }, []);
 
@@ -135,7 +99,6 @@ export default function Invoices() {
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">Invoices</h1>
           <p className="text-sm lg:text-base text-slate-600 mt-1">Manage your billing and track payments.</p>
-          {debugInfo && <p className="text-xs text-red-600 mt-1">Debug: {debugInfo}</p>}
         </div>
         <Button onClick={() => navigate(createPageUrl("InvoiceForm"))} className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700">
           <Plus className="w-4 h-4 mr-2" />

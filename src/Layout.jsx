@@ -41,34 +41,29 @@ export default function Layout({ children, currentPageName }) {
   const { width } = useWindowSize();
   const isMobile = (width || 0) < 768; // md breakpoint
 
+  // Dark mode support
+  const [isDark, setIsDark] = useState(() => {
+    const lsTheme = localStorage.getItem("theme");
+    return lsTheme === "dark";
+  });
+
+  // Load user data + theme preference in a single call
   React.useEffect(() => {
-    User.me().then(setUser).catch(() => setUser(null));
+    User.me()
+      .then((me) => {
+        if (me) {
+          setUser(me);
+          if (typeof me.darkMode === "boolean") setIsDark(me.darkMode);
+          else if (me.theme) setIsDark(me.theme === "dark");
+        }
+      })
+      .catch(() => setUser(null));
   }, []);
 
   // Close mobile menu whenever route changes
   React.useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
-
-  // Dark mode support
-  const [isDark, setIsDark] = useState(false);
-  React.useEffect(() => {
-    const init = async () => {
-      const lsTheme = localStorage.getItem("theme");
-      if (lsTheme) setIsDark(lsTheme === "dark");
-      try {
-        const me = await User.me();
-        if (me) {
-          if (typeof me.darkMode === "boolean") setIsDark(me.darkMode);
-          else if (me.theme) setIsDark(me.theme === "dark");
-        }
-      } catch (err) {
-        // Silently ignore - theme will use localStorage fallback
-        console.debug('Theme sync failed:', err);
-      }
-    };
-    init();
-  }, []);
 
   React.useEffect(() => {
     if (isDark) {

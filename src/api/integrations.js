@@ -24,9 +24,19 @@ export async function UploadFile({ file, bucket = 'uploads' }) {
   }
 
   // Production mode: use Supabase Storage
+  // Get current user ID for folder-based ownership
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !userData?.user) {
+    console.error('Upload failed: User not authenticated');
+    throw new Error('Upload failed: You must be logged in to upload files');
+  }
+
+  const userId = userData.user.id;
   const fileExt = file.name.split('.').pop();
   const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-  const filePath = `${fileName}`;
+  // Include user_id in path for RLS policy: {user_id}/{filename}
+  const filePath = `${userId}/${fileName}`;
 
   const { error: uploadError } = await supabase.storage
     .from(bucket)

@@ -193,6 +193,18 @@ function createDemoEntityHandler(tableName) {
   };
 }
 
+// Helper to get current user ID
+async function getCurrentUserId() {
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error) {
+    console.error('Failed to get current user:', error.message);
+    throw new Error(`Authentication error: ${error.message}`);
+  }
+
+  return data?.user?.id || null;
+}
+
 // Supabase entity handler (production)
 function createSupabaseEntityHandler(tableName) {
   return {
@@ -307,9 +319,13 @@ function createSupabaseEntityHandler(tableName) {
     },
 
     async create(data) {
+      // Automatically add user_id for RLS
+      const userId = await getCurrentUserId();
+      const dataWithUser = userId ? { ...data, user_id: userId } : data;
+
       const { data: created, error } = await supabase
         .from(tableName)
-        .insert(data)
+        .insert(dataWithUser)
         .select()
         .single();
 
@@ -367,9 +383,15 @@ function createSupabaseEntityHandler(tableName) {
     },
 
     async bulkCreate(items) {
+      // Automatically add user_id for RLS
+      const userId = await getCurrentUserId();
+      const itemsWithUser = userId
+        ? items.map(item => ({ ...item, user_id: userId }))
+        : items;
+
       const { data, error } = await supabase
         .from(tableName)
-        .insert(items)
+        .insert(itemsWithUser)
         .select();
 
       if (error) {
