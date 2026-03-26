@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +10,7 @@ import { Mail, Lock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Login() {
-  const { login, signUp, isDemoMode } = useAuth();
+  const { isDemoMode } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
 
@@ -24,11 +25,15 @@ export default function Login() {
     }
     setIsLoading(true);
     try {
-      await login(loginData.email, loginData.password);
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginData.email,
+        password: loginData.password,
+      });
+      if (error) throw error;
+      // Full reload so AuthContext picks up the new session
       window.location.href = "/";
     } catch (error) {
       toast.error(error.message || "Login failed. Please check your credentials.");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -49,12 +54,16 @@ export default function Login() {
     }
     setIsLoading(true);
     try {
-      await signUp(signUpData.email, signUpData.password);
-      toast.success("Account created! You can now log in.");
+      const { error } = await supabase.auth.signUp({
+        email: signUpData.email,
+        password: signUpData.password,
+      });
+      if (error) throw error;
+      toast.success("Account created successfully!");
+      // Full reload — autoconfirm is on, so user is immediately authenticated
       window.location.href = "/";
     } catch (error) {
       toast.error(error.message || "Sign up failed. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };
