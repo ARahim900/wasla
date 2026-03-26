@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { UploadFile } from '@/api/integrations';
 import { UploadCloud, X, Loader2, Camera } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,16 +20,23 @@ export default function PhotoUpload({ photos, onUpdate }) {
     setUploading(true);
     const uploadedPhotos = [];
 
+    let failCount = 0;
     for (const file of Array.from(files)) {
       try {
         const { file_url } = await UploadFile({ file, bucket: 'inspection-photos' });
         uploadedPhotos.push({ url: file_url, name: file.name });
       } catch (error) {
+        failCount++;
         console.error('Error uploading file:', error);
       }
     }
 
-    onUpdate([...photos, ...uploadedPhotos]);
+    if (uploadedPhotos.length > 0) {
+      onUpdate([...photos, ...uploadedPhotos]);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to upload ${failCount} photo${failCount > 1 ? 's' : ''}. Please try again.`);
+    }
     setUploading(false);
   };
 

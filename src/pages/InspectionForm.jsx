@@ -202,7 +202,7 @@ export default function InspectionForm() {
 
   return (
     <div>
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} noValidate className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <h1 className="text-2xl font-bold text-slate-900 order-2 sm:order-1">
             {inspection.id ? "Edit Inspection" : "New Inspection"}
@@ -229,7 +229,6 @@ export default function InspectionForm() {
                 value={inspection.client_name || ""}
                 onChange={(e) => handleUpdateField("client_name", e.target.value)}
                 placeholder="Enter client's name"
-                required
                 className="w-full h-10 text-sm"
               />
             </div>
@@ -238,7 +237,6 @@ export default function InspectionForm() {
               <Select
                 value={inspection.property_type}
                 onValueChange={(value) => handleUpdateField("property_type", value)}
-                required
               >
                 <SelectTrigger id="property_type" className="h-10 text-sm">
                   <SelectValue placeholder="Select property type" />
@@ -267,7 +265,6 @@ export default function InspectionForm() {
                 type="date"
                 value={inspection.inspection_date || ""}
                 onChange={(e) => handleUpdateField("inspection_date", e.target.value)}
-                required
                 className="w-full h-10 text-sm px-3"
               />
             </div>
@@ -276,7 +273,6 @@ export default function InspectionForm() {
               <Select
                 value={inspection.inspection_type}
                 onValueChange={(value) => handleUpdateField("inspection_type", value)}
-                required
               >
                 <SelectTrigger id="inspection_type" className="h-10">
                   <SelectValue />
