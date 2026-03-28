@@ -139,6 +139,15 @@ export const AuthProvider = ({ children }) => {
     return { confirmEmail: false };
   };
 
+  const resetPassword = async (email) => {
+    if (isDemoMode) return true;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/`,
+    });
+    if (error) throw error;
+    return true;
+  };
+
   const resendConfirmation = async (email) => {
     try {
       if (isDemoMode) return true;
@@ -188,6 +197,7 @@ export const AuthProvider = ({ children }) => {
         login,
         signUp,
         resendConfirmation,
+        resetPassword,
         isDemoMode,
       }}
     >

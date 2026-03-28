@@ -10,11 +10,13 @@ import { Mail, Lock, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Login() {
-  const { isDemoMode, login, signUp, resendConfirmation } = useAuth();
+  const { isDemoMode, login, signUp, resendConfirmation, resetPassword } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
   const [confirmEmailSent, setConfirmEmailSent] = useState(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
 
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signUpData, setSignUpData] = useState({ email: "", password: "", confirmPassword: "" });
@@ -78,6 +80,75 @@ export default function Login() {
       setIsLoading(false);
     }
   };
+
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-emerald-50 p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-emerald-600">Wasla</h1>
+            <p className="text-slate-600 mt-1">Property Solutions</p>
+          </div>
+          <Card>
+            <CardContent className="pt-8 pb-8">
+              <h2 className="text-xl font-bold text-slate-900 mb-2">Reset your password</h2>
+              <p className="text-slate-600 text-sm mb-6">
+                Enter your email address and we'll send you a link to reset your password.
+              </p>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!forgotEmail) {
+                    toast.error("Please enter your email address.");
+                    return;
+                  }
+                  setIsLoading(true);
+                  try {
+                    await resetPassword(forgotEmail);
+                    toast.success("Password reset email sent! Check your inbox.");
+                  } catch (err) {
+                    toast.error(err.message || "Failed to send reset email. Please try again.");
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                className="space-y-4"
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="forgot-email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <Button type="submit" disabled={isLoading} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  {isLoading ? "Sending..." : "Send Reset Link"}
+                </Button>
+              </form>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setActiveTab("login");
+                }}
+                className="w-full mt-3 text-slate-600"
+              >
+                Back to Log In
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (confirmEmailSent) {
     return (
@@ -203,6 +274,18 @@ export default function Login() {
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     {isLoading ? "Logging in..." : "Log In"}
                   </Button>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotEmail(loginData.email);
+                        setShowForgotPassword(true);
+                      }}
+                      className="text-sm text-emerald-600 hover:text-emerald-700 hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                 </form>
               </TabsContent>
 
