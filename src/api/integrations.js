@@ -51,7 +51,31 @@ export async function UploadFile({ file, bucket = 'uploads' }) {
     .from(bucket)
     .getPublicUrl(filePath);
 
-  return { file_url: publicUrl };
+  return { file_url: publicUrl, file_path: filePath };
+}
+
+// Delete a file from Supabase Storage
+export async function DeleteFile({ bucket = 'inspection-photos', url }) {
+  if (isDemoMode || !url) return;
+
+  // Skip base64 data URLs
+  if (url.startsWith('data:')) return;
+
+  try {
+    // Extract file path from the public URL
+    // URL format: https://<project>.supabase.co/storage/v1/object/public/<bucket>/<path>
+    const bucketPrefix = `/storage/v1/object/public/${bucket}/`;
+    const idx = url.indexOf(bucketPrefix);
+    if (idx === -1) return;
+
+    const filePath = decodeURIComponent(url.substring(idx + bucketPrefix.length));
+    const { error } = await supabase.storage.from(bucket).remove([filePath]);
+    if (error) {
+      console.error('Delete file failed:', error.message);
+    }
+  } catch (error) {
+    console.error('Delete file failed:', error);
+  }
 }
 
 // Send email using Supabase Edge Function
@@ -152,6 +176,7 @@ export async function ExtractDataFromUploadedFile({ file_url, extraction_type })
 // Core integrations object for backwards compatibility
 export const Core = {
   UploadFile,
+  DeleteFile,
   SendEmail,
   SendSMS,
   InvokeLLM,

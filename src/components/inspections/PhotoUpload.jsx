@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadFile } from '@/api/integrations';
+import { UploadFile, DeleteFile } from '@/api/integrations';
 import { UploadCloud, X, Loader2, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -8,6 +8,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB (matches Supabase bucket limit)
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 export default function PhotoUpload({ photos, onUpdate }) {
   const [uploading, setUploading] = useState(false);
@@ -19,9 +22,19 @@ export default function PhotoUpload({ photos, onUpdate }) {
 
     setUploading(true);
     const uploadedPhotos = [];
-
     let failCount = 0;
+    let skippedSize = 0;
+    let skippedType = 0;
+
     for (const file of Array.from(files)) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        skippedType++;
+        continue;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        skippedSize++;
+        continue;
+      }
       try {
         const { file_url } = await UploadFile({ file, bucket: 'inspection-photos' });
         uploadedPhotos.push({ url: file_url, name: file.name });
@@ -34,6 +47,12 @@ export default function PhotoUpload({ photos, onUpdate }) {
     if (uploadedPhotos.length > 0) {
       onUpdate([...photos, ...uploadedPhotos]);
     }
+    if (skippedType > 0) {
+      toast.error(`${skippedType} file${skippedType > 1 ? 's' : ''} skipped: only JPEG, PNG, GIF, and WebP are allowed.`);
+    }
+    if (skippedSize > 0) {
+      toast.error(`${skippedSize} file${skippedSize > 1 ? 's' : ''} skipped: max size is 10 MB.`);
+    }
     if (failCount > 0) {
       toast.error(`Failed to upload ${failCount} photo${failCount > 1 ? 's' : ''}. Please try again.`);
     }
@@ -45,8 +64,13 @@ export default function PhotoUpload({ photos, onUpdate }) {
   };
 
   const handleRemove = (index) => {
+    const removed = photos[index];
     const newPhotos = photos.filter((_, i) => i !== index);
     onUpdate(newPhotos);
+    // Delete file from storage in background
+    if (removed?.url) {
+      DeleteFile({ url: removed.url }).catch(() => {});
+    }
   };
 
   const handleUploadFromDevice = () => {
@@ -126,14 +150,14 @@ export default function PhotoUpload({ photos, onUpdate }) {
         onChange={handleFileChange}
         className="hidden"
         multiple
-        accept="image/*"
+        accept="image/jpeg,image/png,image/gif,image/webp"
       />
       <input
         type="file"
         ref={cameraInputRef}
         onChange={handleFileChange}
         className="hidden"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/gif,image/webp"
         capture="environment"
       />
     </div>

@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { User } from "@/api/entities";
+import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
 import MobileTabBar, { BOTTOM_NAV_HEIGHT } from "@/components/navigation/MobileTabBar";
 
@@ -36,6 +37,7 @@ const navigationItems = [
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [user, setUser] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { width } = useWindowSize();
@@ -148,7 +150,7 @@ export default function Layout({ children, currentPageName }) {
                     <DropdownMenuItem onClick={() => navigate(createPageUrl("Settings"))}>
                       <Settings className="w-4 h-4 mr-2" /> Settings
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => User.logout()}>
+                    <DropdownMenuItem onClick={() => logout()}>
                       <LogOut className="w-4 h-4 mr-2" /> Logout
                     </DropdownMenuItem>
                   </DropdownMenuContent>

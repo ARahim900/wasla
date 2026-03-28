@@ -1,6 +1,6 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,8 @@ import { Mail, Lock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Login() {
-  const { isDemoMode } = useAuth();
+  const { isDemoMode, login, signUp } = useAuth();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
 
@@ -25,13 +26,8 @@ export default function Login() {
     }
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: loginData.email,
-        password: loginData.password,
-      });
-      if (error) throw error;
-      // Full reload so AuthContext picks up the new session
-      window.location.href = "/";
+      await login(loginData.email, loginData.password);
+      navigate("/");
     } catch (error) {
       toast.error(error.message || "Login failed. Please check your credentials.");
       setIsLoading(false);
@@ -54,14 +50,9 @@ export default function Login() {
     }
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
-        email: signUpData.email,
-        password: signUpData.password,
-      });
-      if (error) throw error;
+      await signUp(signUpData.email, signUpData.password);
       toast.success("Account created successfully!");
-      // Full reload — autoconfirm is on, so user is immediately authenticated
-      window.location.href = "/";
+      navigate("/");
     } catch (error) {
       toast.error(error.message || "Sign up failed. Please try again.");
       setIsLoading(false);
@@ -74,7 +65,7 @@ export default function Login() {
         <Card className="w-full max-w-md">
           <CardContent className="pt-6 text-center">
             <p className="text-slate-600 mb-4">Running in demo mode. No login required.</p>
-            <Button onClick={() => (window.location.href = "/")} className="bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={() => navigate("/")} className="bg-emerald-600 hover:bg-emerald-700">
               Go to Dashboard
             </Button>
           </CardContent>

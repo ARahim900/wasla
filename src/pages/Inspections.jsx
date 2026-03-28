@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Inspection, Property, Client } from "@/api/entities";
+import { DeleteFile } from "@/api/integrations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,6 +78,22 @@ export default function Inspections() {
     if (!confirm("Are you sure you want to delete this inspection?")) return;
 
     try {
+      // Clean up photos from storage before deleting the record
+      const inspection = inspections.find(i => i.id === inspectionId);
+      if (inspection) {
+        const photoUrls = [];
+        // Collect photos from areas → items
+        (inspection.areas || []).forEach(area => {
+          (area.items || []).forEach(item => {
+            (item.photos || []).forEach(p => { if (p.url) photoUrls.push(p.url); });
+          });
+        });
+        // Collect top-level photos
+        (inspection.photos || []).forEach(p => { if (p.url) photoUrls.push(p.url); });
+        // Delete all in background
+        photoUrls.forEach(url => DeleteFile({ url }).catch(() => {}));
+      }
+
       await Inspection.delete(inspectionId);
       toast.success("Inspection deleted successfully");
       await loadData();

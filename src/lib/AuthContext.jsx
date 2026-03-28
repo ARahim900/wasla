@@ -135,6 +135,11 @@ export const AuthProvider = ({ children }) => {
       if (error) {
         throw error;
       }
+
+      // Auto-confirm is on, so set user immediately after signup
+      const userData = await User.me();
+      setUser(userData);
+      setIsAuthenticated(true);
     } catch (error) {
       setAuthError({
         type: 'signup_failed',
@@ -160,7 +165,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const navigateToLogin = () => {
-    window.location.href = '/login';
+    // State-based: clearing auth triggers Login route in App.jsx
+    setUser(null);
+    setIsAuthenticated(false);
   };
 
   return (

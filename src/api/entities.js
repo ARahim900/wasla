@@ -499,19 +499,6 @@ export const User = {
     };
   },
 
-  async logout() {
-    if (isDemoMode) {
-      window.location.href = '/';
-      return;
-    }
-
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Logout failed:', error.message);
-    }
-    window.location.href = '/';
-  },
-
   async login(email, password) {
     if (isDemoMode) {
       return demoUser;
@@ -557,27 +544,5 @@ export const User = {
     return null;
   },
 
-  redirectToLogin(returnUrl) {
-    const url = returnUrl ? `/login?returnUrl=${encodeURIComponent(returnUrl)}` : '/login';
-    window.location.href = url;
-  },
 };
 
-// Query helper
-export const Query = {
-  async raw(query) {
-    if (isDemoMode) {
-      console.warn('Raw queries not supported in demo mode');
-      return [];
-    }
-
-    const { data, error } = await supabase.rpc('execute_query', { query_text: query });
-
-    if (error) {
-      console.error('Query failed:', error.message);
-      throw new Error(`Query failed: ${error.message}`);
-    }
-
-    return data;
-  },
-};

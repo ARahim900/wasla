@@ -24,23 +24,26 @@ CREATE TABLE IF NOT EXISTS profiles (
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- Policies for profiles
+DROP POLICY IF EXISTS "Users can view their own profile" ON profiles;
 CREATE POLICY "Users can view their own profile"
   ON profiles FOR SELECT
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update their own profile" ON profiles;
 CREATE POLICY "Users can update their own profile"
   ON profiles FOR UPDATE
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert their own profile" ON profiles;
 CREATE POLICY "Users can insert their own profile"
   ON profiles FOR INSERT
   WITH CHECK (auth.uid() = id);
 
 -- Function to handle new user signup (auto-create profile)
-CREATE OR REPLACE FUNCTION handle_new_user()
+CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO profiles (id, email, full_name, avatar)
+  INSERT INTO public.profiles (id, email, full_name, avatar)
   VALUES (
     NEW.id,
     NEW.email,
@@ -48,8 +51,13 @@ BEGIN
     NEW.raw_user_meta_data->>'avatar_url'
   );
   RETURN NEW;
+EXCEPTION
+  WHEN others THEN
+    -- Allow the user to be created even if profile creation fails due to an existing table shape mismatch
+    RAISE LOG 'Error creating profile: %', SQLERRM;
+    RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Trigger to automatically create profile on signup
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
@@ -77,18 +85,22 @@ CREATE TABLE IF NOT EXISTS clients (
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 
 -- Policies for clients (users can only access their own clients)
+DROP POLICY IF EXISTS "Users can view their own clients" ON clients;
 CREATE POLICY "Users can view their own clients"
   ON clients FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own clients" ON clients;
 CREATE POLICY "Users can insert their own clients"
   ON clients FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own clients" ON clients;
 CREATE POLICY "Users can update their own clients"
   ON clients FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own clients" ON clients;
 CREATE POLICY "Users can delete their own clients"
   ON clients FOR DELETE
   USING (auth.uid() = user_id);
@@ -116,18 +128,22 @@ CREATE TABLE IF NOT EXISTS properties (
 ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
 
 -- Policies for properties
+DROP POLICY IF EXISTS "Users can view their own properties" ON properties;
 CREATE POLICY "Users can view their own properties"
   ON properties FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own properties" ON properties;
 CREATE POLICY "Users can insert their own properties"
   ON properties FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own properties" ON properties;
 CREATE POLICY "Users can update their own properties"
   ON properties FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own properties" ON properties;
 CREATE POLICY "Users can delete their own properties"
   ON properties FOR DELETE
   USING (auth.uid() = user_id);
@@ -161,18 +177,22 @@ CREATE TABLE IF NOT EXISTS inspections (
 ALTER TABLE inspections ENABLE ROW LEVEL SECURITY;
 
 -- Policies for inspections
+DROP POLICY IF EXISTS "Users can view their own inspections" ON inspections;
 CREATE POLICY "Users can view their own inspections"
   ON inspections FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own inspections" ON inspections;
 CREATE POLICY "Users can insert their own inspections"
   ON inspections FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own inspections" ON inspections;
 CREATE POLICY "Users can update their own inspections"
   ON inspections FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own inspections" ON inspections;
 CREATE POLICY "Users can delete their own inspections"
   ON inspections FOR DELETE
   USING (auth.uid() = user_id);
@@ -206,18 +226,22 @@ CREATE TABLE IF NOT EXISTS invoices (
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 
 -- Policies for invoices
+DROP POLICY IF EXISTS "Users can view their own invoices" ON invoices;
 CREATE POLICY "Users can view their own invoices"
   ON invoices FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own invoices" ON invoices;
 CREATE POLICY "Users can insert their own invoices"
   ON invoices FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own invoices" ON invoices;
 CREATE POLICY "Users can update their own invoices"
   ON invoices FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own invoices" ON invoices;
 CREATE POLICY "Users can delete their own invoices"
   ON invoices FOR DELETE
   USING (auth.uid() = user_id);

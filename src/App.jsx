@@ -8,7 +8,6 @@ import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
-import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -36,9 +35,20 @@ const AuthenticatedApp = () => {
 
   // Handle authentication errors
   if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    }
+    return (
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <p className="text-red-600 font-medium mb-2">Authentication Error</p>
+          <p className="text-slate-600 text-sm mb-4">{authError.message}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // If not authenticated and not in demo mode, show login
