@@ -79,75 +79,78 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    try {
-      setIsLoadingAuth(true);
-      setAuthError(null);
+    setAuthError(null);
 
-      if (isDemoMode) {
-        const userData = await User.me();
-        setUser(userData);
-        setIsAuthenticated(true);
-        setIsLoadingAuth(false);
-        return;
-      }
-
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        throw error;
-      }
-
+    if (isDemoMode) {
       const userData = await User.me();
       setUser(userData);
       setIsAuthenticated(true);
-    } catch (error) {
-      setAuthError({
-        type: 'auth_failed',
-        message: error instanceof Error ? error.message : 'Login failed',
-      });
-      throw error;
-    } finally {
-      setIsLoadingAuth(false);
+      return;
     }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const userData = await User.me();
+    setUser(userData);
+    setIsAuthenticated(true);
   };
 
   const signUp = async (email, password) => {
-    try {
-      setIsLoadingAuth(true);
-      setAuthError(null);
+    setAuthError(null);
 
-      if (isDemoMode) {
-        const userData = await User.me();
-        setUser(userData);
-        setIsAuthenticated(true);
-        setIsLoadingAuth(false);
-        return;
-      }
-
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Auto-confirm is on, so set user immediately after signup
+    if (isDemoMode) {
       const userData = await User.me();
       setUser(userData);
       setIsAuthenticated(true);
-    } catch (error) {
-      setAuthError({
-        type: 'signup_failed',
-        message: error instanceof Error ? error.message : 'Sign up failed',
-      });
+      return { confirmEmail: false };
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
       throw error;
-    } finally {
-      setIsLoadingAuth(false);
+    }
+
+    // If user already exists with email confirmations enabled,
+    // Supabase returns a fake user with empty identities
+    if (data?.user?.identities?.length === 0) {
+      throw new Error('An account with this email already exists. Please log in instead.');
+    }
+
+    // If no session returned, email confirmation is required
+    if (!data.session) {
+      return { confirmEmail: true };
+    }
+
+    // Session exists (auto-confirm is on), log in immediately
+    const userData = await User.me();
+    setUser(userData);
+    setIsAuthenticated(true);
+    return { confirmEmail: false };
+  };
+
+  const resendConfirmation = async (email) => {
+    try {
+      if (isDemoMode) return true;
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error("Resend confirmation error:", error);
+      throw error;
     }
   };
 
@@ -184,6 +187,7 @@ export const AuthProvider = ({ children }) => {
         checkAppState,
         login,
         signUp,
+        resendConfirmation,
         isDemoMode,
       }}
     >

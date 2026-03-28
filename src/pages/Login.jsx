@@ -6,14 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, Lock, Loader2 } from "lucide-react";
+import { Mail, Lock, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Login() {
-  const { isDemoMode, login, signUp } = useAuth();
+  const { isDemoMode, login, signUp, resendConfirmation } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
+  const [confirmEmailSent, setConfirmEmailSent] = useState(null);
 
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signUpData, setSignUpData] = useState({ email: "", password: "", confirmPassword: "" });
@@ -29,7 +30,15 @@ export default function Login() {
       await login(loginData.email, loginData.password);
       navigate("/");
     } catch (error) {
-      toast.error(error.message || "Login failed. Please check your credentials.");
+      const msg = error.message || "Login failed. Please check your credentials.";
+      if (msg.toLowerCase().includes("email not confirmed") || msg.toLowerCase().includes("verify")) {
+        toast.error("Please verify your email address to log in.");
+        setConfirmEmailSent(loginData.email);
+        resendConfirmation(loginData.email).catch(() => {}); // Attempt background resend
+      } else {
+        toast.error(msg);
+      }
+    } finally {
       setIsLoading(false);
     }
   };
@@ -50,14 +59,78 @@ export default function Login() {
     }
     setIsLoading(true);
     try {
-      await signUp(signUpData.email, signUpData.password);
-      toast.success("Account created successfully!");
-      navigate("/");
+      const result = await signUp(signUpData.email, signUpData.password);
+      if (result?.confirmEmail) {
+        setConfirmEmailSent(signUpData.email);
+      } else {
+        toast.success("Account created successfully!");
+        navigate("/");
+      }
     } catch (error) {
-      toast.error(error.message || "Sign up failed. Please try again.");
+      const msg = error.message || "Sign up failed. Please try again.";
+      if (msg.toLowerCase().includes("already") || msg.toLowerCase().includes("registered")) {
+        toast.error("Account already exists. If you haven't verified it, click Resend on the next screen.", { duration: 6000 });
+        setConfirmEmailSent(signUpData.email);
+      } else {
+        toast.error(msg);
+      }
+    } finally {
       setIsLoading(false);
     }
   };
+
+  if (confirmEmailSent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-emerald-50 p-4">
+        <div className="w-full max-w-md">
+          <Card>
+            <CardContent className="pt-8 pb-8 text-center">
+              <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Check your email</h2>
+              <p className="text-slate-600 mb-1">
+                We sent a confirmation link to
+              </p>
+              <p className="font-medium text-slate-900 mb-6">{confirmEmailSent}</p>
+              <p className="text-sm text-slate-500 mb-6">
+                Click the link in the email to activate your account. If you don't see it, check your spam folder.
+              </p>
+              <div className="space-y-3">
+                <Button
+                  onClick={async () => {
+                    setIsLoading(true);
+                    try {
+                      await resendConfirmation(confirmEmailSent);
+                      toast.success("Verification email resent! Please check your inbox and spam folder.");
+                    } catch (err) {
+                      toast.error(err.message || "Failed to resend email. Please try again later.");
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                  variant="outline"
+                  disabled={isLoading}
+                  className="w-full text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Resend Verification Email
+                </Button>
+                <Button
+                  onClick={() => {
+                    setConfirmEmailSent(null);
+                    setActiveTab("login");
+                    setLoginData((p) => ({ ...p, email: confirmEmailSent }));
+                  }}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                >
+                  Back to Log In
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (isDemoMode) {
     return (
