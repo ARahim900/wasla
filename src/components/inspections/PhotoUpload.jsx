@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB (matches Supabase bucket limit)
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 export default function PhotoUpload({ photos, onUpdate }) {
   const [uploading, setUploading] = useState(false);
@@ -27,7 +26,7 @@ export default function PhotoUpload({ photos, onUpdate }) {
     let skippedType = 0;
 
     for (const file of Array.from(files)) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
+      if (!file.type.startsWith('image/')) {
         skippedType++;
         continue;
       }
@@ -48,7 +47,7 @@ export default function PhotoUpload({ photos, onUpdate }) {
       onUpdate([...photos, ...uploadedPhotos]);
     }
     if (skippedType > 0) {
-      toast.error(`${skippedType} file${skippedType > 1 ? 's' : ''} skipped: only JPEG, PNG, GIF, and WebP are allowed.`);
+      toast.error(`${skippedType} file${skippedType > 1 ? 's' : ''} skipped: only image files are allowed.`);
     }
     if (skippedSize > 0) {
       toast.error(`${skippedSize} file${skippedSize > 1 ? 's' : ''} skipped: max size is 10 MB.`);
@@ -150,14 +149,14 @@ export default function PhotoUpload({ photos, onUpdate }) {
         onChange={handleFileChange}
         className="hidden"
         multiple
-        accept="image/jpeg,image/png,image/gif,image/webp"
+        accept="image/*"
       />
       <input
         type="file"
         ref={cameraInputRef}
         onChange={handleFileChange}
         className="hidden"
-        accept="image/jpeg,image/png,image/gif,image/webp"
+        accept="image/*"
         capture="environment"
       />
     </div>
