@@ -127,6 +127,9 @@ export default function InspectionForm() {
 
   const preparePayload = (ins) => {
     const payload = { ...ins };
+    // Convert empty string IDs to null (Supabase UUID columns reject empty strings)
+    if (!payload.client_id) payload.client_id = null;
+    if (!payload.property_id) payload.property_id = null;
     payload.areas = (payload.areas || []).map((a) => ({
       ...a,
       id: String(a.id),

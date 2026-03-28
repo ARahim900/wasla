@@ -6,6 +6,26 @@ import { User } from '@/api/entities';
 const isDemoMode = !import.meta.env.VITE_SUPABASE_URL ||
   import.meta.env.VITE_SUPABASE_URL.includes('your-project');
 
+// Load user profile from the session user object without calling getUser()
+// (avoids navigator.locks deadlock inside onAuthStateChange callbacks)
+async function loadUserProfile(sessionUser) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', sessionUser.id)
+    .single();
+
+  return {
+    id: sessionUser.id,
+    email: sessionUser.email || '',
+    full_name: profile?.full_name || sessionUser.user_metadata?.full_name,
+    avatar: profile?.avatar || sessionUser.user_metadata?.avatar_url,
+    role: profile?.role || 'user',
+    darkMode: profile?.dark_mode ?? false,
+    theme: profile?.theme || 'light',
+  };
+}
+
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
@@ -17,23 +37,80 @@ export const AuthProvider = ({ children }) => {
   const [appPublicSettings] = useState(null);
 
   useEffect(() => {
-    checkAppState();
-
-    // Skip Supabase auth listener in demo mode
+    // In demo mode, skip Supabase entirely
     if (isDemoMode) {
-      return;
-    }
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
+      (async () => {
+        try {
+          setIsLoadingAuth(true);
           const userData = await User.me();
           setUser(userData);
           setIsAuthenticated(true);
+        } catch (error) {
+          console.error('Demo auth failed:', error);
+        } finally {
+          setIsLoadingAuth(false);
+        }
+      })();
+      return;
+    }
+
+    // Use onAuthStateChange as the single source of truth for auth state.
+    // CRITICAL: The callback MUST be synchronous (no async/await). In Supabase
+    // JS v2.65+, the callback runs inside a navigator.locks scope. Any Supabase
+    // call (even .from().select()) internally calls getSession() which re-acquires
+    // the same lock, causing a deadlock. Set state from session data immediately,
+    // then defer the profile load via setTimeout to run outside the lock.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'INITIAL_SESSION') {
+          if (session?.user) {
+            // Set basic user data immediately from session (no async, no lock needed)
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              full_name: session.user.user_metadata?.full_name || session.user.email,
+              role: 'user',
+              darkMode: false,
+              theme: 'light',
+            });
+            setIsAuthenticated(true);
+            // Load full profile after lock is released
+            setTimeout(() => {
+              loadUserProfile(session.user)
+                .then(setUser)
+                .catch((error) => {
+                  console.error('Failed to load profile:', error);
+                });
+            }, 0);
+          } else {
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+          setIsLoadingAuth(false);
+        } else if (event === 'SIGNED_IN' && session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            full_name: session.user.user_metadata?.full_name || session.user.email,
+            role: 'user',
+            darkMode: false,
+            theme: 'light',
+          });
+          setIsAuthenticated(true);
+          setTimeout(() => {
+            loadUserProfile(session.user)
+              .then(setUser)
+              .catch((error) => console.error('Failed to load profile:', error));
+          }, 0);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setIsAuthenticated(false);
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          setTimeout(() => {
+            loadUserProfile(session.user)
+              .then(setUser)
+              .catch((error) => console.error('Failed to refresh user data:', error));
+          }, 0);
         }
       }
     );
@@ -48,7 +125,6 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingAuth(true);
       setAuthError(null);
 
-      // In demo mode, auto-login as demo user
       if (isDemoMode) {
         const userData = await User.me();
         setUser(userData);
@@ -57,10 +133,12 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
+      // checkAppState is called manually (e.g., retry button), NOT inside
+      // onAuthStateChange, so getSession() is safe here.
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
-        const userData = await User.me();
+        const userData = await loadUserProfile(session.user);
         setUser(userData);
         setIsAuthenticated(true);
       } else {
