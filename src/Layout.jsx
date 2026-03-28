@@ -16,7 +16,7 @@ import {
   Menu,
   X
 } from "lucide-react";
-import useWindowSize from "@/components/hooks/useWindowSize";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -40,8 +40,7 @@ export default function Layout({ children, currentPageName }) {
   const { logout } = useAuth();
   const [user, setUser] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { width } = useWindowSize();
-  const isMobile = (width || 0) < 768; // md breakpoint
+  const isMobile = useIsMobile();
 
   // Dark mode support
   const [isDark, setIsDark] = useState(() => {
