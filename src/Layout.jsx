@@ -94,30 +94,23 @@ export default function Layout({ children, currentPageName }) {
       >
         Skip to content
       </a>
-      {/* Enhanced Header with Logo and Controls */}
-      <header className="bg-card border-b border-border sticky top-0 z-50">
+      {/* Header with Logo, Controls, and Navigation */}
+      <header className="app-header bg-card sticky top-0 z-50">
         {/* Top Bar - Logo and Controls */}
-        <div className="bg-card border-b border-border">
+        <div>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center min-h-[60px]">
-              {/* Enhanced Logo Section with Transparent Background */}
-              <div className="flex items-center space-x-4 space-x-reverse">
-                <div className="flex items-center bg-transparent rounded-lg p-2">
-                  <img
-                    src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b44f73a9997833d114376d/f255c3751_image.png"
-                    alt="Wasla Logo"
-                    className="w-12 h-12 object-contain opacity-90"
-                  />
-                  <div className="ms-3 hidden sm:block">
-                    <span className="text-2xl font-bold text-foreground">
-                      Wasla
-                    </span>
-                    <p className="text-xs text-muted-foreground font-medium">
-                      Property Solutions
-                    </p>
-                  </div>
-                </div>
-              </div>
+              {/* Logo + Brand Name */}
+              <Link to="/" className="flex items-center gap-2.5 group">
+                <img
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b44f73a9997833d114376d/f255c3751_image.png"
+                  alt="Wasla Logo"
+                  className="w-14 h-14 object-contain"
+                />
+                <span className="text-xl font-bold text-primary tracking-tight">
+                  Wasla
+                </span>
+              </Link>
 
               {/* Right side controls */}
               <div className="flex items-center space-x-4 space-x-reverse">
@@ -178,34 +171,44 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </div>
 
-        {/* Navigation Bar - Separated Below */}
-        <div className="bg-card">
+        {/* Navigation Bar */}
+        <div className="border-t border-border bg-muted/40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex space-x-1 space-x-reverse py-3">
-              {navigationItems.map((item) => (
-                <Link
-                  key={item.title}
-                  to={item.url}
-                  className="px-4 py-2 min-h-[44px] text-sm font-semibold text-center inline-flex items-center rounded-lg transition-colors duration-200 text-muted-foreground hover:text-accent-foreground hover:bg-accent"
-                >
-                  <item.icon className="w-4 h-4 me-2" />
-                  {item.title}
-                </Link>
-              ))}
+            <nav className="hidden md:flex space-x-1 space-x-reverse py-1.5">
+              {navigationItems.map((item) => {
+                const isActive = location.pathname === item.url || (item.url === '/Dashboard' && location.pathname === '/');
+                return (
+                  <Link
+                    key={item.title}
+                    to={item.url}
+                    className={cn(
+                      "px-4 py-2 min-h-[44px] text-sm font-semibold text-center inline-flex items-center rounded-lg transition-colors duration-200",
+                      isActive
+                        ? "text-primary bg-primary/8"
+                        : "text-muted-foreground hover:text-accent-foreground hover:bg-accent"
+                    )}
+                  >
+                    <item.icon className="w-4 h-4 me-2" />
+                    {item.title}
+                  </Link>
+                );
+              })}
             </nav>
 
             {/* Mobile Navigation */}
             {isMobileMenuOpen && (
               <div className="md:hidden py-3 border-t border-border">
                 <div className="space-y-1">
-                  {navigationItems.map((item) => (
+                  {navigationItems.map((item) => {
+                    const isActive = location.pathname === item.url || (item.url === '/Dashboard' && location.pathname === '/');
+                    return (
                     <Link
                       key={item.title}
                       to={item.url}
                       className={cn(
                         "flex items-center px-4 py-3 min-h-[44px] rounded-lg text-sm font-medium transition-colors duration-200",
-                        location.pathname === item.url
+                        isActive
                           ? "bg-accent text-foreground"
                           : "text-muted-foreground hover:text-accent-foreground hover:bg-accent"
                       )}
@@ -214,7 +217,8 @@ export default function Layout({ children, currentPageName }) {
                       <item.icon className="w-5 h-5 me-3" />
                       {item.title}
                     </Link>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
