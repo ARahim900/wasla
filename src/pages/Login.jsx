@@ -83,10 +83,10 @@ export default function Login() {
 
   if (showForgotPassword) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-emerald-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-primary/5 p-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-emerald-600">Wasla</h1>
+            <h1 className="text-3xl font-bold text-primary">Wasla</h1>
             <p className="text-slate-600 mt-1">Property Solutions</p>
           </div>
           <Card>
@@ -128,7 +128,7 @@ export default function Login() {
                     />
                   </div>
                 </div>
-                <Button type="submit" disabled={isLoading} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                <Button type="submit" disabled={isLoading} className="w-full">
                   {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                   {isLoading ? "Sending..." : "Send Reset Link"}
                 </Button>
@@ -152,11 +152,11 @@ export default function Login() {
 
   if (confirmEmailSent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-emerald-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-primary/5 p-4">
         <div className="w-full max-w-md">
           <Card>
             <CardContent className="pt-8 pb-8 text-center">
-              <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+              <CheckCircle2 className="w-16 h-16 text-primary mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-slate-900 mb-2">Check your email</h2>
               <p className="text-slate-600 mb-1">
                 We sent a confirmation link to
@@ -180,7 +180,7 @@ export default function Login() {
                   }}
                   variant="outline"
                   disabled={isLoading}
-                  className="w-full text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                  className="w-full text-primary border-primary/20 hover:bg-primary/5"
                 >
                   {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                   Resend Verification Email
@@ -191,7 +191,7 @@ export default function Login() {
                     setActiveTab("login");
                     setLoginData((p) => ({ ...p, email: confirmEmailSent }));
                   }}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                  className="w-full"
                 >
                   Back to Log In
                 </Button>
@@ -209,7 +209,7 @@ export default function Login() {
         <Card className="w-full max-w-md">
           <CardContent className="pt-6 text-center">
             <p className="text-slate-600 mb-4">Running in demo mode. No login required.</p>
-            <Button onClick={() => navigate("/")} className="bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={() => navigate("/")}>
               Go to Dashboard
             </Button>
           </CardContent>
@@ -219,7 +219,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-emerald-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-primary/5 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <img
@@ -227,7 +227,7 @@ export default function Login() {
             alt="Wasla Logo"
             className="w-16 h-16 mx-auto mb-4 object-contain"
           />
-          <h1 className="text-3xl font-bold text-emerald-600">Wasla</h1>
+          <h1 className="text-3xl font-bold text-primary">Wasla</h1>
           <p className="text-slate-600 mt-1">Property Solutions</p>
         </div>
 
@@ -270,7 +270,7 @@ export default function Login() {
                       />
                     </div>
                   </div>
-                  <Button type="submit" disabled={isLoading} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                  <Button type="submit" disabled={isLoading} className="w-full">
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     {isLoading ? "Logging in..." : "Log In"}
                   </Button>
@@ -281,7 +281,7 @@ export default function Login() {
                         setForgotEmail(loginData.email);
                         setShowForgotPassword(true);
                       }}
-                      className="text-sm text-emerald-600 hover:text-emerald-700 hover:underline"
+                      className="text-sm text-primary hover:text-primary/80 hover:underline"
                     >
                       Forgot password?
                     </button>
@@ -334,7 +334,7 @@ export default function Login() {
                       />
                     </div>
                   </div>
-                  <Button type="submit" disabled={isLoading} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                  <Button type="submit" disabled={isLoading} className="w-full">
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     {isLoading ? "Creating account..." : "Sign Up"}
                   </Button>

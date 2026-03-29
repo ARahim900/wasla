@@ -139,21 +139,21 @@ export default function Properties() {
   };
 
   return (
-    <div className="p-4 md:p-0 space-y-6">
+    <div className="space-y-6 lg:space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">Properties</h1>
-          <p className="text-sm md:text-base text-slate-600">Manage all client properties and inspection history.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">Properties</h1>
+          <p className="text-sm md:text-base text-slate-500 dark:text-slate-400">Manage all client properties and inspection history.</p>
         </div>
-        <Button onClick={handleAddNew} className="bg-emerald-600 hover:bg-emerald-700 w-full md:w-auto">
-          <Plus className="w-4 h-4 mr-2" />
+        <Button onClick={handleAddNew} className="w-full md:w-auto min-h-[44px]">
+          <Plus className="w-4 h-4 me-2" />
           Add New Property
         </Button>
       </div>
 
       <div className="relative w-full sm:max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <Input placeholder="Search by address or client..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+        <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <Input placeholder="Search by address or client..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="ps-10" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -174,16 +174,16 @@ export default function Properties() {
             {filteredProperties.length > 0 ? (
               filteredProperties.map((property) => (
                 <motion.div key={property.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-                  <Card className="h-full hover:border-emerald-500/50 transition-colors overflow-hidden">
+                  <Card className="h-full transition-colors overflow-hidden">
                     <CardHeader className="p-4 pb-3 flex flex-row justify-between items-start space-y-0">
                       <div className="flex-1 min-w-0">
                         <CardTitle className="text-slate-900 flex items-center gap-2 text-base">
-                          <Home className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                          <Home className="w-5 h-5 text-primary flex-shrink-0" />
                           <span className="capitalize truncate">{property.property_type}</span>
                         </CardTitle>
                         <p className="text-xs md:text-sm text-slate-600 mt-1 line-clamp-2">{property.address}</p>
                       </div>
-                      <div className="flex gap-1 flex-shrink-0 ml-2">
+                      <div className="flex gap-1 flex-shrink-0 ms-2">
                         <Button variant="ghost" size="icon" onClick={() => handleView(property)} className="h-8 w-8">
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -207,9 +207,9 @@ export default function Properties() {
             ) : (
               <div className="text-center py-16 col-span-full">
                 <Home className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-                <h3 className="text-lg font-medium">No properties found</h3>
-                <p className="text-slate-600 mb-4">{searchTerm ? "Try adjusting your search." : "Get started by adding your first property."}</p>
-                {!searchTerm && <Button onClick={handleAddNew} className="bg-emerald-600 hover:bg-emerald-700"><Plus className="w-4 h-4 mr-2" />Add First Property</Button>}
+                <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200">No properties found</h3>
+                <p className="text-slate-500 mb-4">{searchTerm ? "Try adjusting your search." : "Get started by adding your first property."}</p>
+                {!searchTerm && <Button onClick={handleAddNew} className="min-h-[44px]"><Plus className="w-4 h-4 me-2" />Add First Property</Button>}
               </div>
             )}
           </AnimatePresence>

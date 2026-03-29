@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Inspection, Client, Invoice } from "@/api/entities";
 import { ClipboardList, Users, FileText, DollarSign } from "lucide-react";
+import { motion } from "framer-motion";
 import MetricCard from "../components/dashboard/MetricCard";
 import InspectionChart from "../components/dashboard/InspectionChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,16 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { format, getYear } from "date-fns";
-
-const getStatusColor = (status) => {
-  const colors = {
-    scheduled: "bg-blue-100 text-blue-800",
-    in_progress: "bg-yellow-100 text-yellow-800",
-    completed: "bg-green-100 text-green-800",
-    cancelled: "bg-red-100 text-red-800"
-  };
-  return colors[status] || "bg-gray-200 text-gray-800";
-};
+import { getInspectionStatusColor } from "@/lib/status";
 
 export default function Dashboard() {
   const [inspections, setInspections] = useState([]);
@@ -73,21 +65,39 @@ export default function Dashboard() {
 
   const recentInspections = useMemo(() => inspections.slice(0, 5), [inspections]);
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="space-y-6 lg:space-y-8">
+    <motion.div 
+      variants={containerVariants} 
+      initial="hidden" 
+      animate="show" 
+      className="space-y-6 lg:space-y-8"
+    >
       <div>
-        <h1 className="text-stone-800 mb-1 font-bold lg:text-3xl">Dashboard</h1>
-        <p className="text-[#306430] text-sm lg:text-base">Welcome back! Here's what's happening with your property inspections.</p>
+        <h1 className="text-foreground mb-1 font-bold text-2xl lg:text-3xl tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground text-sm lg:text-base">Welcome back! Here's what's happening with your property inspections.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
         <MetricCard title="Total Inspections" value={metrics.totalInspections} icon={ClipboardList} isLoading={isLoading} />
         <MetricCard title="Revenue (YTD)" value={`${metrics.totalRevenue.toFixed(3)} OMR`} icon={DollarSign} isLoading={isLoading} />
         <MetricCard title="Active Clients" value={metrics.activeClients} icon={Users} isLoading={isLoading} />
         <MetricCard title="Overdue Invoices" value={metrics.overdueInvoices} icon={FileText} isLoading={isLoading} />
-      </div>
+      </motion.div>
 
-      <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
+      <motion.div variants={itemVariants} className="grid lg:grid-cols-3 gap-6 lg:gap-8">
         <div className="lg:col-span-2">
           <InspectionChart inspections={inspections} isLoading={isLoading} />
         </div>
@@ -112,10 +122,10 @@ export default function Dashboard() {
               recentInspections.map((inspection) =>
               <div key={inspection.id} className="space-y-1.5 pb-3 border-b last:border-0 last:pb-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium text-slate-800 text-sm truncate flex-1">
+                      <p className="font-medium text-slate-800 dark:text-slate-200 text-sm truncate flex-1">
                         {inspection.inspection_type?.replace(/_/g, ' ').toUpperCase() || 'Inspection'}
                       </p>
-                      <Badge variant="secondary" className={`${getStatusColor(inspection.status)} text-xs capitalize`}>
+                      <Badge variant="secondary" className={`${getInspectionStatusColor(inspection.status)} text-xs capitalize`}>
                         {inspection.status?.replace("_", " ") || 'scheduled'}
                       </Badge>
                     </div>
@@ -136,7 +146,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
-      </div>
-    </div>);
+      </motion.div>
+    </motion.div>);
 
 }

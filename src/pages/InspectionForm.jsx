@@ -180,7 +180,7 @@ export default function InspectionForm() {
   if (isLoading) {
     return (
       <div className="p-8 text-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+        <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
         <p className="text-slate-600">Loading inspection form...</p>
       </div>
     );
@@ -337,7 +337,7 @@ export default function InspectionForm() {
             <Button
               type="submit"
               disabled={isSaving}
-              className="bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto"
+              className="w-full sm:w-auto"
             >
               <Save className="mr-2 h-4 w-4" />
               {isSaving ? "Saving..." : "Save Inspection"}

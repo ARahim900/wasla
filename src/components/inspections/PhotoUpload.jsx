@@ -107,7 +107,7 @@ export default function PhotoUpload({ photos, onUpdate }) {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="w-full aspect-square border-2 border-dashed border-slate-300 rounded-md flex flex-col items-center justify-center text-slate-500 hover:bg-slate-50 hover:border-emerald-500 hover:text-emerald-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full aspect-square border-2 border-dashed border-muted-foreground/30 rounded-md flex flex-col items-center justify-center text-muted-foreground hover:bg-muted hover:border-primary hover:text-primary transition disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={uploading}
             >
               {uploading ? (

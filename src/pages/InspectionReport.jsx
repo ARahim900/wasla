@@ -200,7 +200,7 @@ function ReportTemplate({ inspection, client, property }) {
         </div>
         {inspection?.areas?.map((area) => (
           <div key={area.id} className="mb-12">
-            <h2 className="text-2xl font-bold bg-emerald-100 text-emerald-800 p-4 rounded mb-6">{area.name}</h2>
+            <h2 className="text-2xl font-bold bg-primary/10 text-primary p-4 rounded mb-6">{area.name}</h2>
             {area.items?.map((item) => (
               <div key={item.id} className="border border-slate-300 rounded p-6 mb-6 bg-slate-50">
                 <div className="flex justify-between items-start mb-4">
@@ -276,7 +276,7 @@ export default function InspectionReport() {
   if (loading) {
     return (
       <div className="p-8 text-center">
-        <Loader2 className="h-6 w-6 animate-spin inline-block mr-2 text-emerald-600" />
+        <Loader2 className="h-6 w-6 animate-spin inline-block mr-2 text-primary" />
         Loading report...
       </div>
     );
@@ -297,7 +297,7 @@ export default function InspectionReport() {
     <div className="max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-4 print:hidden">
         <Button variant="outline" onClick={() => navigate(createPageUrl("Inspections"))}><ArrowLeft className="w-4 h-4 mr-2" />Back to Inspections</Button>
-        <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handlePrint}><Download className="w-4 h-4 mr-2" />Export PDF</Button>
+        <Button onClick={handlePrint}><Download className="w-4 h-4 mr-2" />Export PDF</Button>
       </div>
 
       {/* Render the entire report content via ReportTemplate */}

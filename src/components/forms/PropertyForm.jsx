@@ -81,7 +81,7 @@ export default function PropertyForm({ property, onSubmit, onCancel, isLoading }
 
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-            <Button type="submit" disabled={isLoading} className="bg-emerald-600 hover:bg-emerald-700">
+            <Button type="submit" disabled={isLoading}>
               {isLoading ? "Saving..." : "Save Property"}
             </Button>
           </div>

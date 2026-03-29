@@ -112,7 +112,7 @@ const EnhancedPDFExportButton = ({
     <Button
       onClick={handleExport}
       disabled={disabled || isExporting || (!inspection?.id && !customData)}
-      className="bg-emerald-600 hover:bg-emerald-700"
+      className=""
       size="sm"
     >
       {isExporting ? (

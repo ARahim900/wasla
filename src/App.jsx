@@ -43,7 +43,7 @@ const AuthenticatedApp = () => {
           <p className="text-slate-600 text-sm mb-4">{authError.message}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
           >
             Try Again
           </button>

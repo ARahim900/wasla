@@ -373,7 +373,7 @@ export default function InvoiceForm() {
               <Button type="button" variant="outline" onClick={() => navigate(createPageUrl("Invoices"))} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving} className="bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto">
+              <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
                 <Save className="mr-2 h-4 w-4" />
                 {isSaving ? "Saving..." : "Save Invoice"}
               </Button>

@@ -84,13 +84,13 @@ export default function AreaCard({ area, onUpdate, onRemove }) {
   };
 
   return (
-    <div className="bg-white rounded-lg p-4 shadow-sm mb-6 border">
+    <div className="bg-card rounded-lg p-4 mb-6 border">
       <div className="flex justify-between items-center mb-4">
         <Input
           type="text"
           value={area.name}
           onChange={e => handleNameChange(e.target.value)}
-          className="text-xl font-bold bg-transparent focus:border-b-2 focus:border-emerald-500 outline-none text-slate-900"
+          className="text-xl font-bold bg-transparent focus:border-b-2 focus:border-primary outline-none text-foreground"
           placeholder="Area Name"
         />
         <Button type="button" variant="ghost" onClick={onRemove} className="text-red-500 hover:text-red-700">
@@ -105,7 +105,7 @@ export default function AreaCard({ area, onUpdate, onRemove }) {
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogTrigger asChild>
-          <Button type="button" className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700">
+          <Button type="button" className="mt-4 w-full">
             <Plus className="mr-2 h-4 w-4" /> Add Inspection Point
           </Button>
         </DialogTrigger>
@@ -123,7 +123,7 @@ export default function AreaCard({ area, onUpdate, onRemove }) {
                       type="button"
                       key={point}
                       onClick={() => { handleAddItem(category, point); setIsModalOpen(false); }}
-                      className="text-left p-2 bg-slate-100 hover:bg-emerald-100 rounded-md text-sm transition text-slate-800"
+                      className="text-left p-2 bg-muted hover:bg-primary/10 rounded-md text-sm transition text-foreground"
                     >
                       {point}
                     </button>

@@ -14,17 +14,9 @@ import { toast } from "sonner";
 import Pagination from "../components/ui/Pagination";
 import PDFExportButton from "../components/inspections/PDFExportButton";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils"; // Assuming cn utility is available here, common in Shadcn UI projects
-
-const getStatusColor = (status) => {
-  const colors = {
-    scheduled: "bg-blue-100 text-blue-800",
-    in_progress: "bg-yellow-100 text-yellow-800",
-    completed: "bg-green-100 text-green-800",
-    cancelled: "bg-red-100 text-red-800",
-  };
-  return colors[status] || "bg-gray-200 text-gray-800";
-};
+import { cn } from "@/lib/utils";
+import { getInspectionStatusColor } from "@/lib/status";
+import { motion, AnimatePresence } from "framer-motion";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -135,21 +127,21 @@ export default function Inspections() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Inspections</h1>
-          <p className="text-slate-600 mt-1">Manage and track all your property inspections.</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-foreground tracking-tight">Inspections</h1>
+          <p className="text-sm lg:text-base text-muted-foreground mt-1">Manage and track all your property inspections.</p>
         </div>
         <Button
           onClick={() => navigate(createPageUrl("InspectionForm"))}
-          className="bg-emerald-600 hover:bg-emerald-700"
+          className="min-h-[44px]"
         >
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="w-4 h-4 me-2" />
           Schedule Inspection
         </Button>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
             placeholder="Search inspections..."
             value={searchTerm}
@@ -157,7 +149,7 @@ export default function Inspections() {
               setSearchTerm(e.target.value);
               setCurrentPage(1); // Reset page on search
             }}
-            className="pl-10"
+            className="ps-10"
           />
         </div>
         <div className="flex gap-2 overflow-x-auto pb-2">
@@ -181,22 +173,30 @@ export default function Inspections() {
       <div className="space-y-4">
         {isLoading ? (
           <div className="text-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-emerald-600" />
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
             <p className="mt-2 text-slate-500">Loading inspections...</p>
           </div>
         ) : paginatedInspections.length > 0 ? (
-          paginatedInspections.map((inspection) => {
-            const client = clients.find(c => c.id === inspection.client_id);
-            const property = properties.find(p => p.id === inspection.property_id);
+          <AnimatePresence>
+            {paginatedInspections.map((inspection) => {
+              const client = clients.find(c => c.id === inspection.client_id);
+              const property = properties.find(p => p.id === inspection.property_id);
 
-            return (
-              <Card key={inspection.id} className="hover:border-emerald-500/50 transition-colors overflow-hidden">
+              return (
+                <motion.div
+                  key={inspection.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Card className="transition-all duration-200 overflow-hidden hover:shadow-md">
                 <CardHeader className="p-4">
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                         <CardTitle className="text-slate-900 flex items-center gap-2 text-base font-semibold">
-                          <ClipboardList className="w-5 h-5 text-emerald-600" />
+                          <ClipboardList className="w-5 h-5 text-primary" />
                           <span className="capitalize">{inspection.inspection_type?.replace(/_/g, ' ')} Inspection</span>
                         </CardTitle>
                         
@@ -208,11 +208,11 @@ export default function Inspections() {
                               size="sm"
                               className={cn(
                                 "capitalize px-3 py-1 text-xs font-medium rounded-full",
-                                getStatusColor(inspection.status)
+                                getInspectionStatusColor(inspection.status)
                               )}
                             >
                               {inspection.status?.replace("_", " ") || 'scheduled'}
-                              <ChevronDown className="w-3 h-3 ml-1" />
+                              <ChevronDown className="w-3 h-3 ms-1" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -248,7 +248,7 @@ export default function Inspections() {
                         </DropdownMenu>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 mt-2 ml-7">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 mt-2 ms-7">
                         {inspection.client_name && (
                           <div className="flex items-center gap-1.5">
                             <User className="w-3 h-3" />
@@ -263,7 +263,7 @@ export default function Inspections() {
                         )}
                       </div>
                       {property?.address && (
-                        <div className="text-xs text-slate-500 mt-1 ml-7">
+                        <div className="text-xs text-slate-500 mt-1 ms-7">
                           Property: {property.address}
                         </div>
                       )}
@@ -297,9 +297,11 @@ export default function Inspections() {
                     </div>
                   </div>
                 </CardHeader>
-              </Card>
-            );
-          })
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         ) : (
           <div className="text-center py-16">
             <ClipboardList className="w-16 h-16 mx-auto text-slate-300 mb-4" />
@@ -314,9 +316,9 @@ export default function Inspections() {
             {!searchTerm && statusFilter === "all" && (
               <Button
                 onClick={() => navigate(createPageUrl("InspectionForm"))}
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="min-h-[44px]"
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-4 h-4 me-2" />
                 Schedule First Inspection
               </Button>
             )}

@@ -78,7 +78,7 @@ export default function MobileTabBar() {
                     "active:bg-slate-100 dark:active:bg-slate-800",
                     "hover:bg-slate-50 dark:hover:bg-slate-800/50",
                     active
-                      ? "text-emerald-600 dark:text-emerald-400"
+                      ? "text-primary"
                       : "text-slate-500 dark:text-slate-400"
                   )}
                 >
@@ -106,7 +106,7 @@ export default function MobileTabBar() {
                 "active:bg-slate-100 dark:active:bg-slate-800",
                 "hover:bg-slate-50 dark:hover:bg-slate-800/50",
                 isMoreItemActive
-                  ? "text-emerald-600 dark:text-emerald-400"
+                  ? "text-primary"
                   : "text-slate-500 dark:text-slate-400"
               )}
             >
@@ -147,7 +147,7 @@ export default function MobileTabBar() {
                           "flex items-center gap-4 px-4 py-3 rounded-lg min-h-[44px] transition-colors duration-200",
                           "active:bg-slate-100 dark:active:bg-slate-800",
                           active
-                            ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+                            ? "bg-primary/10 text-primary"
                             : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                         )}
                       >
@@ -155,7 +155,7 @@ export default function MobileTabBar() {
                           className={cn(
                             "h-5 w-5 flex-shrink-0",
                             active
-                              ? "text-emerald-600 dark:text-emerald-400"
+                              ? "text-primary"
                               : "text-slate-500 dark:text-slate-400"
                           )}
                         />

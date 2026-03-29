@@ -8,33 +8,26 @@ import {
   FileText, Building2, ExternalLink 
 } from "lucide-react";
 import { Inspection, Client } from "@/api/entities";
+import { getInspectionStatusColor } from "@/lib/status";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
 const InfoRow = ({ icon: Icon, label, value }) => (
   <div className="flex items-start gap-3 py-3 border-b last:border-0">
-    <Icon className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+    <Icon className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
     <div className="flex-1 min-w-0">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className="text-base text-slate-900 mt-0.5 break-words">{value || 'N/A'}</p>
+      <p className="text-sm font-medium text-muted-foreground">{label}</p>
+      <p className="text-base text-foreground mt-0.5 break-words">{value || 'N/A'}</p>
     </div>
   </div>
 );
 
-const StatusBadge = ({ status }) => {
-  const colors = {
-    scheduled: "bg-blue-100 text-blue-800",
-    in_progress: "bg-yellow-100 text-yellow-800",
-    completed: "bg-green-100 text-green-800",
-    cancelled: "bg-red-100 text-red-800"
-  };
-  return (
-    <Badge className={`${colors[status] || 'bg-gray-100 text-gray-800'} capitalize text-xs`}>
-      {status?.replace('_', ' ') || 'scheduled'}
-    </Badge>
-  );
-};
+const StatusBadge = ({ status }) => (
+  <Badge className={`${getInspectionStatusColor(status)} capitalize text-xs`}>
+    {status?.replace('_', ' ') || 'scheduled'}
+  </Badge>
+);
 
 export default function PropertyDetailView({ property, onEdit }) {
   const navigate = useNavigate();
@@ -80,8 +73,8 @@ export default function PropertyDetailView({ property, onEdit }) {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
-            <Home className="w-8 h-8 text-emerald-700" />
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <Home className="w-8 h-8 text-primary" />
           </div>
           <div>
             <h2 className="text-2xl font-bold text-slate-900 capitalize">
@@ -201,7 +194,7 @@ export default function PropertyDetailView({ property, onEdit }) {
           <Card>
             <CardContent className="pt-6">
               <div className="text-center">
-                <ClipboardList className="w-8 h-8 mx-auto text-emerald-600 mb-2" />
+                <ClipboardList className="w-8 h-8 mx-auto text-primary mb-2" />
                 <p className="text-3xl font-bold text-slate-900">{inspections.length}</p>
                 <p className="text-sm text-slate-600">Total Inspections</p>
               </div>
@@ -215,12 +208,12 @@ export default function PropertyDetailView({ property, onEdit }) {
             <div className="text-center py-8 text-slate-500">Loading inspection history...</div>
           ) : sortedInspections.length > 0 ? (
             sortedInspections.map((inspection) => (
-              <Card key={inspection.id} className="hover:border-emerald-500/50 transition-colors">
+              <Card key={inspection.id} className="hover:border-primary/30 transition-colors">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <ClipboardList className="w-5 h-5 text-emerald-600" />
+                        <ClipboardList className="w-5 h-5 text-primary" />
                         <h3 className="font-semibold text-slate-900 capitalize">
                           {inspection.inspection_type?.replace(/_/g, ' ')} Inspection
                         </h3>

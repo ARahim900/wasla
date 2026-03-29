@@ -10,14 +10,14 @@ import {
   Tooltip
 } from "recharts";
 
-// Moved outside component for performance
-const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
+import { chartStatusColors } from "@/lib/status";
+const COLORS = [chartStatusColors.completed, chartStatusColors.scheduled, chartStatusColors.in_progress, chartStatusColors.cancelled, chartStatusColors.other];
 
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="p-2 bg-white border rounded-lg shadow-lg">
-        <p className="font-semibold text-slate-800">{`${payload[0].name}: ${payload[0].value}`}</p>
+      <div className="p-2 bg-card border rounded-lg">
+        <p className="font-semibold text-card-foreground">{`${payload[0].name}: ${payload[0].value}`}</p>
       </div>
     );
   }
@@ -42,14 +42,14 @@ export default function InspectionChart({ inspections, isLoading }) {
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle className="text-slate-900 dark:text-white flex items-center gap-2">
+        <CardTitle className="text-foreground flex items-center gap-2">
           Inspection Status Overview
         </CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <div className="h-64 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : statusData.length > 0 ? (
           <div className="h-64 w-full">
@@ -75,7 +75,7 @@ export default function InspectionChart({ inspections, isLoading }) {
             </ResponsiveContainer>
           </div>
         ) : (
-          <div className="h-64 flex items-center justify-center text-slate-500 dark:text-slate-300">
+          <div className="h-64 flex items-center justify-center text-muted-foreground">
             No inspection data available
           </div>
         )}

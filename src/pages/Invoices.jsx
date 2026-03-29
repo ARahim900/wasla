@@ -11,19 +11,9 @@ import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
+import { getInvoiceStatusColor } from "@/lib/status";
 
 const STATUS_OPTIONS = ["all", "draft", "sent", "paid", "overdue", "cancelled"];
-
-const getStatusColor = (status) => {
-  const colors = {
-    draft: "bg-gray-200 text-gray-800",
-    sent: "bg-blue-100 text-blue-800",
-    paid: "bg-green-100 text-green-800",
-    overdue: "bg-red-100 text-red-800",
-    cancelled: "bg-slate-200 text-slate-800"
-  };
-  return colors[status] || "bg-gray-200 text-gray-800";
-};
 
 export default function Invoices() {
   const navigate = useNavigate();
@@ -94,14 +84,14 @@ export default function Invoices() {
   }, [filteredInvoices]);
 
   return (
-    <div className="space-y-6 lg:space-y-8 p-4 md:p-0">
+    <div className="space-y-6 lg:space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">Invoices</h1>
-          <p className="text-sm lg:text-base text-slate-600 mt-1">Manage your billing and track payments.</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-foreground tracking-tight">Invoices</h1>
+          <p className="text-sm lg:text-base text-muted-foreground mt-1">Manage your billing and track payments.</p>
         </div>
-        <Button onClick={() => navigate(createPageUrl("InvoiceForm"))} className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700">
-          <Plus className="w-4 h-4 mr-2" />
+        <Button onClick={() => navigate(createPageUrl("InvoiceForm"))} className="w-full md:w-auto min-h-[44px]">
+          <Plus className="w-4 h-4 me-2" />
           Create Invoice
         </Button>
       </div>
@@ -114,8 +104,8 @@ export default function Invoices() {
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1 w-full sm:max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input placeholder="Search by client or invoice #" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+          <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Input placeholder="Search by client or invoice #" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="ps-10" />
         </div>
         <div className="flex gap-2 overflow-x-auto pb-2">
           {STATUS_OPTIONS.map((status) => (
@@ -139,7 +129,7 @@ export default function Invoices() {
 
                 return (
                   <motion.div key={invoice.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}>
-                    <Card className="hover:border-emerald-500/50 transition-colors overflow-hidden">
+                    <Card className="transition-colors overflow-hidden">
                       <CardHeader className="p-4">
                         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                           <div className="space-y-2 flex-1 min-w-0">
@@ -147,12 +137,12 @@ export default function Invoices() {
                               <FileText className="w-5 h-5 text-slate-500" />
                               <span className="truncate">Invoice #{invoice.invoice_number}</span>
                             </CardTitle>
-                            <Badge variant="secondary" className={`${getStatusColor(status)} capitalize`}>{status}</Badge>
+                            <Badge variant="secondary" className={`${getInvoiceStatusColor(status)} capitalize`}>{status}</Badge>
                           </div>
-                          <div className="text-left sm:text-right flex-shrink-0 w-full sm:w-auto self-end sm:self-start">
-                            <p className="font-bold text-xl sm:text-2xl text-slate-900 truncate">{(invoice.total || 0).toFixed(3)} OMR</p>
-                            <Button variant="ghost" size="sm" className="mt-1 -ml-2" onClick={() => navigate(createPageUrl(`InvoiceForm?id=${invoice.id}`))}>
-                              <Eye className="w-4 h-4 mr-1" />View
+                          <div className="text-start sm:text-end flex-shrink-0 w-full sm:w-auto self-end sm:self-start">
+                            <p className="font-bold text-xl sm:text-2xl text-slate-900 dark:text-slate-100 truncate">{(invoice.total || 0).toFixed(3)} OMR</p>
+                            <Button variant="ghost" size="sm" className="mt-1 -ms-2 min-h-[44px]" onClick={() => navigate(createPageUrl(`InvoiceForm?id=${invoice.id}`))}>
+                              <Eye className="w-4 h-4 me-1" />View
                             </Button>
                           </div>
                         </div>
@@ -172,7 +162,7 @@ export default function Invoices() {
                 <FileText className="w-16 h-16 mx-auto text-slate-300 mb-4" />
                 <h3 className="text-xl font-medium text-slate-800 mb-2">No Invoices Found</h3>
                 <p className="text-slate-500 mb-4">{searchTerm || statusFilter !== "all" ? "Try adjusting your filters." : "Get started by creating your first invoice."}</p>
-                <Button onClick={() => navigate(createPageUrl("InvoiceForm"))} className="mt-2 bg-emerald-600 hover:bg-emerald-700"><Plus className="w-4 h-4 mr-2" />Create First Invoice</Button>
+                <Button onClick={() => navigate(createPageUrl("InvoiceForm"))} className="mt-2 min-h-[44px]"><Plus className="w-4 h-4 me-2" />Create First Invoice</Button>
               </div>
             )}
           </AnimatePresence>

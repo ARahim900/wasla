@@ -142,7 +142,7 @@ function PDFExportTest() {
             <Button 
               onClick={handleCustomTest}
               disabled={isTestingCustom}
-              className="w-full bg-emerald-600 hover:bg-emerald-700"
+              className="w-full"
             >
               {isTestingCustom ? 'Generating...' : 'Generate Custom PDF'}
             </Button>

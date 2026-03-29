@@ -86,7 +86,7 @@ export default function ClientForm({ client, onSubmit, onCancel, isLoading }) {
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading}>
               {isLoading ? "Saving..." : (client ? "Update Client" : "Create Client")}
             </Button>
           </div>
