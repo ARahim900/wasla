@@ -271,7 +271,7 @@ class InspectionReportGenerator {
         }
 
         .page {
-            padding: 8mm 12mm 10mm 12mm;
+            padding: 10mm 12mm 10mm 12mm;
             background: white;
             position: relative;
             box-sizing: border-box;
@@ -302,53 +302,53 @@ class InspectionReportGenerator {
 
         .header-logo {
             text-align: center;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
 
         .header-logo img {
-            width: 80px;
+            width: 90px;
             height: auto;
             max-width: 100%;
         }
 
         .report-title {
             text-align: center;
-            font-size: 17pt;
+            font-size: 18pt;
             font-weight: 700;
             color: #1f2937;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .overview-box {
             background: #e8e9eb;
-            padding: 8px;
-            margin-bottom: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
         }
 
         .overview-header {
             text-align: center;
-            font-size: 10pt;
+            font-size: 11pt;
             font-weight: 600;
             color: #4b5563;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             border-bottom: 2px solid #9ca3af;
-            padding-bottom: 3px;
+            padding-bottom: 4px;
         }
 
         .two-column {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 6px;
+            gap: 10px;
+            margin-bottom: 8px;
         }
 
         .column {
-            font-size: 7.5pt;
-            line-height: 1.3;
+            font-size: 7.8pt;
+            line-height: 1.35;
         }
 
         .column p {
-            margin-bottom: 3px;
+            margin-bottom: 4px;
         }
 
         .column strong {
@@ -413,24 +413,24 @@ class InspectionReportGenerator {
         }
 
         .signature-section {
-            margin-top: 10px;
-            padding-top: 8px;
+            margin-top: 14px;
+            padding-top: 10px;
             border-top: 2px solid #e5e7eb;
         }
 
         .signature-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 8px;
+            gap: 16px;
+            margin-bottom: 10px;
         }
 
         .signature-row {
             display: flex;
             justify-content: space-between;
-            padding: 4px 0;
+            padding: 5px 0;
             border-bottom: 1px solid #d1d5db;
-            font-size: 7.5pt;
+            font-size: 8pt;
         }
 
         .footer-note {
@@ -472,9 +472,9 @@ class InspectionReportGenerator {
         }
 
         h3 {
-            font-size: 8pt;
+            font-size: 8.5pt;
             font-weight: 700;
-            margin-bottom: 3px;
+            margin-bottom: 4px;
         }
 
         .info-box {
@@ -508,7 +508,7 @@ class InspectionReportGenerator {
             }
 
             .page {
-                padding: 8mm 12mm 10mm 12mm;
+                padding: 10mm 12mm 10mm 12mm;
                 page-break-after: always;
                 page-break-inside: avoid;
                 break-after: page;
@@ -682,7 +682,7 @@ class InspectionReportGenerator {
             
             <h1 class="report-title">Property Inspection Report</h1>
             
-            <div class="info-box two-column" style="margin-bottom: 8px;">
+            <div class="info-box two-column" style="margin-bottom: 10px;">
                 <div class="column">
                     <p><strong>Report Ref:</strong> ${this.escapeHTML(data.reference)}</p>
                     <p><strong>Inspection Date:</strong> ${this.escapeHTML(data.date.en)}</p>
@@ -720,7 +720,7 @@ class InspectionReportGenerator {
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 4px;">
+            <div class="two-column" style="margin-top: 8px;">
                 <div class="column">
                     <h3>No property is perfect.</h3>
                     <p>Every building has imperfections or items that are ready for maintenance. It's the inspector's task to discover and report these so you can make informed decisions. This report should not be used as a tool to demean property, but rather as a way to illuminate the realities of the property.</p>
@@ -731,7 +731,7 @@ class InspectionReportGenerator {
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 4px;">
+            <div class="two-column" style="margin-top: 8px;">
                 <div class="column">
                     <h3>This report is not an appraisal.</h3>
                     <p>When an appraiser determines worth, only the most obvious conditions of a property are taken into account to establish a safe loan amount. In effect, the appraiser is representing the interests of the lender. Home inspectors focus more on the interests of the prospective buyer; and, although inspectors must be careful not to make any statements relating to property value, their findings can help buyers more completely understand the true costs of ownership.</p>
@@ -742,7 +742,7 @@ class InspectionReportGenerator {
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 4px;">
+            <div class="two-column" style="margin-top: 8px;">
                 <div class="column">
                     <h3>Maintenance costs are normal.</h3>
                     <p>Homeowners should plan to spend around 1% of the total value of a property in maintenance costs, annually. (Annual costs of rental property maintenance are often 2%, or more.) If considerably less than this percentage has been invested during several years preceding an inspection, the property will usually show the obvious signs of neglect; and the new property owners may be required to invest significant time and money to address accumulated maintenance needs.</p>
