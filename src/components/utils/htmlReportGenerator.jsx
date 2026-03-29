@@ -104,6 +104,10 @@ class InspectionReportGenerator {
       throw new Error('Invalid inspection data');
     }
 
+    // Count total items and passes for grade calculation
+    let totalItems = 0;
+    let passCount = 0;
+
     const processed = {
       reference: `WSL-${Date.now().toString().slice(-6)}`,
       date: this.formatDate(data.inspection_date || new Date().toISOString()),
@@ -111,6 +115,7 @@ class InspectionReportGenerator {
       propertyType: this.formatPropertyType(data.property_type || ''),
       location: data.location || 'Property Location',
       inspector: data.inspector_name || 'Inspector',
+      grade: '',
       affectedAreas: [],
       recommendations: []
     };
@@ -128,6 +133,9 @@ class InspectionReportGenerator {
               ? normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1)
               : 'N/A';
             
+            totalItems++;
+            if (status === 'Pass') passCount++;
+
             const hasIssue = status === 'Fail';
             const hasComments = status === 'Pass' && item.comments && item.comments !== 'No additional comments';
             const hasPhotos = item.photos && item.photos.length > 0;
@@ -161,6 +169,17 @@ class InspectionReportGenerator {
           });
         }
       });
+    }
+
+    // Calculate overall grade based on pass rate
+    if (totalItems > 0) {
+      const passRate = (passCount / totalItems) * 100;
+      if (passRate >= 95) processed.grade = 'AAA';
+      else if (passRate >= 85) processed.grade = 'AA';
+      else if (passRate >= 75) processed.grade = 'A';
+      else if (passRate >= 60) processed.grade = 'B';
+      else if (passRate >= 45) processed.grade = 'C';
+      else processed.grade = 'D';
     }
 
     if (data.recommendations && Array.isArray(data.recommendations)) {
@@ -441,16 +460,20 @@ class InspectionReportGenerator {
             border-radius: 6px;
         }
 
+        .findings-page {
+            min-height: auto;
+        }
+
         .photo-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 12px;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-top: 10px;
         }
 
         .photo-item {
             border: 1px solid #d1d5db;
-            border-radius: 6px;
+            border-radius: 4px;
             overflow: hidden;
             page-break-inside: avoid;
             break-inside: avoid;
@@ -458,17 +481,17 @@ class InspectionReportGenerator {
 
         .photo-item img {
             width: 100%;
-            height: 130px;
+            height: 90px;
             object-fit: cover;
             display: block;
         }
 
         .photo-caption {
-            padding: 6px;
+            padding: 4px 6px;
             background: #f9fafb;
-            font-size: 7pt;
+            font-size: 6.5pt;
             color: #4b5563;
-            line-height: 1.3;
+            line-height: 1.2;
         }
 
         h3 {
@@ -508,7 +531,7 @@ class InspectionReportGenerator {
             }
 
             .page {
-                padding: 10mm 12mm 10mm 12mm;
+                padding: 10mm 12mm 15mm 12mm;
                 page-break-after: always;
                 page-break-inside: avoid;
                 break-after: page;
@@ -523,6 +546,21 @@ class InspectionReportGenerator {
             .page:last-child {
                 page-break-after: auto;
                 break-after: auto;
+            }
+
+            .findings-page {
+                page-break-inside: auto;
+                break-inside: auto;
+                page-break-after: auto;
+                break-after: auto;
+            }
+
+            @page {
+                @bottom-center {
+                    content: counter(page);
+                    font-size: 8pt;
+                    color: #9ca3af;
+                }
             }
 
             @page {
@@ -605,6 +643,9 @@ class InspectionReportGenerator {
         @media screen {
             .page {
                 min-height: 277mm;
+            }
+            .findings-page {
+                min-height: auto;
             }
         }
     </style>
@@ -691,6 +732,7 @@ class InspectionReportGenerator {
                 <div class="column">
                     <p><strong>Property Type:</strong> ${this.escapeHTML(data.propertyType)}</p>
                     <p><strong>Location:</strong> ${this.escapeHTML(data.location)}</p>
+                    ${data.grade ? `<p><strong>Overall Grade:</strong> <span style="font-weight: 700; color: ${data.grade === 'D' ? '#dc2626' : data.grade === 'C' ? '#f59e0b' : '#059669'};">${this.escapeHTML(data.grade)}</span></p>` : ''}
                 </div>
             </div>
             
@@ -848,35 +890,29 @@ class InspectionReportGenerator {
   }
 
   renderFindingsPages(data) {
-    let pagesHtml = '';
+    let findingsContent = '';
 
     if (data.affectedAreas && data.affectedAreas.length > 0) {
       data.affectedAreas.forEach((area) => {
-        pagesHtml += `
-        <div class="page">
-            <div class="content">
-                <div class="header-logo no-break">
-                    <img src="${this.config.company.logo}" alt="Wasla Logo" onerror="this.style.display='none'">
-                </div>
-                
+        findingsContent += `
                 <h2 class="section-title no-break">${this.escapeHTML(area.name)}</h2>
-                
+
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 35%;">Item</th>
-                            <th style="width: 15%; text-align: center;">Status</th>
-                            <th style="width: 50%;">Comments</th>
+                            <th style="width: 30%;">Item</th>
+                            <th style="width: 12%; text-align: center;">Status</th>
+                            <th style="width: 58%;">Comments</th>
                         </tr>
                     </thead>
                     <tbody>`;
 
         area.items.forEach(item => {
           const normalizedStatus = (item.status || 'n/a').toLowerCase();
-          const statusClass = normalizedStatus === 'pass' ? 'status-pass' : 
+          const statusClass = normalizedStatus === 'pass' ? 'status-pass' :
                             normalizedStatus === 'fail' ? 'status-fail' : 'status-na';
-          
-          pagesHtml += `
+
+          findingsContent += `
                         <tr>
                             <td>${this.escapeHTML(item.name)}</td>
                             <td style="text-align: center;">
@@ -886,51 +922,50 @@ class InspectionReportGenerator {
                         </tr>`;
         });
 
-        pagesHtml += `
+        findingsContent += `
                     </tbody>
                 </table>`;
 
         if (area.photos && area.photos.length > 0) {
-          pagesHtml += `<div class="photo-grid no-break">`;
+          findingsContent += `<div class="photo-grid">`;
           area.photos.forEach(photo => {
-            pagesHtml += `
+            findingsContent += `
                     <div class="photo-item">
-                        <img src="${photo.url}" 
-                             alt="${this.escapeHTML(photo.caption)}" 
+                        <img src="${photo.url}"
+                             alt="${this.escapeHTML(photo.caption)}"
                              onerror="this.src='${this.config.company.placeholderImage}'">
                         <div class="photo-caption">
                             <p>${this.escapeHTML(photo.caption)}</p>
                         </div>
                     </div>`;
           });
-          pagesHtml += `</div>`;
+          findingsContent += `</div>`;
         }
-
-        pagesHtml += `
-            </div>
-        </div>`;
       });
     }
 
+    // Recommendations section flows after findings
     if (data.recommendations && data.recommendations.length > 0) {
-      pagesHtml += `
-        <div class="page">
+      findingsContent += `
+                <h2 class="section-title no-break" style="margin-top: 20px;">Action Items & Recommendations</h2>
+                <div style="background: #fefce8; border-left: 4px solid #facc15; padding: 12px; border-radius: 4px; margin-top: 8px;">
+                    <ul style="list-style: disc; margin-left: 20px; line-height: 1.6; font-size: 8pt;">
+                        ${data.recommendations.map(rec => `<li style="margin-bottom: 4px;">${this.escapeHTML(rec)}</li>`).join('')}
+                    </ul>
+                </div>`;
+    }
+
+    // Wrap all findings in a single flowing page container
+    return `
+        <div class="page findings-page">
             <div class="content">
                 <div class="header-logo no-break">
                     <img src="${this.config.company.logo}" alt="Wasla Logo" onerror="this.style.display='none'">
                 </div>
-                
-                <h2 class="section-title no-break">Action Items & Recommendations</h2>
-                <div style="background: #fefce8; border-left: 4px solid #facc15; padding: 16px; border-radius: 4px; margin-top: 20px;">
-                    <ul style="list-style: disc; margin-left: 20px; line-height: 1.8;">
-                        ${data.recommendations.map(rec => `<li>${this.escapeHTML(rec)}</li>`).join('')}
-                    </ul>
-                </div>
+                <h1 style="font-size: 14pt; font-weight: 700; text-align: center; margin-bottom: 12px; color: #1f2937;">Inspection Findings</h1>
+                ${findingsContent}
             </div>
         </div>`;
-    }
-
-    return pagesHtml;
   }
 
   // Enhanced date formatting with bilingual support
@@ -964,15 +999,17 @@ class InspectionReportGenerator {
     const recommendations = [];
     affectedAreas.forEach(area => {
       const failedItems = area.items.filter(item => item.status.toLowerCase() === 'fail');
-      if (failedItems.length > 0) {
-        recommendations.push(`Address ${failedItems.length} identified issue(s) in ${area.name}`);
-      }
+      failedItems.forEach(item => {
+        const comment = item.comments && item.comments !== 'No comments' ? ` — ${item.comments}` : '';
+        recommendations.push(`${area.name}: Repair/address "${item.name}"${comment}`);
+      });
     });
-    
+
     if (recommendations.length === 0) {
       recommendations.push('Continue regular maintenance schedule');
+      recommendations.push('Schedule next inspection per maintenance calendar');
     }
-    
+
     return recommendations;
   }
 }
