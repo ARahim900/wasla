@@ -54,7 +54,7 @@ export default function MobileTabBar() {
     <>
       {/* Bottom Navigation Bar - only visible on mobile (< md breakpoint / 768px) */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 w-full z-50 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 shadow-[0_-2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_-2px_10px_rgba(0,0,0,0.3)]"
+        className="md:hidden fixed bottom-0 left-0 w-full z-50 bg-card border-t border-border shadow-[0_-2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_-2px_10px_rgba(0,0,0,0.3)]"
         style={{
           height: `${BOTTOM_NAV_HEIGHT}px`,
           paddingBottom: "env(safe-area-inset-bottom)",
@@ -75,11 +75,11 @@ export default function MobileTabBar() {
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "flex flex-col items-center justify-center h-full min-h-[44px] gap-1 text-xs font-medium transition-colors duration-200",
-                    "active:bg-slate-100 dark:active:bg-slate-800",
-                    "hover:bg-slate-50 dark:hover:bg-slate-800/50",
+                    "active:bg-accent",
+                    "hover:bg-accent/50",
                     active
                       ? "text-primary"
-                      : "text-slate-500 dark:text-slate-400"
+                      : "text-muted-foreground"
                   )}
                 >
                   <Icon
@@ -103,11 +103,11 @@ export default function MobileTabBar() {
               aria-haspopup="dialog"
               className={cn(
                 "flex flex-col items-center justify-center w-full h-full min-h-[44px] gap-1 text-xs font-medium transition-colors duration-200",
-                "active:bg-slate-100 dark:active:bg-slate-800",
-                "hover:bg-slate-50 dark:hover:bg-slate-800/50",
+                "active:bg-accent",
+                "hover:bg-accent/50",
                 isMoreItemActive
                   ? "text-primary"
-                  : "text-slate-500 dark:text-slate-400"
+                  : "text-muted-foreground"
               )}
             >
               <MoreHorizontal
@@ -124,9 +124,9 @@ export default function MobileTabBar() {
 
       {/* More Items Drawer */}
       <Drawer open={isMoreOpen} onOpenChange={setIsMoreOpen}>
-        <DrawerContent className="bg-white dark:bg-slate-900">
-          <DrawerHeader className="border-b border-slate-200 dark:border-slate-700">
-            <DrawerTitle className="text-slate-900 dark:text-white">
+        <DrawerContent className="bg-card">
+          <DrawerHeader className="border-b border-border">
+            <DrawerTitle className="text-foreground">
               More Options
             </DrawerTitle>
           </DrawerHeader>
@@ -145,10 +145,10 @@ export default function MobileTabBar() {
                         aria-current={active ? "page" : undefined}
                         className={cn(
                           "flex items-center gap-4 px-4 py-3 rounded-lg min-h-[44px] transition-colors duration-200",
-                          "active:bg-slate-100 dark:active:bg-slate-800",
+                          "active:bg-accent",
                           active
                             ? "bg-primary/10 text-primary"
-                            : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                            : "text-muted-foreground hover:bg-accent"
                         )}
                       >
                         <Icon
@@ -156,7 +156,7 @@ export default function MobileTabBar() {
                             "h-5 w-5 flex-shrink-0",
                             active
                               ? "text-primary"
-                              : "text-slate-500 dark:text-slate-400"
+                              : "text-muted-foreground"
                           )}
                         />
                         <span className="font-medium">{item.name}</span>

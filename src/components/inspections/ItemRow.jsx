@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 
-export default function ItemRow({ item, onUpdate, onRemove }) {
+function ItemRow({ item, onUpdate, onRemove }) {
   const handleUpdate = (field, value) => {
     onUpdate({ ...item, [field]: value });
   };
@@ -19,11 +19,11 @@ export default function ItemRow({ item, onUpdate, onRemove }) {
   };
 
   return (
-    <div className="bg-slate-50/50 p-4 rounded-lg border space-y-4">
+    <div className="bg-accent/50 p-4 rounded-lg border space-y-4">
       <div className="flex justify-between items-start">
         <div>
-          <p className="font-semibold text-slate-800">{item.point}</p>
-          <p className="text-sm text-slate-500">{item.category}</p>
+          <p className="font-semibold text-foreground">{item.point}</p>
+          <p className="text-sm text-muted-foreground">{item.category}</p>
         </div>
         <Button type="button" variant="ghost" size="icon" onClick={onRemove} className="text-red-500 hover:bg-red-100">
           <Trash2 className="w-4 h-4" />
@@ -32,7 +32,7 @@ export default function ItemRow({ item, onUpdate, onRemove }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+          <label className="block text-sm font-medium text-foreground mb-1">Status</label>
           <Select value={item.status} onValueChange={(value) => handleUpdate('status', value)}>
             <SelectTrigger className={`w-full ${statusClasses[item.status]}`}>
               <SelectValue placeholder="Select status" />
@@ -45,7 +45,7 @@ export default function ItemRow({ item, onUpdate, onRemove }) {
           </Select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
+          <label className="block text-sm font-medium text-foreground mb-1">Location</label>
           <Input 
             value={item.location || ''} 
             onChange={e => handleUpdate('location', e.target.value)} 
@@ -55,7 +55,7 @@ export default function ItemRow({ item, onUpdate, onRemove }) {
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Comments</label>
+        <label className="block text-sm font-medium text-foreground mb-1">Comments</label>
         <Textarea 
           value={item.comments || ''} 
           onChange={e => handleUpdate('comments', e.target.value)} 
@@ -65,7 +65,7 @@ export default function ItemRow({ item, onUpdate, onRemove }) {
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Photos</label>
+        <label className="block text-sm font-medium text-foreground mb-1">Photos</label>
         <PhotoUpload
           photos={item.photos || []}
           onUpdate={(photos) => handleUpdate('photos', photos)}
@@ -73,10 +73,12 @@ export default function ItemRow({ item, onUpdate, onRemove }) {
         {item.status === 'Fail' && item.photos?.length > 0 && (
           <div className="mt-2">
             <Button type="button" disabled>AI Analyze Last Photo</Button>
-            <p className="text-xs text-slate-500 italic ml-2">AI analysis coming soon.</p>
+            <p className="text-xs text-muted-foreground italic ml-2">AI analysis coming soon.</p>
           </div>
         )}
       </div>
     </div>
   );
 }
+
+export default React.memo(ItemRow);

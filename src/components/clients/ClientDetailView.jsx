@@ -59,7 +59,7 @@ export default function ClientDetailView({ client, onEdit }) {
   }, [client?.id]);
 
   if (!client) {
-    return <div className="text-center py-8 text-slate-500">No client selected</div>;
+    return <div className="text-center py-8 text-muted-foreground">No client selected</div>;
   }
 
   const sortedInspections = [...inspections].sort((a, b) => 
@@ -75,9 +75,9 @@ export default function ClientDetailView({ client, onEdit }) {
             <User className="w-8 h-8 text-primary" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">{client.name}</h2>
+            <h2 className="text-2xl font-bold text-foreground">{client.name}</h2>
             {client.company && (
-              <p className="text-slate-600 flex items-center gap-2 mt-1">
+              <p className="text-muted-foreground flex items-center gap-2 mt-1">
                 <Building2 className="w-4 h-4" />
                 {client.company}
               </p>
@@ -127,7 +127,7 @@ export default function ClientDetailView({ client, onEdit }) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-slate-700 whitespace-pre-wrap">{client.notes}</p>
+                <p className="text-foreground whitespace-pre-wrap">{client.notes}</p>
               </CardContent>
             </Card>
           )}
@@ -138,8 +138,8 @@ export default function ClientDetailView({ client, onEdit }) {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <Home className="w-8 h-8 mx-auto text-primary mb-2" />
-                  <p className="text-3xl font-bold text-slate-900">{properties.length}</p>
-                  <p className="text-sm text-slate-600">Properties</p>
+                  <p className="text-3xl font-bold text-foreground">{properties.length}</p>
+                  <p className="text-sm text-muted-foreground">Properties</p>
                 </div>
               </CardContent>
             </Card>
@@ -147,8 +147,8 @@ export default function ClientDetailView({ client, onEdit }) {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <ClipboardList className="w-8 h-8 mx-auto text-primary mb-2" />
-                  <p className="text-3xl font-bold text-slate-900">{inspections.length}</p>
-                  <p className="text-sm text-slate-600">Inspections</p>
+                  <p className="text-3xl font-bold text-foreground">{inspections.length}</p>
+                  <p className="text-sm text-muted-foreground">Inspections</p>
                 </div>
               </CardContent>
             </Card>
@@ -158,7 +158,7 @@ export default function ClientDetailView({ client, onEdit }) {
         {/* Properties Tab */}
         <TabsContent value="properties" className="space-y-4">
           {isLoading ? (
-            <div className="text-center py-8 text-slate-500">Loading properties...</div>
+            <div className="text-center py-8 text-muted-foreground">Loading properties...</div>
           ) : properties.length > 0 ? (
             properties.map((property) => (
               <Card key={property.id} className="hover:border-primary/30 transition-colors">
@@ -167,13 +167,13 @@ export default function ClientDetailView({ client, onEdit }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         <Home className="w-5 h-5 text-primary" />
-                        <h3 className="font-semibold text-slate-900 capitalize">
+                        <h3 className="font-semibold text-foreground capitalize">
                           {property.property_type}
                         </h3>
                       </div>
-                      <p className="text-slate-700 mb-2">{property.address}</p>
+                      <p className="text-foreground mb-2">{property.address}</p>
                       {property.notes && (
-                        <p className="text-sm text-slate-500 line-clamp-2">{property.notes}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{property.notes}</p>
                       )}
                     </div>
                     <Button
@@ -190,8 +190,8 @@ export default function ClientDetailView({ client, onEdit }) {
           ) : (
             <Card>
               <CardContent className="py-12 text-center">
-                <Home className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-                <p className="text-slate-600">No properties found for this client</p>
+                <Home className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">No properties found for this client</p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -209,7 +209,7 @@ export default function ClientDetailView({ client, onEdit }) {
         {/* Inspections Tab */}
         <TabsContent value="inspections" className="space-y-4">
           {isLoading ? (
-            <div className="text-center py-8 text-slate-500">Loading inspections...</div>
+            <div className="text-center py-8 text-muted-foreground">Loading inspections...</div>
           ) : sortedInspections.length > 0 ? (
             sortedInspections.map((inspection) => (
               <Card key={inspection.id} className="hover:border-primary/30 transition-colors">
@@ -218,12 +218,12 @@ export default function ClientDetailView({ client, onEdit }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
                         <ClipboardList className="w-5 h-5 text-primary" />
-                        <h3 className="font-semibold text-slate-900 capitalize">
+                        <h3 className="font-semibold text-foreground capitalize">
                           {inspection.inspection_type?.replace(/_/g, ' ')} Inspection
                         </h3>
                         <StatusBadge status={inspection.status} />
                       </div>
-                      <div className="space-y-1 text-sm text-slate-600">
+                      <div className="space-y-1 text-sm text-muted-foreground">
                         {inspection.inspection_date && (
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4" />
@@ -231,7 +231,7 @@ export default function ClientDetailView({ client, onEdit }) {
                           </div>
                         )}
                         {inspection.property_type && (
-                          <p className="text-slate-500">
+                          <p className="text-muted-foreground">
                             Property: {inspection.property_type} • {inspection.location || 'Location not specified'}
                           </p>
                         )}
@@ -251,8 +251,8 @@ export default function ClientDetailView({ client, onEdit }) {
           ) : (
             <Card>
               <CardContent className="py-12 text-center">
-                <ClipboardList className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-                <p className="text-slate-600">No inspections found for this client</p>
+                <ClipboardList className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">No inspections found for this client</p>
                 <Button
                   variant="outline"
                   size="sm"

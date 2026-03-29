@@ -87,11 +87,17 @@ export default function Layout({ children, currentPageName }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-screen bg-background">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:text-sm focus:font-medium"
+      >
+        Skip to content
+      </a>
       {/* Enhanced Header with Logo and Controls */}
-      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50">
+      <header className="bg-card border-b border-border sticky top-0 z-50">
         {/* Top Bar - Logo and Controls */}
-        <div className="bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
+        <div className="bg-card border-b border-border">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center min-h-[60px]">
               {/* Enhanced Logo Section with Transparent Background */}
@@ -103,10 +109,10 @@ export default function Layout({ children, currentPageName }) {
                     className="w-12 h-12 object-contain opacity-90"
                   />
                   <div className="ms-3 hidden sm:block">
-                    <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+                    <span className="text-2xl font-bold text-foreground">
                       Wasla
                     </span>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    <p className="text-xs text-muted-foreground font-medium">
                       Property Solutions
                     </p>
                   </div>
@@ -116,32 +122,32 @@ export default function Layout({ children, currentPageName }) {
               {/* Right side controls */}
               <div className="flex items-center space-x-4 space-x-reverse">
                 {/* Theme toggle */}
-                <Button variant="ghost" size="icon" onClick={toggleTheme} className="min-h-[44px] min-w-[44px] hover:bg-slate-100 dark:hover:bg-slate-700">
+                <Button variant="ghost" size="icon" onClick={toggleTheme} className="min-h-[44px] min-w-[44px] hover:bg-accent" aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}>
                   {isDark ? 
-                    <Sun className="w-5 h-5 text-slate-400" /> : 
-                    <Moon className="w-5 h-5 text-slate-600" />
+                    <Sun className="w-5 h-5 text-muted-foreground" /> : 
+                    <Moon className="w-5 h-5 text-muted-foreground" />
                   }
                 </Button>
 
                 {/* User dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center space-x-3 space-x-reverse hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded-lg min-h-[44px]">
-                      <Avatar className="w-10 h-10 border border-slate-200 dark:border-slate-700">
+                    <Button variant="ghost" className="flex items-center space-x-3 space-x-reverse hover:bg-accent p-2 rounded-lg min-h-[44px]" aria-label="User menu">
+                      <Avatar className="w-10 h-10 border border-border">
                         <AvatarImage src={user?.avatar} />
-                        <AvatarFallback className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-semibold">
+                        <AvatarFallback className="bg-accent text-muted-foreground font-semibold">
                           {user?.full_name?.[0] || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div className="hidden sm:flex flex-col items-start text-start">
-                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[20ch]">
+                        <span className="text-sm font-semibold text-foreground truncate max-w-[20ch]">
                           {user?.full_name || 'User'}
                         </span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 capitalize">
+                        <span className="text-xs text-muted-foreground capitalize">
                           {user?.role || 'user'}
                         </span>
                       </div>
-                      <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
@@ -158,8 +164,9 @@ export default function Layout({ children, currentPageName }) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="md:hidden min-h-[44px] min-w-[44px] hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className="md:hidden min-h-[44px] min-w-[44px] hover:bg-accent"
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  aria-label="Toggle navigation menu"
                 >
                   {isMobileMenuOpen ? 
                     <X className="w-6 h-6" /> : 
@@ -172,7 +179,7 @@ export default function Layout({ children, currentPageName }) {
         </div>
 
         {/* Navigation Bar - Separated Below */}
-        <div className="bg-white dark:bg-slate-800">
+        <div className="bg-card">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Desktop Navigation */}
             <nav className="hidden md:flex space-x-1 space-x-reverse py-3">
@@ -180,7 +187,7 @@ export default function Layout({ children, currentPageName }) {
                 <Link
                   key={item.title}
                   to={item.url}
-                  className="px-4 py-2 min-h-[44px] text-sm font-semibold text-center inline-flex items-center rounded-lg transition-colors duration-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700"
+                  className="px-4 py-2 min-h-[44px] text-sm font-semibold text-center inline-flex items-center rounded-lg transition-colors duration-200 text-muted-foreground hover:text-accent-foreground hover:bg-accent"
                 >
                   <item.icon className="w-4 h-4 me-2" />
                   {item.title}
@@ -190,7 +197,7 @@ export default function Layout({ children, currentPageName }) {
 
             {/* Mobile Navigation */}
             {isMobileMenuOpen && (
-              <div className="md:hidden py-3 border-t border-slate-200 dark:border-slate-700">
+              <div className="md:hidden py-3 border-t border-border">
                 <div className="space-y-1">
                   {navigationItems.map((item) => (
                     <Link
@@ -199,8 +206,8 @@ export default function Layout({ children, currentPageName }) {
                       className={cn(
                         "flex items-center px-4 py-3 min-h-[44px] rounded-lg text-sm font-medium transition-colors duration-200",
                         location.pathname === item.url
-                          ? "bg-slate-100 text-slate-900 dark:bg-slate-700 dark:text-slate-100"
-                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800"
+                          ? "bg-accent text-foreground"
+                          : "text-muted-foreground hover:text-accent-foreground hover:bg-accent"
                       )}
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
@@ -217,6 +224,7 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Main content - padding-bottom on mobile for bottom nav */}
       <main
+        id="main-content"
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
         style={{ paddingBottom: isMobile ? `${BOTTOM_NAV_HEIGHT + 32}px` : undefined }}
       >

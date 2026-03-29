@@ -11,13 +11,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User as UserIcon, Mail, Phone, Save, Bell, Moon, Sun, Settings as SettingsIcon, Building } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 const ProfileField = ({ id, label, icon: Icon, ...props }) => (
   <div className="space-y-2">
-    <Label htmlFor={id} className="text-slate-700 font-medium">{label}</Label>
+    <Label htmlFor={id} className="text-foreground font-medium">{label}</Label>
     <div className="relative">
-      {Icon && <Icon className="absolute left-3 top-3 w-4 h-4 text-slate-400" />}
-      <Input id={id} name={id} className={Icon ? "pl-10" : ""} {...props} />
+      {Icon && <Icon className="absolute start-3 top-3 w-4 h-4 text-muted-foreground" />}
+      <Input id={id} name={id} className={Icon ? "ps-10" : ""} {...props} />
     </div>
   </div>
 );
@@ -82,31 +83,52 @@ export default function Settings() {
   };
 
   if (isLoading) {
-    return <div className="p-4 md:p-8"><div className="animate-pulse"><div className="h-8 bg-slate-200 rounded w-1/4 mb-4" /><div className="h-4 bg-slate-200 rounded w-1/2 mb-8" /><div className="h-96 bg-slate-200 rounded" /></div></div>;
+    return <div className="p-4 md:p-8"><div className="animate-pulse"><div className="h-8 bg-muted rounded w-1/4 mb-4" /><div className="h-4 bg-muted rounded w-1/2 mb-8" /><div className="h-96 bg-muted rounded" /></div></div>;
   }
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="space-y-6 p-4 md:p-8"> {/* Adjusted padding here based on previous structure */}
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Settings</h1>
-        <p className="text-slate-600">Manage your account settings and preferences.</p>
-      </div>
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="space-y-6 lg:space-y-8"
+    >
+      <motion.div variants={itemVariants}>
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight mb-2">Settings</h1>
+        <p className="text-sm md:text-base text-muted-foreground">Account and app preferences.</p>
+      </motion.div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <motion.div variants={itemVariants}>
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="preferences">Preferences</TabsTrigger>
         </TabsList>
+        </motion.div>
 
         <TabsContent value="profile" className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2 text-slate-900"><UserIcon className="w-5 h-5" />Profile Information</CardTitle></CardHeader>
+          <motion.div variants={itemVariants}>
+            <Card className="transition-all duration-200">
+            <CardHeader><CardTitle className="flex items-center gap-2 text-foreground"><UserIcon className="w-5 h-5" />Profile Information</CardTitle></CardHeader>
             <CardContent className="space-y-6">
               <div className="flex flex-col sm:flex-row items-center gap-6">
                 <Avatar className="w-20 h-20"><AvatarImage src={user?.avatar} /><AvatarFallback className="text-2xl font-semibold">{profileData.full_name?.charAt(0) || 'U'}</AvatarFallback></Avatar>
                 <div className="text-center sm:text-left">
-                  <h3 className="font-semibold text-slate-900">{profileData.full_name || 'User'}</h3>
-                  <p className="text-slate-600 text-sm">{profileData.email}</p>
+                  <h3 className="font-semibold text-foreground">{profileData.full_name || 'User'}</h3>
+                  <p className="text-muted-foreground text-sm">{profileData.email}</p>
                   <Button variant="outline" size="sm" className="mt-2">Change Photo</Button>
                 </div>
               </div>
@@ -119,34 +141,37 @@ export default function Settings() {
               </div>
               <ProfileField id="address" label="Address" value={profileData.address} onChange={handleProfileChange} placeholder="Your business address" />
             </CardContent>
-          </Card>
+            </Card>
+          </motion.div>
         </TabsContent>
 
         <TabsContent value="preferences" className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2 text-slate-900"><SettingsIcon className="w-5 h-5" />Application Preferences</CardTitle></CardHeader>
+          <motion.div variants={itemVariants}>
+            <Card className="transition-all duration-200">
+            <CardHeader><CardTitle className="flex items-center gap-2 text-foreground"><SettingsIcon className="w-5 h-5" />Application Preferences</CardTitle></CardHeader>
             <CardContent className="space-y-8">
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2"><Bell className="w-5 h-5" />Notifications</h3>
-                <div className="space-y-4 pl-7">
-                  <div className="flex items-center justify-between"><Label htmlFor="notifications-switch" className="text-slate-700 font-medium cursor-pointer">Push Notifications</Label><Switch id="notifications-switch" checked={preferences.notifications} onCheckedChange={(c) => handlePreferenceChange('notifications', c)} /></div>
-                  <div className="flex items-center justify-between"><Label htmlFor="reminders-switch" className="text-slate-700 font-medium cursor-pointer">Email Reminders</Label><Switch id="reminders-switch" checked={preferences.emailReminders} onCheckedChange={(c) => handlePreferenceChange('emailReminders', c)} /></div>
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2"><Bell className="w-5 h-5" />Notifications</h3>
+                <div className="space-y-4 ps-7">
+                  <div className="flex items-center justify-between"><Label htmlFor="notifications-switch" className="text-muted-foreground font-medium cursor-pointer">Push Notifications</Label><Switch id="notifications-switch" checked={preferences.notifications} onCheckedChange={(c) => handlePreferenceChange('notifications', c)} /></div>
+                  <div className="flex items-center justify-between"><Label htmlFor="reminders-switch" className="text-muted-foreground font-medium cursor-pointer">Email Reminders</Label><Switch id="reminders-switch" checked={preferences.emailReminders} onCheckedChange={(c) => handlePreferenceChange('emailReminders', c)} /></div>
                 </div>
               </div>
               <Separator />
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">{preferences.darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}Appearance</h3>
-                <div className="pl-7"><div className="flex items-center justify-between"><Label htmlFor="darkmode-switch" className="text-slate-700 font-medium cursor-pointer">Dark Mode</Label><Switch id="darkmode-switch" checked={preferences.darkMode} onCheckedChange={(c) => handlePreferenceChange('darkMode', c)} /></div></div>
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">{preferences.darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}Appearance</h3>
+                <div className="ps-7"><div className="flex items-center justify-between"><Label htmlFor="darkmode-switch" className="text-muted-foreground font-medium cursor-pointer">Dark Mode</Label><Switch id="darkmode-switch" checked={preferences.darkMode} onCheckedChange={(c) => handlePreferenceChange('darkMode', c)} /></div></div>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </motion.div>
         </TabsContent>
       </Tabs>
-      <div className="flex justify-end pt-4">
-        <Button onClick={handleSave} disabled={isSaving} className="bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto">
-          <Save className="w-4 h-4 mr-2" />{isSaving ? "Saving..." : "Save Changes"}
+      <motion.div variants={itemVariants} className="flex justify-end pt-4">
+        <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto min-h-[44px]">
+          <Save className="w-4 h-4 me-2" />{isSaving ? "Saving..." : "Save Changes"}
         </Button>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

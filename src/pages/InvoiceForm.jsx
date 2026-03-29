@@ -228,12 +228,12 @@ export default function InvoiceForm() {
         <Button variant="outline" onClick={() => navigate(createPageUrl("Invoices"))} className="w-full sm:w-auto order-1 sm:order-2">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Invoices
         </Button>
-        <h1 className="text-2xl font-bold text-slate-900 order-2 sm:order-1">{invoice.id ? "Edit Invoice" : "New Invoice"}</h1>
+        <h1 className="text-2xl font-bold text-foreground order-2 sm:order-1">{invoice.id ? "Edit Invoice" : "New Invoice"}</h1>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-slate-800">Invoice Details</CardTitle>
+          <CardTitle className="text-foreground">Invoice Details</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -313,7 +313,7 @@ export default function InvoiceForm() {
             </div>
             
             <div className="border rounded-lg p-4 space-y-4">
-                <h3 className="font-semibold text-slate-800">Billing Details</h3>
+                <h3 className="font-semibold text-foreground">Billing Details</h3>
                 {invoice.items?.map((item, index) => (
                     <div key={index} className="flex flex-wrap items-end gap-4">
                         <div className="flex-grow space-y-1 min-w-[150px]">
@@ -334,7 +334,7 @@ export default function InvoiceForm() {
                         </div>
                     </div>
                 ))}
-                {invoice.items?.length === 0 && <p className="text-sm text-slate-500 text-center py-4">Select an inspection to auto-fill or add items manually.</p>}
+                {invoice.items?.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Select an inspection to auto-fill or add items manually.</p>}
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t">
                     <div className="col-span-1 hidden sm:block"></div>

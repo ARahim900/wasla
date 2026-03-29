@@ -10,11 +10,11 @@ import { User, Mail, Phone, MapPin, Building2, FileText } from "lucide-react";
 // Sub-component to reduce repetition in the form
 const FormField = ({ id, label, icon: Icon, value, onChange, required, type = "text", placeholder }) => (
   <div className="space-y-2">
-    <Label htmlFor={id} className="text-slate-700 font-medium">
+    <Label htmlFor={id} className="text-foreground font-medium">
       {label} {required && '*'}
     </Label>
     <div className="relative">
-      <Icon className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+      <Icon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
       <Input
         id={id}
         name={id}
@@ -59,7 +59,7 @@ export default function ClientForm({ client, onSubmit, onCancel, isLoading }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-slate-900">
+        <CardTitle className="flex items-center gap-2 text-foreground">
           <User className="w-5 h-5" />
           {client ? 'Edit Client' : 'Add New Client'}
         </CardTitle>
@@ -75,9 +75,9 @@ export default function ClientForm({ client, onSubmit, onCancel, isLoading }) {
           <FormField id="address" label="Address" icon={MapPin} value={formData.address} onChange={handleChange} placeholder="123 Main St, City, State 12345" />
 
           <div className="space-y-2">
-            <Label htmlFor="notes" className="text-slate-700 font-medium">Notes</Label>
+            <Label htmlFor="notes" className="text-foreground font-medium">Notes</Label>
             <div className="relative">
-              <FileText className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+              <FileText className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
               <Textarea id="notes" name="notes" value={formData.notes} onChange={handleChange} className="pl-10 min-h-[100px]" placeholder="Additional notes about the client..." />
             </div>
           </div>

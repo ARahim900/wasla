@@ -87,7 +87,7 @@ export default function Dashboard() {
     >
       <div>
         <h1 className="text-foreground mb-1 font-bold text-2xl lg:text-3xl tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground text-sm lg:text-base">Welcome back! Here's what's happening with your property inspections.</p>
+        <p className="text-muted-foreground text-sm lg:text-base">Overview of your inspections, clients, and revenue.</p>
       </div>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
@@ -105,7 +105,7 @@ export default function Dashboard() {
         <div>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg text-slate-900">Recent Inspections</CardTitle>
+              <CardTitle className="text-lg text-foreground">Recent Inspections</CardTitle>
               <Button variant="outline" size="sm" asChild>
                 <Link to={createPageUrl("Inspections")}>View All</Link>
               </Button>
@@ -114,28 +114,28 @@ export default function Dashboard() {
               {isLoading ?
               Array.from({ length: 3 }).map((_, i) =>
               <div key={i} className="space-y-2 pb-3 animate-pulse">
-                    <div className="h-4 bg-slate-200 rounded w-3/4"></div>
-                    <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                    <div className="h-4 bg-muted rounded w-3/4"></div>
+                    <div className="h-3 bg-muted rounded w-1/2"></div>
                   </div>
               ) :
               recentInspections.length > 0 ?
               recentInspections.map((inspection) =>
               <div key={inspection.id} className="space-y-1.5 pb-3 border-b last:border-0 last:pb-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium text-slate-800 dark:text-slate-200 text-sm truncate flex-1">
+                      <p className="font-medium text-foreground text-sm truncate flex-1">
                         {inspection.inspection_type?.replace(/_/g, ' ').toUpperCase() || 'Inspection'}
                       </p>
                       <Badge variant="secondary" className={`${getInspectionStatusColor(inspection.status)} text-xs capitalize`}>
                         {inspection.status?.replace("_", " ") || 'scheduled'}
                       </Badge>
                     </div>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       {inspection.inspection_date ? format(new Date(inspection.inspection_date), 'MMM d, yyyy') : 'No date'}
                     </p>
                   </div>
               ) :
 
-              <div className="text-center py-8 text-slate-500">
+              <div className="text-center py-8 text-muted-foreground">
                   <ClipboardList className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No inspections yet</p>
                   <Button variant="secondary" size="sm" className="mt-4" asChild>

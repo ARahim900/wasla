@@ -2,7 +2,7 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 
-export default function MetricCard({ title, value, icon: Icon, isLoading }) {
+function MetricCard({ title, value, icon: Icon, isLoading }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -26,3 +26,5 @@ export default function MetricCard({ title, value, icon: Icon, isLoading }) {
       </Card>
     </motion.div>);
 }
+
+export default React.memo(MetricCard);

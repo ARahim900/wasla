@@ -87,12 +87,12 @@ export default function Login() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-primary">Wasla</h1>
-            <p className="text-slate-600 mt-1">Property Solutions</p>
+            <p className="text-muted-foreground mt-1">Property Solutions</p>
           </div>
           <Card>
             <CardContent className="pt-8 pb-8">
-              <h2 className="text-xl font-bold text-slate-900 mb-2">Reset your password</h2>
-              <p className="text-slate-600 text-sm mb-6">
+              <h2 className="text-xl font-bold text-foreground mb-2">Reset your password</h2>
+              <p className="text-muted-foreground text-sm mb-6">
                 Enter your email address and we'll send you a link to reset your password.
               </p>
               <form
@@ -117,7 +117,7 @@ export default function Login() {
                 <div className="space-y-2">
                   <Label htmlFor="forgot-email">Email</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                    <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                     <Input
                       id="forgot-email"
                       type="email"
@@ -139,7 +139,7 @@ export default function Login() {
                   setShowForgotPassword(false);
                   setActiveTab("login");
                 }}
-                className="w-full mt-3 text-slate-600"
+                className="w-full mt-3 text-muted-foreground"
               >
                 Back to Log In
               </Button>
@@ -157,12 +157,12 @@ export default function Login() {
           <Card>
             <CardContent className="pt-8 pb-8 text-center">
               <CheckCircle2 className="w-16 h-16 text-primary mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">Check your email</h2>
-              <p className="text-slate-600 mb-1">
+              <h2 className="text-2xl font-bold text-foreground mb-2">Check your email</h2>
+              <p className="text-muted-foreground mb-1">
                 We sent a confirmation link to
               </p>
-              <p className="font-medium text-slate-900 mb-6">{confirmEmailSent}</p>
-              <p className="text-sm text-slate-500 mb-6">
+              <p className="font-medium text-foreground mb-6">{confirmEmailSent}</p>
+              <p className="text-sm text-muted-foreground mb-6">
                 Click the link in the email to activate your account. If you don't see it, check your spam folder.
               </p>
               <div className="space-y-3">
@@ -205,10 +205,10 @@ export default function Login() {
 
   if (isDemoMode) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6 text-center">
-            <p className="text-slate-600 mb-4">Running in demo mode. No login required.</p>
+            <p className="text-muted-foreground mb-4">Running in demo mode. No login required.</p>
             <Button onClick={() => navigate("/")}>
               Go to Dashboard
             </Button>
@@ -228,7 +228,7 @@ export default function Login() {
             className="w-16 h-16 mx-auto mb-4 object-contain"
           />
           <h1 className="text-3xl font-bold text-primary">Wasla</h1>
-          <p className="text-slate-600 mt-1">Property Solutions</p>
+          <p className="text-muted-foreground mt-1">Property Solutions</p>
         </div>
 
         <Card>
@@ -240,12 +240,12 @@ export default function Login() {
               </TabsList>
 
               <TabsContent value="login" className="mt-6">
-                <CardTitle className="text-xl text-slate-900">Welcome back</CardTitle>
+                <CardTitle className="text-xl text-foreground">Welcome back</CardTitle>
                 <form onSubmit={handleLogin} className="mt-4 space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="login-email">Email</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                      <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                       <Input
                         id="login-email"
                         type="email"
@@ -259,7 +259,7 @@ export default function Login() {
                   <div className="space-y-2">
                     <Label htmlFor="login-password">Password</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                      <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                       <Input
                         id="login-password"
                         type="password"
@@ -290,12 +290,12 @@ export default function Login() {
               </TabsContent>
 
               <TabsContent value="signup" className="mt-6">
-                <CardTitle className="text-xl text-slate-900">Create an account</CardTitle>
+                <CardTitle className="text-xl text-foreground">Create an account</CardTitle>
                 <form onSubmit={handleSignUp} className="mt-4 space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                      <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                       <Input
                         id="signup-email"
                         type="email"
@@ -309,7 +309,7 @@ export default function Login() {
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                      <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                       <Input
                         id="signup-password"
                         type="password"
@@ -323,7 +323,7 @@ export default function Login() {
                   <div className="space-y-2">
                     <Label htmlFor="signup-confirm">Confirm Password</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                      <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                       <Input
                         id="signup-confirm"
                         type="password"

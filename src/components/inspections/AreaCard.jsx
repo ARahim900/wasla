@@ -116,7 +116,7 @@ export default function AreaCard({ area, onUpdate, onRemove }) {
           <div className="space-y-4 mt-4">
             {Object.entries(INSPECTION_CATEGORIES).map(([category, points]) => (
               <div key={category}>
-                <h4 className="font-semibold text-lg text-slate-700 mb-2 border-b pb-1">{category}</h4>
+                <h4 className="font-semibold text-lg text-foreground mb-2 border-b pb-1">{category}</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                   {points.map(point => (
                     <button

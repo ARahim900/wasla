@@ -181,7 +181,7 @@ export default function InspectionForm() {
     return (
       <div className="p-8 text-center">
         <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-slate-600">Loading inspection form...</p>
+        <p className="text-muted-foreground">Loading inspection form...</p>
       </div>
     );
   }
@@ -207,7 +207,7 @@ export default function InspectionForm() {
     <div>
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-          <h1 className="text-2xl font-bold text-slate-900 order-2 sm:order-1">
+          <h1 className="text-2xl font-bold text-foreground order-2 sm:order-1">
             {inspection.id ? "Edit Inspection" : "New Inspection"}
           </h1>
           <Button
@@ -220,8 +220,8 @@ export default function InspectionForm() {
           </Button>
         </div>
 
-        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border">
-          <h2 className="text-xl font-bold mb-6 text-slate-800">
+        <div className="bg-card p-4 sm:p-6 rounded-lg shadow-sm border">
+          <h2 className="text-xl font-bold mb-6 text-foreground">
             Inspection Details
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">

@@ -146,42 +146,42 @@ export default function Clients() {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-0">
+    <div className="space-y-6 lg:space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Clients</h1>
-          <p className="text-sm md:text-base text-slate-600 mt-1">Manage your client database and their properties.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">Clients</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">Manage your client database and their properties.</p>
         </div>
-        <Button onClick={handleAddNew} className="bg-emerald-600 hover:bg-emerald-700 w-full md:w-auto">
-          <Plus className="w-4 h-4 mr-2" />
+        <Button onClick={handleAddNew} className="w-full md:w-auto min-h-[44px]">
+          <Plus className="w-4 h-4 me-2" />
           Add New Client
         </Button>
       </div>
 
       <div className="relative w-full sm:max-w-sm">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <Input placeholder="Search clients..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+        <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input placeholder="Search clients..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="ps-10" />
       </div>
 
       <div className="grid gap-4 md:gap-6">
         {isLoading ? (
-          Array.from({ length: 3 }).map((_, i) => <Card key={i} className="animate-pulse h-48 bg-slate-200" />)
+          Array.from({ length: 3 }).map((_, i) => <Card key={i} className="animate-pulse h-48 bg-muted" />)
         ) : (
           <AnimatePresence>
             {filteredClients.length > 0 ? (
               filteredClients.map((client) => (
                 <motion.div key={client.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}>
-                  <Card className="hover:border-emerald-500/50 transition-colors overflow-hidden rounded-xl shadow-sm">
+                  <Card className="transition-colors overflow-hidden rounded-xl">
                     <CardHeader className="p-4 flex flex-col sm:flex-row justify-between items-start gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3">
-                          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex-shrink-0">
+                          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-accent text-muted-foreground flex-shrink-0">
                             <Users className="w-5 h-5" />
                           </span>
-                          <CardTitle className="text-slate-900 text-base truncate">{client.name}</CardTitle>
+                          <CardTitle className="text-foreground text-base truncate">{client.name}</CardTitle>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 mt-2 ml-11">
+                        <div className="flex flex-wrap items-center gap-2 mt-2 ms-11">
                           {client.company && <Badge variant="secondary">{client.company}</Badge>}
                           <Badge variant="outline">Properties: {propertyCounts[client.id] || 0}</Badge>
                         </div>
@@ -199,18 +199,18 @@ export default function Clients() {
 
                     <CardContent className="p-4 pt-0 space-y-2">
                       <div className="grid grid-cols-1 gap-y-2 text-sm">
-                        <div className="flex items-center gap-2 text-slate-500 min-w-0">
+                        <div className="flex items-center gap-2 text-muted-foreground min-w-0">
                           <Mail className="w-4 h-4 flex-shrink-0" />
                           <span className="truncate">{client.email || 'No email'}</span>
                         </div>
                         {client.phone && (
-                          <div className="flex items-center gap-2 text-slate-500 min-w-0">
+                          <div className="flex items-center gap-2 text-muted-foreground min-w-0">
                             <Phone className="w-4 h-4 flex-shrink-0" />
                             <span className="truncate">{client.phone}</span>
                           </div>
                         )}
                         {client.address && (
-                          <div className="flex items-center gap-2 text-slate-500 min-w-0">
+                          <div className="flex items-center gap-2 text-muted-foreground min-w-0">
                             <MapPin className="w-4 h-4 flex-shrink-0" />
                             <span className="truncate">{client.address}</span>
                           </div>
@@ -222,10 +222,10 @@ export default function Clients() {
               ))
             ) : (
               <div className="text-center py-16">
-                <Users className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-                <h3 className="text-xl font-medium text-slate-800 mb-2">No clients found</h3>
-                <p className="text-slate-500 mb-4">{searchTerm ? "Try adjusting your search terms." : "Get started by adding your first client."}</p>
-                {!searchTerm && <Button onClick={handleAddNew} className="bg-emerald-600 hover:bg-emerald-700"><Plus className="w-4 h-4 mr-2" />Add First Client</Button>}
+                <Users className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-xl font-medium text-foreground mb-2">No clients found</h3>
+                <p className="text-muted-foreground mb-4">{searchTerm ? "Try adjusting your search terms." : "Get started by adding your first client."}</p>
+                {!searchTerm && <Button onClick={handleAddNew} className="min-h-[44px]"><Plus className="w-4 h-4 me-2" />Add First Client</Button>}
               </div>
             )}
           </AnimatePresence>

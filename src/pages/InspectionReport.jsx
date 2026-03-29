@@ -15,7 +15,7 @@ function ReportTemplate({ inspection, client, property }) {
     : "N/A";
 
   return (
-    <div className="bg-white">
+    <div className="bg-card">
       {/* Cover Page 1 */}
       <div className="report-page">
         <div className="text-center mb-12">
@@ -24,12 +24,12 @@ function ReportTemplate({ inspection, client, property }) {
             alt="Wasla Logo"
             className="w-40 h-auto mx-auto mb-6"
           />
-          <h1 className="text-3xl font-bold text-slate-900 mb-2 tracking-wide">PROPERTY INSPECTION REPORT</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2 tracking-wide">PROPERTY INSPECTION REPORT</h1>
         </div>
 
         <div className="grid grid-cols-2 gap-12 text-base leading-relaxed">
           <div>
-            <h2 className="font-bold text-xl mb-6 text-slate-800 border-b-2 border-slate-200 pb-2">OVERVIEW</h2>
+            <h2 className="font-bold text-xl mb-6 text-foreground border-b-2 border-border pb-2">OVERVIEW</h2>
             <p className="mb-6"><strong>Dear Mr. {clientName},</strong></p>
             <p className="mb-6">Thank you for choosing Wasla Real Estate Solutions as your home inspector. Your prospective home is basically in grade () as per our inspection and classifications. However, a number of rather typical inspection issues were identified.</p>
             <p className="mb-6">Please review the annexed report carefully before making your decision. If you need further explanation regarding this property conditions, please don't hesitate to call or email us from 9:00 am to 5:00 PM at:</p>
@@ -38,7 +38,7 @@ function ReportTemplate({ inspection, client, property }) {
           </div>
 
           <div style={{ direction: "rtl", textAlign: "right" }}>
-            <h2 className="font-bold text-xl mb-6 text-slate-800 border-b-2 border-slate-200 pb-2">نظرة عامة</h2>
+            <h2 className="font-bold text-xl mb-6 text-foreground border-b-2 border-border pb-2">نظرة عامة</h2>
             <p className="mb-6"><strong>الأفاضل/ {clientName} المحترمون،</strong></p>
             <p className="mb-6">نشكر لكم اختياركم "وصلة للحلول العقارية" للقيام بفحص العقار الخاص بكم. وفقًا للفحص والتصنيف المعتمد لدينا، فإن العقار الذي ترغبون في شرائه يقع ضمن الدرجة ()، مع وجود بعض الملاحظات التي تُعد شائعة في عمليات الفحص العقاري.</p>
             <p className="mb-6">يرجى مراجعة التقرير المرفق بعناية قبل اتخاذ قراركم النهائي، وإذا كنتم بحاجة إلى توضيحات إضافية حول حالة العقار، فلا تترددوا بالتواصل معنا عبر الهاتف أو البريد الإلكتروني من الساعة 9 صباحًا حتى 5 مساءً على وسائل التواصل التالية:</p>
@@ -190,7 +190,7 @@ function ReportTemplate({ inspection, client, property }) {
       {/* Main Report Content */}
       <div id="report-content" className="report-page">
         <div className="mb-10">
-          <h1 className="text-3xl font-bold text-center mb-8 text-slate-900">INSPECTION DETAILS</h1>
+          <h1 className="text-3xl font-bold text-center mb-8 text-foreground">INSPECTION DETAILS</h1>
           <div className="grid grid-cols-2 gap-6 mb-8 text-base">
             <div><strong>Client:</strong> {inspection?.client_name}</div>
             <div><strong>Inspector:</strong> {inspection?.inspector_name}</div>
@@ -222,7 +222,7 @@ function ReportTemplate({ inspection, client, property }) {
                 {item.photos?.length > 0 && (
                   <div className="grid grid-cols-2 gap-4">
                     {item.photos.map((photo, idx) => (
-                      <img key={idx} src={photo.url} alt={photo.name} className="w-full h-48 object-cover rounded border" />
+                      <img key={idx} src={photo.url} alt={photo.name} loading="lazy" className="w-full h-48 object-cover rounded border" />
                     ))}
                   </div>
                 )}

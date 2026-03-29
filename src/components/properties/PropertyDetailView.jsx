@@ -61,7 +61,7 @@ export default function PropertyDetailView({ property, onEdit }) {
   }, [property?.id, property?.client_id]);
 
   if (!property) {
-    return <div className="text-center py-8 text-slate-500">No property selected</div>;
+    return <div className="text-center py-8 text-muted-foreground">No property selected</div>;
   }
 
   const sortedInspections = [...inspections].sort((a, b) => 
@@ -77,10 +77,10 @@ export default function PropertyDetailView({ property, onEdit }) {
             <Home className="w-8 h-8 text-primary" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 capitalize">
+            <h2 className="text-2xl font-bold text-foreground capitalize">
               {property.property_type}
             </h2>
-            <p className="text-slate-600 mt-1">{property.address}</p>
+            <p className="text-muted-foreground mt-1">{property.address}</p>
           </div>
         </div>
         <Button onClick={onEdit} variant="outline" size="sm">
@@ -156,12 +156,12 @@ export default function PropertyDetailView({ property, onEdit }) {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-slate-900">{client.name}</p>
+                    <p className="font-semibold text-foreground">{client.name}</p>
                     {client.email && (
-                      <p className="text-sm text-slate-600">{client.email}</p>
+                      <p className="text-sm text-muted-foreground">{client.email}</p>
                     )}
                     {client.phone && (
-                      <p className="text-sm text-slate-600">{client.phone}</p>
+                      <p className="text-sm text-muted-foreground">{client.phone}</p>
                     )}
                   </div>
                   <Button
@@ -185,7 +185,7 @@ export default function PropertyDetailView({ property, onEdit }) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-slate-700 whitespace-pre-wrap">{property.notes}</p>
+                <p className="text-foreground whitespace-pre-wrap">{property.notes}</p>
               </CardContent>
             </Card>
           )}
@@ -195,8 +195,8 @@ export default function PropertyDetailView({ property, onEdit }) {
             <CardContent className="pt-6">
               <div className="text-center">
                 <ClipboardList className="w-8 h-8 mx-auto text-primary mb-2" />
-                <p className="text-3xl font-bold text-slate-900">{inspections.length}</p>
-                <p className="text-sm text-slate-600">Total Inspections</p>
+                <p className="text-3xl font-bold text-foreground">{inspections.length}</p>
+                <p className="text-sm text-muted-foreground">Total Inspections</p>
               </div>
             </CardContent>
           </Card>
@@ -205,7 +205,7 @@ export default function PropertyDetailView({ property, onEdit }) {
         {/* Inspection History Tab */}
         <TabsContent value="inspections" className="space-y-4">
           {isLoading ? (
-            <div className="text-center py-8 text-slate-500">Loading inspection history...</div>
+            <div className="text-center py-8 text-muted-foreground">Loading inspection history...</div>
           ) : sortedInspections.length > 0 ? (
             sortedInspections.map((inspection) => (
               <Card key={inspection.id} className="hover:border-primary/30 transition-colors">
@@ -214,26 +214,26 @@ export default function PropertyDetailView({ property, onEdit }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
                         <ClipboardList className="w-5 h-5 text-primary" />
-                        <h3 className="font-semibold text-slate-900 capitalize">
+                        <h3 className="font-semibold text-foreground capitalize">
                           {inspection.inspection_type?.replace(/_/g, ' ')} Inspection
                         </h3>
                         <StatusBadge status={inspection.status} />
                       </div>
                       <div className="space-y-1 text-sm">
                         {inspection.inspection_date && (
-                          <div className="flex items-center gap-2 text-slate-600">
+                          <div className="flex items-center gap-2 text-muted-foreground">
                             <Calendar className="w-4 h-4" />
                             <span>{format(new Date(inspection.inspection_date), 'MMMM d, yyyy')}</span>
                           </div>
                         )}
                         {inspection.inspector_name && (
-                          <div className="flex items-center gap-2 text-slate-600">
+                          <div className="flex items-center gap-2 text-muted-foreground">
                             <User className="w-4 h-4" />
                             <span>Inspector: {inspection.inspector_name}</span>
                           </div>
                         )}
                         {inspection.client_name && (
-                          <p className="text-slate-500">Client: {inspection.client_name}</p>
+                          <p className="text-muted-foreground">Client: {inspection.client_name}</p>
                         )}
                       </div>
                     </div>
@@ -251,9 +251,9 @@ export default function PropertyDetailView({ property, onEdit }) {
           ) : (
             <Card>
               <CardContent className="py-12 text-center">
-                <ClipboardList className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-                <p className="text-slate-600 mb-1">No inspections recorded for this property</p>
-                <p className="text-sm text-slate-500 mb-4">
+                <ClipboardList className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground mb-1">No inspections recorded for this property</p>
+                <p className="text-sm text-muted-foreground mb-4">
                   Schedule an inspection to start tracking property condition
                 </p>
                 <Button

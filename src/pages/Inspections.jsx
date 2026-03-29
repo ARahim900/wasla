@@ -56,11 +56,15 @@ export default function Inspections() {
   }, []);
 
   const handleStatusChange = async (inspection, newStatus) => {
+    const previousInspections = inspections;
+    // Optimistic update
+    setInspections(prev => prev.map(i => i.id === inspection.id ? { ...i, status: newStatus } : i));
     try {
       await Inspection.update(inspection.id, { ...inspection, status: newStatus });
       toast.success(`Inspection status updated to ${newStatus.replace('_', ' ')}`);
-      await loadData(); // Refresh the list to show updated status
     } catch (error) {
+      // Rollback on failure
+      setInspections(previousInspections);
       console.error("Error updating inspection status:", error);
       toast.error("Failed to update inspection status");
     }
@@ -128,7 +132,7 @@ export default function Inspections() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground tracking-tight">Inspections</h1>
-          <p className="text-sm lg:text-base text-muted-foreground mt-1">Manage and track all your property inspections.</p>
+          <p className="text-sm lg:text-base text-muted-foreground mt-1">{inspections.length} total inspections</p>
         </div>
         <Button
           onClick={() => navigate(createPageUrl("InspectionForm"))}
@@ -141,7 +145,7 @@ export default function Inspections() {
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search inspections..."
             value={searchTerm}
@@ -174,7 +178,7 @@ export default function Inspections() {
         {isLoading ? (
           <div className="text-center py-8">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-            <p className="mt-2 text-slate-500">Loading inspections...</p>
+            <p className="mt-2 text-muted-foreground">Loading inspections...</p>
           </div>
         ) : paginatedInspections.length > 0 ? (
           <AnimatePresence>
@@ -195,7 +199,7 @@ export default function Inspections() {
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                        <CardTitle className="text-slate-900 flex items-center gap-2 text-base font-semibold">
+                        <CardTitle className="text-foreground flex items-center gap-2 text-base font-semibold">
                           <ClipboardList className="w-5 h-5 text-primary" />
                           <span className="capitalize">{inspection.inspection_type?.replace(/_/g, ' ')} Inspection</span>
                         </CardTitle>
@@ -248,7 +252,7 @@ export default function Inspections() {
                         </DropdownMenu>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 mt-2 ms-7">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2 ms-7">
                         {inspection.client_name && (
                           <div className="flex items-center gap-1.5">
                             <User className="w-3 h-3" />
@@ -263,7 +267,7 @@ export default function Inspections() {
                         )}
                       </div>
                       {property?.address && (
-                        <div className="text-xs text-slate-500 mt-1 ms-7">
+                        <div className="text-xs text-muted-foreground mt-1 ms-7">
                           Property: {property.address}
                         </div>
                       )}
@@ -283,6 +287,7 @@ export default function Inspections() {
                         variant="outline"
                         size="sm"
                         onClick={() => navigate(createPageUrl(`InspectionForm?id=${inspection.id}`))}
+                        aria-label="View inspection"
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
@@ -291,6 +296,7 @@ export default function Inspections() {
                         size="icon"
                         className="text-red-500 hover:text-red-500/80 w-8 h-8"
                         onClick={() => handleDelete(inspection.id)}
+                        aria-label="Delete inspection"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -304,11 +310,11 @@ export default function Inspections() {
           </AnimatePresence>
         ) : (
           <div className="text-center py-16">
-            <ClipboardList className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-            <h3 className="text-xl font-medium text-slate-800 mb-2">
+            <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+            <h3 className="text-xl font-medium text-foreground mb-2">
               {searchTerm || statusFilter !== "all" ? "No Matching Inspections" : "No Inspections Found"}
             </h3>
-            <p className="text-slate-500 mb-4 max-w-md mx-auto">
+            <p className="text-muted-foreground mb-4 max-w-md mx-auto">
               {searchTerm || statusFilter !== "all"
                 ? "Try adjusting your search terms or filters."
                 : "Get started by scheduling your first property inspection."}

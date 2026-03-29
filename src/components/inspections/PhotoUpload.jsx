@@ -11,6 +11,38 @@ import {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB (matches Supabase bucket limit)
 
+const compressImage = async (file) => {
+  if (file.size < 500 * 1024) return file; // Skip if already small
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX_DIM = 2048;
+      let { width, height } = img;
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          const compressed = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
+          resolve(compressed.size < file.size ? compressed : file);
+        },
+        'image/jpeg',
+        0.8
+      );
+    };
+    img.onerror = () => resolve(file); // Fallback to original on error
+    img.src = URL.createObjectURL(file);
+  });
+};
+
 export default function PhotoUpload({ photos, onUpdate }) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -25,7 +57,7 @@ export default function PhotoUpload({ photos, onUpdate }) {
     let skippedSize = 0;
     let skippedType = 0;
 
-    for (const file of Array.from(files)) {
+    for (let file of Array.from(files)) {
       if (!file.type.startsWith('image/')) {
         skippedType++;
         continue;
@@ -35,6 +67,7 @@ export default function PhotoUpload({ photos, onUpdate }) {
         continue;
       }
       try {
+        file = await compressImage(file);
         const { file_url } = await UploadFile({ file, bucket: 'inspection-photos' });
         uploadedPhotos.push({ url: file_url, name: file.name });
       } catch (error) {
@@ -88,12 +121,13 @@ export default function PhotoUpload({ photos, onUpdate }) {
             <img
               src={photo.url}
               alt={photo.name}
+              loading="lazy"
               className="w-full h-full object-cover rounded-md"
             />
             <button
               type="button"
               onClick={() => handleRemove(index)}
-              className="absolute top-1 right-1 bg-red-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-red-700"
+              className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full h-8 w-8 flex items-center justify-center text-xs opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10 hover:bg-red-700"
               aria-label="Remove photo"
             >
               <X className="w-4 h-4" />

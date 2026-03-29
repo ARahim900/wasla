@@ -142,8 +142,8 @@ export default function Properties() {
     <div className="space-y-6 lg:space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">Properties</h1>
-          <p className="text-sm md:text-base text-slate-500 dark:text-slate-400">Manage all client properties and inspection history.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2 tracking-tight">Properties</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Manage all client properties and inspection history.</p>
         </div>
         <Button onClick={handleAddNew} className="w-full md:w-auto min-h-[44px]">
           <Plus className="w-4 h-4 me-2" />
@@ -152,7 +152,7 @@ export default function Properties() {
       </div>
 
       <div className="relative w-full sm:max-w-md">
-        <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input placeholder="Search by address or client..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="ps-10" />
       </div>
 
@@ -161,11 +161,11 @@ export default function Properties() {
           Array(3).fill(0).map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader className="space-y-0 p-4">
-                <div className="h-4 bg-slate-200 rounded w-3/4"></div>
-                <div className="h-3 bg-slate-200 rounded w-1/2 mt-1"></div>
+                <div className="h-4 bg-muted rounded w-3/4"></div>
+                <div className="h-3 bg-muted rounded w-1/2 mt-1"></div>
               </CardHeader>
               <CardContent className="p-4 pt-0">
-                <div className="h-3 bg-slate-200 rounded w-2/3"></div>
+                <div className="h-3 bg-muted rounded w-2/3"></div>
               </CardContent>
             </Card>
           ))
@@ -177,11 +177,11 @@ export default function Properties() {
                   <Card className="h-full transition-colors overflow-hidden">
                     <CardHeader className="p-4 pb-3 flex flex-row justify-between items-start space-y-0">
                       <div className="flex-1 min-w-0">
-                        <CardTitle className="text-slate-900 flex items-center gap-2 text-base">
+                        <CardTitle className="text-foreground flex items-center gap-2 text-base">
                           <Home className="w-5 h-5 text-primary flex-shrink-0" />
                           <span className="capitalize truncate">{property.property_type}</span>
                         </CardTitle>
-                        <p className="text-xs md:text-sm text-slate-600 mt-1 line-clamp-2">{property.address}</p>
+                        <p className="text-xs md:text-sm text-muted-foreground mt-1 line-clamp-2">{property.address}</p>
                       </div>
                       <div className="flex gap-1 flex-shrink-0 ms-2">
                         <Button variant="ghost" size="icon" onClick={() => handleView(property)} className="h-8 w-8">
@@ -196,7 +196,7 @@ export default function Properties() {
                       </div>
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
-                      <div className="flex items-center gap-2 text-xs md:text-sm text-slate-700 min-w-0">
+                      <div className="flex items-center gap-2 text-xs md:text-sm text-foreground min-w-0">
                         <User className="w-4 h-4 flex-shrink-0" />
                         <span className="truncate">{clientsMap.get(property.client_id) || "Unassigned"}</span>
                       </div>
@@ -206,9 +206,9 @@ export default function Properties() {
               ))
             ) : (
               <div className="text-center py-16 col-span-full">
-                <Home className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-                <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200">No properties found</h3>
-                <p className="text-slate-500 mb-4">{searchTerm ? "Try adjusting your search." : "Get started by adding your first property."}</p>
+                <Home className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium text-foreground">No properties found</h3>
+                <p className="text-muted-foreground mb-4">{searchTerm ? "Try adjusting your search." : "Get started by adding your first property."}</p>
                 {!searchTerm && <Button onClick={handleAddNew} className="min-h-[44px]"><Plus className="w-4 h-4 me-2" />Add First Property</Button>}
               </div>
             )}

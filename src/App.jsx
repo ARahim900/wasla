@@ -40,7 +40,7 @@ const AuthenticatedApp = () => {
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <div className="text-center max-w-md">
           <p className="text-red-600 font-medium mb-2">Authentication Error</p>
-          <p className="text-slate-600 text-sm mb-4">{authError.message}</p>
+          <p className="text-muted-foreground text-sm mb-4">{authError.message}</p>
           <button
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
