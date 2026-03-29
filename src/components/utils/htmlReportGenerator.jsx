@@ -481,9 +481,10 @@ class InspectionReportGenerator {
 
         .photo-item img {
             width: 100%;
-            height: 90px;
-            object-fit: cover;
+            max-height: 150px;
+            object-fit: contain;
             display: block;
+            background: #f9fafb;
         }
 
         .photo-caption {
