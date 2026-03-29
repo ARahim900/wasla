@@ -207,37 +207,58 @@ class InspectionReportGenerator {
             line-height: 1.5;
         }
 
-        .print-button {
+        .toolbar {
             position: fixed;
             top: 20px;
             right: 20px;
-            background: #10b981;
-            color: white;
+            display: flex;
+            gap: 10px;
+            z-index: 99999;
+            pointer-events: auto;
+        }
+
+        .toolbar-btn {
             padding: 12px 24px;
             border-radius: 8px;
             border: none;
             cursor: pointer;
             font-weight: 600;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            z-index: 99999;
             transition: all 0.2s;
             font-size: 14px;
             pointer-events: auto;
         }
 
-        .print-button:hover {
-            background: #059669;
+        .toolbar-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 8px rgba(0,0,0,0.15);
         }
 
-        .print-button:active {
+        .toolbar-btn:active {
             transform: translateY(0);
         }
 
-        .print-button:focus {
+        .toolbar-btn:focus {
             outline: 2px solid #10b981;
             outline-offset: 2px;
+        }
+
+        .print-button {
+            background: #10b981;
+            color: white;
+        }
+
+        .print-button:hover {
+            background: #059669;
+        }
+
+        .back-button {
+            background: #6b7280;
+            color: white;
+        }
+
+        .back-button:hover {
+            background: #4b5563;
         }
 
         .report-container {
@@ -250,7 +271,7 @@ class InspectionReportGenerator {
         }
 
         .page {
-            padding: 12mm;
+            padding: 8mm 12mm 10mm 12mm;
             background: white;
             position: relative;
             box-sizing: border-box;
@@ -281,53 +302,53 @@ class InspectionReportGenerator {
 
         .header-logo {
             text-align: center;
-            margin-bottom: 12px;
+            margin-bottom: 4px;
         }
 
         .header-logo img {
-            width: 100px;
+            width: 80px;
             height: auto;
             max-width: 100%;
         }
 
         .report-title {
             text-align: center;
-            font-size: 20pt;
+            font-size: 17pt;
             font-weight: 700;
             color: #1f2937;
-            margin-bottom: 16px;
+            margin-bottom: 8px;
         }
 
         .overview-box {
             background: #e8e9eb;
-            padding: 12px;
-            margin-bottom: 12px;
+            padding: 8px;
+            margin-bottom: 6px;
         }
 
         .overview-header {
             text-align: center;
-            font-size: 12pt;
+            font-size: 10pt;
             font-weight: 600;
             color: #4b5563;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
             border-bottom: 2px solid #9ca3af;
-            padding-bottom: 6px;
+            padding-bottom: 3px;
         }
 
         .two-column {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 12px;
+            gap: 8px;
+            margin-bottom: 6px;
         }
 
         .column {
-            font-size: 8pt;
-            line-height: 1.4;
+            font-size: 7.5pt;
+            line-height: 1.3;
         }
 
         .column p {
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
 
         .column strong {
@@ -335,11 +356,11 @@ class InspectionReportGenerator {
         }
 
         .section-title {
-            font-size: 10pt;
+            font-size: 9.5pt;
             font-weight: 700;
             color: #1f2937;
-            margin: 12px 0 8px 0;
-            padding-bottom: 4px;
+            margin: 10px 0 6px 0;
+            padding-bottom: 3px;
             border-bottom: 2px solid #e5e7eb;
         }
 
@@ -392,24 +413,24 @@ class InspectionReportGenerator {
         }
 
         .signature-section {
-            margin-top: 20px;
-            padding-top: 12px;
+            margin-top: 10px;
+            padding-top: 8px;
             border-top: 2px solid #e5e7eb;
         }
 
         .signature-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 12px;
+            gap: 12px;
+            margin-bottom: 8px;
         }
 
         .signature-row {
             display: flex;
             justify-content: space-between;
-            padding: 6px 0;
+            padding: 4px 0;
             border-bottom: 1px solid #d1d5db;
-            font-size: 8pt;
+            font-size: 7.5pt;
         }
 
         .footer-note {
@@ -451,9 +472,9 @@ class InspectionReportGenerator {
         }
 
         h3 {
-            font-size: 9pt;
+            font-size: 8pt;
             font-weight: 700;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
 
         .info-box {
@@ -475,7 +496,7 @@ class InspectionReportGenerator {
                 padding: 0;
             }
 
-            .print-button {
+            .toolbar {
                 display: none !important;
             }
 
@@ -487,7 +508,7 @@ class InspectionReportGenerator {
             }
 
             .page {
-                padding: 12mm;
+                padding: 8mm 12mm 10mm 12mm;
                 page-break-after: always;
                 page-break-inside: avoid;
                 break-after: page;
@@ -589,13 +610,21 @@ class InspectionReportGenerator {
     </style>
 </head>
 <body>
-    <button class="print-button" 
-            id="printButton"
-            onclick="handlePrint()"
-            aria-label="Print inspection report"
-            title="Print or save this report as PDF">
-        🖨️ Print Report
-    </button>
+    <div class="toolbar">
+        <button class="toolbar-btn back-button"
+                onclick="handleBack()"
+                aria-label="Return to application"
+                title="Close report and return to app">
+            ← Back to App
+        </button>
+        <button class="toolbar-btn print-button"
+                id="printButton"
+                onclick="handlePrint()"
+                aria-label="Print inspection report"
+                title="Print or save this report as PDF">
+            🖨️ Print Report
+        </button>
+    </div>
     
     <div class="report-container">
         ${this.renderOverviewPage(data)}
@@ -604,6 +633,18 @@ class InspectionReportGenerator {
     </div>
 
     <script>
+        function handleBack() {
+            try {
+                if (window.opener && !window.opener.closed) {
+                    window.opener.focus();
+                }
+                window.close();
+            } catch (e) {
+                // Fallback: if window.close() is blocked, navigate to app
+                window.location.href = '/Inspections';
+            }
+        }
+
         function handlePrint() {
             try {
                 console.log('Print button clicked');
@@ -641,7 +682,7 @@ class InspectionReportGenerator {
             
             <h1 class="report-title">Property Inspection Report</h1>
             
-            <div class="info-box two-column" style="margin-bottom: 16px;">
+            <div class="info-box two-column" style="margin-bottom: 8px;">
                 <div class="column">
                     <p><strong>Report Ref:</strong> ${this.escapeHTML(data.reference)}</p>
                     <p><strong>Inspection Date:</strong> ${this.escapeHTML(data.date.en)}</p>
@@ -679,7 +720,7 @@ class InspectionReportGenerator {
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 12px;">
+            <div class="two-column" style="margin-top: 4px;">
                 <div class="column">
                     <h3>No property is perfect.</h3>
                     <p>Every building has imperfections or items that are ready for maintenance. It's the inspector's task to discover and report these so you can make informed decisions. This report should not be used as a tool to demean property, but rather as a way to illuminate the realities of the property.</p>
@@ -690,7 +731,7 @@ class InspectionReportGenerator {
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 10px;">
+            <div class="two-column" style="margin-top: 4px;">
                 <div class="column">
                     <h3>This report is not an appraisal.</h3>
                     <p>When an appraiser determines worth, only the most obvious conditions of a property are taken into account to establish a safe loan amount. In effect, the appraiser is representing the interests of the lender. Home inspectors focus more on the interests of the prospective buyer; and, although inspectors must be careful not to make any statements relating to property value, their findings can help buyers more completely understand the true costs of ownership.</p>
@@ -701,7 +742,7 @@ class InspectionReportGenerator {
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 10px;">
+            <div class="two-column" style="margin-top: 4px;">
                 <div class="column">
                     <h3>Maintenance costs are normal.</h3>
                     <p>Homeowners should plan to spend around 1% of the total value of a property in maintenance costs, annually. (Annual costs of rental property maintenance are often 2%, or more.) If considerably less than this percentage has been invested during several years preceding an inspection, the property will usually show the obvious signs of neglect; and the new property owners may be required to invest significant time and money to address accumulated maintenance needs.</p>
@@ -738,7 +779,7 @@ class InspectionReportGenerator {
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 16px;">
+            <div class="two-column" style="margin-top: 8px;">
                 <div class="column">
                     <h3 style="font-size: 10pt; font-weight: 700; color: #4b5563; margin-bottom: 6px;">CONFIDENTIALITY OF THE REPORT:</h3>
                     <p>The inspection report is to be prepared for the Client for the purpose of informing of the major deficiencies in the condition of the subject property and is solely and exclusively for Client's own information and may not be relied upon by any other person. Client may distribute copies of the inspection report to the seller and the real estate agents directly involved in this transaction, but Client and Inspector do not in any way intend to benefit said seller or the real estate agents directly or indirectly through this Agreement or the inspection report. In the event that the inspection report has been prepared for the SELLER of the subject property, an authorized representative of ${this.escapeHTML(this.config.company.name)} will return to the property, for a fee, to meet with the BUYER for a consultation to provide a better understanding of the reported conditions and answer.</p>
