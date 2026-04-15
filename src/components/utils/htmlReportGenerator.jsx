@@ -607,8 +607,8 @@ class InspectionReportGenerator {
             }
 
             .photo-grid {
-                break-inside: avoid;
-                page-break-inside: avoid;
+                break-inside: auto;
+                page-break-inside: auto;
             }
 
             .photo-item {
