@@ -284,9 +284,8 @@ class InspectionReportGenerator {
 
         .report-container {
             max-width: 210mm;
-            margin: 20px auto;
+            margin: 0 auto;
             background: white;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
             position: relative;
             z-index: 1;
         }
@@ -296,7 +295,6 @@ class InspectionReportGenerator {
             background: white;
             position: relative;
             box-sizing: border-box;
-            margin-bottom: 20px;
         }
 
         /* Page-break hints honored by html2pdf.js (CSS pagebreak mode) */
@@ -313,6 +311,15 @@ class InspectionReportGenerator {
             break-after: auto;
             page-break-inside: auto;
             break-inside: auto;
+        }
+        /* Keep each area's section title + table + photo grid together as a unit */
+        .finding-area {
+            page-break-inside: avoid;
+            break-inside: avoid;
+            margin-bottom: 14px;
+        }
+        .finding-area:last-child {
+            margin-bottom: 0;
         }
         .no-break,
         .section-title,
@@ -670,9 +677,6 @@ class InspectionReportGenerator {
         }
 
         @media screen {
-            .page {
-                min-height: 277mm;
-            }
             .findings-page {
                 min-height: auto;
             }
@@ -767,11 +771,13 @@ class InspectionReportGenerator {
                     compress: true
                 },
                 pagebreak: {
-                    // 'css' respects .page / .findings-page breaks,
-                    // 'avoid-all' keeps photos and table rows from being sliced mid-item
-                    mode: ['css', 'avoid-all'],
-                    before: '.page',
-                    avoid: ['img', 'tr', '.photo-item', '.photo-grid', '.no-break']
+                    // 'css' respects page-break-after / break-inside rules we set on
+                    // .page, .finding-area, .photo-item, tr, etc.
+                    // We intentionally drop 'before: .page' because the CSS rule already
+                    // inserts one break per page boundary — duplicating it produced the
+                    // empty pages the user reported.
+                    mode: ['css', 'legacy'],
+                    avoid: ['img', 'tr', '.photo-item', '.finding-area', '.no-break']
                 }
             };
 
@@ -986,6 +992,9 @@ class InspectionReportGenerator {
 
     if (data.affectedAreas && data.affectedAreas.length > 0) {
       data.affectedAreas.forEach((area) => {
+        // Open a wrapper so the area title, table, and its photos stay together
+        // under a single break-inside: avoid boundary.
+        findingsContent += `<div class="finding-area">`;
         findingsContent += `
                 <h2 class="section-title no-break">${this.escapeHTML(area.name)}</h2>
 
@@ -1033,18 +1042,21 @@ class InspectionReportGenerator {
           });
           findingsContent += `</div>`;
         }
+        findingsContent += `</div>`; // .finding-area
       });
     }
 
-    // Recommendations section flows after findings
+    // Recommendations section flows after findings (kept together as one block)
     if (data.recommendations && data.recommendations.length > 0) {
       findingsContent += `
+            <div class="finding-area">
                 <h2 class="section-title no-break" style="margin-top: 20px;">Action Items & Recommendations</h2>
                 <div style="background: #fefce8; border-left: 4px solid #facc15; padding: 12px; border-radius: 4px; margin-top: 8px;">
                     <ul style="list-style: disc; margin-left: 20px; line-height: 1.6; font-size: 8pt;">
                         ${data.recommendations.map(rec => `<li style="margin-bottom: 4px;">${this.escapeHTML(rec)}</li>`).join('')}
                     </ul>
-                </div>`;
+                </div>
+            </div>`;
     }
 
     // Wrap all findings in a single flowing page container
