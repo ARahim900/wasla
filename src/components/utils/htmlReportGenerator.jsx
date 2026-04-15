@@ -769,7 +769,43 @@ class InspectionReportGenerator {
                     useCORS: true,   // Allows Supabase-hosted photos to load into canvas
                     scrollY: 0,
                     backgroundColor: '#ffffff',
-                    logging: false
+                    logging: false,
+                    // CRITICAL for mobile: force the cloned document to render at a
+                    // full A4 desktop width regardless of the phone's viewport. Without
+                    // this, the popup opens at ~375px on a phone, the .report-container
+                    // collapses to that width, the layout computes as mobile, and the
+                    // resulting canvas stretches to A4 in the PDF — producing the big
+                    // empty regions, visible watermark and vertically-centered sections
+                    // the user reported on phone-generated PDFs.
+                    windowWidth: 794,    // 210mm at 96 DPI
+                    windowHeight: 1123,  // 297mm at 96 DPI (seed, real height comes from content)
+                    onclone: function(clonedDoc) {
+                        try {
+                            var container = clonedDoc.querySelector('.report-container');
+                            if (container) {
+                                container.style.width = '794px';
+                                container.style.maxWidth = '794px';
+                                container.style.margin = '0';
+                            }
+                            // Force every .page to the same A4 screen width so the
+                            // layout inside (tables, grids, photos) computes at the
+                            // same proportions as on desktop.
+                            var pages = clonedDoc.querySelectorAll('.page');
+                            for (var i = 0; i < pages.length; i++) {
+                                pages[i].style.width = '794px';
+                                pages[i].style.maxWidth = '794px';
+                                pages[i].style.boxSizing = 'border-box';
+                            }
+                            // Also widen the body so the container isn't parent-clipped
+                            if (clonedDoc.body) {
+                                clonedDoc.body.style.width = '794px';
+                                clonedDoc.body.style.minWidth = '794px';
+                                clonedDoc.body.style.margin = '0';
+                            }
+                        } catch (e) {
+                            console.warn('onclone width override failed:', e);
+                        }
+                    }
                 },
                 jsPDF: {
                     unit: 'mm',
