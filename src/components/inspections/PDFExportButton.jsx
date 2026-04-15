@@ -139,7 +139,7 @@ export default function PDFExportButton({ inspection, client, property, disabled
       });
 
       if (result && result.success) {
-        toast.success("Report opened! Click Export PDF to download a paginated A4 PDF.", { id: toastId });
+        toast.success("Report opened! Click the Print button in the report to print.", { id: toastId });
       } else {
         throw new Error("Report generation returned unsuccessful result");
       }
