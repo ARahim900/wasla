@@ -316,10 +316,17 @@ class InspectionReportGenerator {
         .finding-area {
             page-break-inside: avoid;
             break-inside: avoid;
-            margin-bottom: 14px;
+            margin-bottom: 18px;
         }
         .finding-area:last-child {
             margin-bottom: 0;
+        }
+        /* Visual separator between consecutive areas — a thin divider + extra
+           breathing room so each section reads as its own block. */
+        .finding-area + .finding-area {
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px solid #e5e7eb;
         }
         .no-break,
         .section-title,
@@ -754,7 +761,7 @@ class InspectionReportGenerator {
             }
 
             var opt = {
-                margin: [10, 8, 12, 8], // Top, Right, Bottom, Left margins in mm
+                margin: [15, 8, 15, 8], // Top, Right, Bottom, Left in mm — top/bottom bumped to 15mm so photos pushed to a new page have breathing room
                 filename: buildPdfFilename(),
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
