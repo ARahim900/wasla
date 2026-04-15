@@ -5,6 +5,7 @@ import { Inspection, Property, Client } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
 import { createPageUrl } from "@/utils";
+import html2pdf from "html2pdf.js";
 
 // ReportTemplate component with enhanced A4 formatting
 function ReportTemplate({ inspection, client, property }) {
@@ -241,6 +242,7 @@ export default function InspectionReport() {
   const [property, setProperty] = useState(null);
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get("id");
@@ -268,9 +270,42 @@ export default function InspectionReport() {
     else setLoading(false);
   }, [id]);
 
-  const handlePrint = () => {
-    // Use browser's print to save to PDF, avoids external libs and is reliable
-    window.print();
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+
+    // Target the wrapper div that holds your entire visual report
+    const element = document.getElementById('full-report-container');
+
+    // Configure the PDF settings
+    const opt = {
+      margin: [15, 10, 15, 10], // Top, Right, Bottom, Left margins in mm
+      filename: `Inspection_Report_${inspection?.client_name?.replace(/\s+/g, '_') || 'Wasla'}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: {
+        scale: 2, // High resolution for professional O&M reports
+        useCORS: true, // CRITICAL: Allows external images from Supabase to load into the PDF
+        scrollY: 0
+      },
+      jsPDF: {
+        unit: 'mm',
+        format: 'a4',
+        orientation: 'portrait'
+      },
+      pagebreak: {
+        // 'css' respects your manual page breaks, 'avoid-all' prevents slicing inside items
+        mode: ['css', 'avoid-all']
+      }
+    };
+
+    try {
+      // Generate and save the PDF
+      await html2pdf().set(opt).from(element).save();
+    } catch (error) {
+      console.error("Failed to generate PDF:", error);
+      alert("There was an error generating the PDF. Check the console.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (loading) {
@@ -297,7 +332,14 @@ export default function InspectionReport() {
     <div className="max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-4 print:hidden">
         <Button variant="outline" onClick={() => navigate(createPageUrl("Inspections"))}><ArrowLeft className="w-4 h-4 mr-2" />Back to Inspections</Button>
-        <Button onClick={handlePrint}><Download className="w-4 h-4 mr-2" />Export PDF</Button>
+        <Button onClick={handleExportPDF} disabled={isExporting}>
+          {isExporting ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4 mr-2" />
+          )}
+          {isExporting ? 'Generating...' : 'Export PDF'}
+        </Button>
       </div>
 
       {/* Render the entire report content via ReportTemplate */}
