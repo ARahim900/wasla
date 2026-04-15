@@ -206,6 +206,8 @@ class InspectionReportGenerator {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- html2pdf.js (bundles html2canvas + jsPDF) for paginated A4 PDF export -->
+    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.14.0/dist/html2pdf.bundle.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -295,6 +297,32 @@ class InspectionReportGenerator {
             position: relative;
             box-sizing: border-box;
             margin-bottom: 20px;
+        }
+
+        /* Page-break hints honored by html2pdf.js (CSS pagebreak mode) */
+        .page {
+            page-break-after: always;
+            break-after: page;
+        }
+        .page:last-child {
+            page-break-after: auto;
+            break-after: auto;
+        }
+        .findings-page {
+            page-break-after: auto;
+            break-after: auto;
+            page-break-inside: auto;
+            break-inside: auto;
+        }
+        .no-break,
+        .section-title,
+        .header-logo,
+        .photo-grid,
+        .photo-item,
+        tr,
+        img {
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         .page::before {
@@ -661,10 +689,10 @@ class InspectionReportGenerator {
         </button>
         <button class="toolbar-btn print-button"
                 id="printButton"
-                onclick="handlePrint()"
-                aria-label="Print inspection report"
-                title="Print or save this report as PDF">
-            🖨️ Print Report
+                onclick="handleExportPDF()"
+                aria-label="Export inspection report as PDF"
+                title="Download this report as a paginated A4 PDF">
+            ⬇️ Export PDF
         </button>
     </div>
     
@@ -687,26 +715,89 @@ class InspectionReportGenerator {
             }
         }
 
-        function handlePrint() {
+        function buildPdfFilename() {
             try {
-                console.log('Print button clicked');
-                window.print();
+                var title = document.title || 'Inspection_Report';
+                // Extract client name from "Property Inspection Report - <client>"
+                var parts = title.split(' - ');
+                var client = parts.length > 1 ? parts[parts.length - 1] : 'Wasla';
+                var safe = client.replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+\$/g, '');
+                return 'Inspection_Report_' + (safe || 'Wasla') + '.pdf';
+            } catch (e) {
+                return 'Inspection_Report.pdf';
+            }
+        }
+
+        async function handleExportPDF() {
+            var btn = document.getElementById('printButton');
+            var originalHTML = btn ? btn.innerHTML : '';
+
+            if (typeof html2pdf === 'undefined') {
+                alert('PDF library failed to load. Please check your internet connection and try again.');
+                return;
+            }
+
+            // Only the report pages should end up in the PDF — exclude the toolbar
+            var element = document.querySelector('.report-container');
+            if (!element) {
+                alert('Unable to find report content to export.');
+                return;
+            }
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '⏳ Generating...';
+            }
+
+            var opt = {
+                margin: [10, 8, 12, 8], // Top, Right, Bottom, Left margins in mm
+                filename: buildPdfFilename(),
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,        // High resolution for print-quality photos
+                    useCORS: true,   // Allows Supabase-hosted photos to load into canvas
+                    scrollY: 0,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                },
+                jsPDF: {
+                    unit: 'mm',
+                    format: 'a4',
+                    orientation: 'portrait',
+                    compress: true
+                },
+                pagebreak: {
+                    // 'css' respects .page / .findings-page breaks,
+                    // 'avoid-all' keeps photos and table rows from being sliced mid-item
+                    mode: ['css', 'avoid-all'],
+                    before: '.page',
+                    avoid: ['img', 'tr', '.photo-item', '.photo-grid', '.no-break']
+                }
+            };
+
+            try {
+                await html2pdf().set(opt).from(element).save();
             } catch (error) {
-                console.error('Print error:', error);
-                alert('Unable to print. Please use your browser\\'s print function (Ctrl+P or Cmd+P)');
+                console.error('PDF export error:', error);
+                alert('There was an error generating the PDF. Please try again.');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHTML;
+                }
             }
         }
 
         document.addEventListener('DOMContentLoaded', function() {
             const btn = document.getElementById('printButton');
-            console.log('Print button loaded:', btn);
-            console.log('Button position:', btn ? btn.getBoundingClientRect() : 'not found');
+            console.log('Export PDF button loaded:', btn);
         });
 
+        // Intercept Ctrl/Cmd+P to use the paginated html2pdf export instead of the native print dialog
         document.addEventListener('keydown', function(e) {
             if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
                 e.preventDefault();
-                handlePrint();
+                handleExportPDF();
             }
         });
     </script>
