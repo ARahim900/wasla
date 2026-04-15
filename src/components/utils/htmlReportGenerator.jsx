@@ -206,8 +206,6 @@ class InspectionReportGenerator {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- html2pdf.js (bundles html2canvas + jsPDF) for paginated A4 PDF export -->
-    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.14.0/dist/html2pdf.bundle.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -284,8 +282,9 @@ class InspectionReportGenerator {
 
         .report-container {
             max-width: 210mm;
-            margin: 0 auto;
+            margin: 20px auto;
             background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
             position: relative;
             z-index: 1;
         }
@@ -295,48 +294,7 @@ class InspectionReportGenerator {
             background: white;
             position: relative;
             box-sizing: border-box;
-        }
-
-        /* Page-break hints honored by html2pdf.js (CSS pagebreak mode) */
-        .page {
-            page-break-after: always;
-            break-after: page;
-        }
-        .page:last-child {
-            page-break-after: auto;
-            break-after: auto;
-        }
-        .findings-page {
-            page-break-after: auto;
-            break-after: auto;
-            page-break-inside: auto;
-            break-inside: auto;
-        }
-        /* Keep each area's section title + table + photo grid together as a unit */
-        .finding-area {
-            page-break-inside: avoid;
-            break-inside: avoid;
-            margin-bottom: 18px;
-        }
-        .finding-area:last-child {
-            margin-bottom: 0;
-        }
-        /* Visual separator between consecutive areas — a thin divider + extra
-           breathing room so each section reads as its own block. */
-        .finding-area + .finding-area {
-            margin-top: 18px;
-            padding-top: 18px;
-            border-top: 1px solid #e5e7eb;
-        }
-        .no-break,
-        .section-title,
-        .header-logo,
-        .photo-grid,
-        .photo-item,
-        tr,
-        img {
-            page-break-inside: avoid;
-            break-inside: avoid;
+            margin-bottom: 20px;
         }
 
         .page::before {
@@ -684,6 +642,9 @@ class InspectionReportGenerator {
         }
 
         @media screen {
+            .page {
+                min-height: 277mm;
+            }
             .findings-page {
                 min-height: auto;
             }
@@ -700,10 +661,10 @@ class InspectionReportGenerator {
         </button>
         <button class="toolbar-btn print-button"
                 id="printButton"
-                onclick="handleExportPDF()"
-                aria-label="Export inspection report as PDF"
-                title="Download this report as a paginated A4 PDF">
-            ⬇️ Export PDF
+                onclick="handlePrint()"
+                aria-label="Print inspection report"
+                title="Print or save this report as PDF">
+            🖨️ Print Report
         </button>
     </div>
     
@@ -726,127 +687,26 @@ class InspectionReportGenerator {
             }
         }
 
-        function buildPdfFilename() {
+        function handlePrint() {
             try {
-                var title = document.title || 'Inspection_Report';
-                // Extract client name from "Property Inspection Report - <client>"
-                var parts = title.split(' - ');
-                var client = parts.length > 1 ? parts[parts.length - 1] : 'Wasla';
-                var safe = client.replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+\$/g, '');
-                return 'Inspection_Report_' + (safe || 'Wasla') + '.pdf';
-            } catch (e) {
-                return 'Inspection_Report.pdf';
-            }
-        }
-
-        async function handleExportPDF() {
-            var btn = document.getElementById('printButton');
-            var originalHTML = btn ? btn.innerHTML : '';
-
-            if (typeof html2pdf === 'undefined') {
-                alert('PDF library failed to load. Please check your internet connection and try again.');
-                return;
-            }
-
-            // Only the report pages should end up in the PDF — exclude the toolbar
-            var element = document.querySelector('.report-container');
-            if (!element) {
-                alert('Unable to find report content to export.');
-                return;
-            }
-
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '⏳ Generating...';
-            }
-
-            var opt = {
-                margin: [15, 8, 15, 8], // Top, Right, Bottom, Left in mm — top/bottom bumped to 15mm so photos pushed to a new page have breathing room
-                filename: buildPdfFilename(),
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: {
-                    scale: 2,        // High resolution for print-quality photos
-                    useCORS: true,   // Allows Supabase-hosted photos to load into canvas
-                    scrollY: 0,
-                    backgroundColor: '#ffffff',
-                    logging: false,
-                    // CRITICAL for mobile: force the cloned document to render at a
-                    // full A4 desktop width regardless of the phone's viewport. Without
-                    // this, the popup opens at ~375px on a phone, the .report-container
-                    // collapses to that width, the layout computes as mobile, and the
-                    // resulting canvas stretches to A4 in the PDF — producing the big
-                    // empty regions, visible watermark and vertically-centered sections
-                    // the user reported on phone-generated PDFs.
-                    windowWidth: 794,    // 210mm at 96 DPI
-                    windowHeight: 1123,  // 297mm at 96 DPI (seed, real height comes from content)
-                    onclone: function(clonedDoc) {
-                        try {
-                            var container = clonedDoc.querySelector('.report-container');
-                            if (container) {
-                                container.style.width = '794px';
-                                container.style.maxWidth = '794px';
-                                container.style.margin = '0';
-                            }
-                            // Force every .page to the same A4 screen width so the
-                            // layout inside (tables, grids, photos) computes at the
-                            // same proportions as on desktop.
-                            var pages = clonedDoc.querySelectorAll('.page');
-                            for (var i = 0; i < pages.length; i++) {
-                                pages[i].style.width = '794px';
-                                pages[i].style.maxWidth = '794px';
-                                pages[i].style.boxSizing = 'border-box';
-                            }
-                            // Also widen the body so the container isn't parent-clipped
-                            if (clonedDoc.body) {
-                                clonedDoc.body.style.width = '794px';
-                                clonedDoc.body.style.minWidth = '794px';
-                                clonedDoc.body.style.margin = '0';
-                            }
-                        } catch (e) {
-                            console.warn('onclone width override failed:', e);
-                        }
-                    }
-                },
-                jsPDF: {
-                    unit: 'mm',
-                    format: 'a4',
-                    orientation: 'portrait',
-                    compress: true
-                },
-                pagebreak: {
-                    // 'css' respects page-break-after / break-inside rules we set on
-                    // .page, .finding-area, .photo-item, tr, etc.
-                    // We intentionally drop 'before: .page' because the CSS rule already
-                    // inserts one break per page boundary — duplicating it produced the
-                    // empty pages the user reported.
-                    mode: ['css', 'legacy'],
-                    avoid: ['img', 'tr', '.photo-item', '.finding-area', '.no-break']
-                }
-            };
-
-            try {
-                await html2pdf().set(opt).from(element).save();
+                console.log('Print button clicked');
+                window.print();
             } catch (error) {
-                console.error('PDF export error:', error);
-                alert('There was an error generating the PDF. Please try again.');
-            } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = originalHTML;
-                }
+                console.error('Print error:', error);
+                alert('Unable to print. Please use your browser\\'s print function (Ctrl+P or Cmd+P)');
             }
         }
 
         document.addEventListener('DOMContentLoaded', function() {
             const btn = document.getElementById('printButton');
-            console.log('Export PDF button loaded:', btn);
+            console.log('Print button loaded:', btn);
+            console.log('Button position:', btn ? btn.getBoundingClientRect() : 'not found');
         });
 
-        // Intercept Ctrl/Cmd+P to use the paginated html2pdf export instead of the native print dialog
         document.addEventListener('keydown', function(e) {
             if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
                 e.preventDefault();
-                handleExportPDF();
+                handlePrint();
             }
         });
     </script>
@@ -1035,9 +895,6 @@ class InspectionReportGenerator {
 
     if (data.affectedAreas && data.affectedAreas.length > 0) {
       data.affectedAreas.forEach((area) => {
-        // Open a wrapper so the area title, table, and its photos stay together
-        // under a single break-inside: avoid boundary.
-        findingsContent += `<div class="finding-area">`;
         findingsContent += `
                 <h2 class="section-title no-break">${this.escapeHTML(area.name)}</h2>
 
@@ -1085,21 +942,18 @@ class InspectionReportGenerator {
           });
           findingsContent += `</div>`;
         }
-        findingsContent += `</div>`; // .finding-area
       });
     }
 
-    // Recommendations section flows after findings (kept together as one block)
+    // Recommendations section flows after findings
     if (data.recommendations && data.recommendations.length > 0) {
       findingsContent += `
-            <div class="finding-area">
                 <h2 class="section-title no-break" style="margin-top: 20px;">Action Items & Recommendations</h2>
                 <div style="background: #fefce8; border-left: 4px solid #facc15; padding: 12px; border-radius: 4px; margin-top: 8px;">
                     <ul style="list-style: disc; margin-left: 20px; line-height: 1.6; font-size: 8pt;">
                         ${data.recommendations.map(rec => `<li style="margin-bottom: 4px;">${this.escapeHTML(rec)}</li>`).join('')}
                     </ul>
-                </div>
-            </div>`;
+                </div>`;
     }
 
     // Wrap all findings in a single flowing page container
