@@ -534,14 +534,16 @@ class InspectionReportGenerator {
             .page {
                 padding: 10mm 12mm 15mm 12mm;
                 page-break-after: always;
-                page-break-inside: avoid;
                 break-after: page;
-                break-inside: avoid;
                 box-sizing: border-box;
                 width: 100%;
                 height: auto;
                 margin: 0;
                 overflow: visible;
+            }
+
+            .page::before {
+                display: none !important;
             }
 
             .page:last-child {
