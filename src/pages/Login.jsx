@@ -15,21 +15,21 @@ const LOGO_URL =
 // Reused header so every branch (login, signup, forgot, confirm-email) shares
 // the same logo + brand block — fixes the "inconsistent" feel.
 const BrandHeader = () => (
-  <div className="text-center mb-8">
+  <div className="text-center mb-5 sm:mb-8">
     <img
       src={LOGO_URL}
       alt="Wasla"
       width={64}
       height={64}
-      className="w-16 h-16 mx-auto mb-4 object-contain"
+      className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 object-contain"
     />
-    <h1 className="text-3xl font-bold text-primary tracking-tight">Wasla</h1>
-    <p className="text-muted-foreground text-sm mt-1">Property Solutions</p>
+    <h1 className="text-2xl sm:text-3xl font-bold text-primary tracking-tight">Wasla</h1>
+    <p className="text-muted-foreground text-xs sm:text-sm mt-1">Property Solutions</p>
   </div>
 );
 
 const PageShell = ({ children }) => (
-  <div className="min-h-screen flex items-center justify-center bg-background p-4">
+  <div className="min-h-[100svh] flex items-center justify-center bg-background px-4 py-6 sm:py-10">
     <div className="w-full max-w-md">{children}</div>
   </div>
 );
@@ -122,7 +122,7 @@ export default function Login() {
       <PageShell>
         <BrandHeader />
         <Card>
-          <CardContent className="pt-8 pb-8">
+          <CardContent className="pt-6 pb-6 sm:pt-8 sm:pb-8">
             <h2 className="text-xl font-bold text-foreground mb-2">Reset your password</h2>
             <p className="text-muted-foreground text-sm mb-6">
               Enter your email address and we&apos;ll send you a link to reset your password.
@@ -184,9 +184,9 @@ export default function Login() {
       <PageShell>
         <BrandHeader />
         <Card>
-          <CardContent className="pt-8 pb-8 text-center">
-            <CheckCircle2 className="w-16 h-16 text-primary mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-foreground mb-2">Check your email</h2>
+          <CardContent className="pt-6 pb-6 sm:pt-8 sm:pb-8 text-center">
+            <CheckCircle2 className="w-14 h-14 sm:w-16 sm:h-16 text-primary mx-auto mb-4" />
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">Check your email</h2>
             <p className="text-muted-foreground mb-1">We sent a confirmation link to</p>
             <p className="font-medium text-foreground mb-6 break-all">{confirmEmailSent}</p>
             <p className="text-sm text-muted-foreground mb-6">
@@ -235,7 +235,7 @@ export default function Login() {
       <PageShell>
         <BrandHeader />
         <Card>
-          <CardContent className="pt-8 pb-8 text-center">
+          <CardContent className="pt-6 pb-6 sm:pt-8 sm:pb-8 text-center">
             <p className="text-muted-foreground mb-4">Running in demo mode. No login required.</p>
             <Button onClick={() => navigate("/")}>Go to Dashboard</Button>
           </CardContent>
@@ -256,9 +256,10 @@ export default function Login() {
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
 
-            {/* Fixed-min-height wrapper so the card doesn't jump when switching
-                between login (2 fields) and signup (3 fields). */}
-            <div className="min-h-[340px]">
+            {/* sm-and-up: pin a min height so the card doesn't visibly jump
+                when switching tabs. On mobile, let it size to content so the
+                page fits the viewport without dead space. */}
+            <div className="sm:min-h-[340px]">
               <TabsContent value="login" className="mt-0 space-y-4">
                 <div>
                   <h2 className="text-xl font-semibold text-foreground">Welcome back</h2>

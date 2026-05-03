@@ -191,22 +191,11 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
-/* Mobile-specific optimizations */
+/* Mobile-specific baseline (don't fight Tailwind — only enforce platform rules) */
 @media (max-width: 767px) {
-  /* Prevent iOS zoom on input focus (inputs must be >= 16px) */
+  /* Prevent iOS zoom on input focus — only triggers when font-size < 16px */
   input, select, textarea {
-    font-size: 16px !important;
-  }
-
-  /* Touch-friendly tap targets (WCAG 2.5.5 minimum 44px) */
-  button, a, [role="button"], input, select, textarea {
-    min-height: 44px;
-  }
-
-  /* Tighter padding on mobile */
-  .container, [class*="max-w-"] {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    font-size: 16px;
   }
 
   /* Responsive tables: horizontal scroll on mobile */
@@ -215,27 +204,18 @@ body {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-
-  /* Smaller card padding on mobile */
-  .card, [class*="CardContent"] {
-    padding: 1rem;
-  }
-
-  /* Stack form grid on mobile */
-  .grid-cols-2 {
-    grid-template-columns: 1fr !important;
-  }
 }
 
 /* Touch device optimizations (any device with coarse pointer) */
 @media (pointer: coarse) {
-  /* Larger click/tap targets */
-  button, [role="button"] {
+  /* WCAG 2.5.5 — 44px tap target safety net. Components that need a tighter
+     hit area (icon-button rows, segmented controls) opt out via inline
+     `min-h-0` if needed. */
+  button, a[role="button"], [role="button"] {
     min-height: 44px;
-    min-width: 44px;
   }
 
-  /* Disable hover effects that don't work well on touch */
+  /* Disable hover-scale effects that linger awkwardly on touch */
   .hover\:scale-105:hover {
     transform: none;
   }
