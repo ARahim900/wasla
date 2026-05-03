@@ -54,7 +54,7 @@ export default function MobileTabBar() {
     <>
       {/* Bottom Navigation Bar - only visible on mobile (< md breakpoint / 768px) */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 w-full z-50 bg-card border-t border-border shadow-[0_-2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_-2px_10px_rgba(0,0,0,0.3)]"
+        className="md:hidden fixed bottom-0 left-0 w-full z-50 bg-card border-t border-border"
         style={{
           height: `${BOTTOM_NAV_HEIGHT}px`,
           paddingBottom: "env(safe-area-inset-bottom)",

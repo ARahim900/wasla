@@ -120,6 +120,7 @@ export default function InspectionReport() {
 
   return (
     <div className="max-w-5xl mx-auto">
+      <h1 className="sr-only">Inspection Report</h1>
       <div className="flex justify-between items-center mb-4 print:hidden">
         <Button variant="outline" onClick={() => navigate(createPageUrl("Inspections"))}>
           <ArrowLeft className="w-4 h-4 mr-2" />Back to Inspections

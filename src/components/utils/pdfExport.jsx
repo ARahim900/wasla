@@ -178,8 +178,9 @@ export const generateInspectionReport = async (inspection, client, property) => 
 
     reportElement.innerHTML = `
       <div style="text-align: center; margin-bottom: 30px;">
-        <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b44f73a9997833d114376d/f255c3751_image.png" 
-             style="width: 150px; height: auto; margin-bottom: 20px;" 
+        <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b44f73a9997833d114376d/f255c3751_image.png"
+             alt="Wasla Property Solutions"
+             style="width: 150px; height: auto; margin-bottom: 20px;"
              onerror="this.style.display='none'" />
         <h1 style="font-size: 24px; margin: 0; color: #333;">Property Inspection Report</h1>
       </div>

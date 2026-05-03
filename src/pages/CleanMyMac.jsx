@@ -97,9 +97,9 @@ const APP_UPDATES = [
 ];
 
 const SPACE_LENS_DATA = [
-  { name: 'Applications', size: 89.4, color: 'bg-fuchsia-500', items: ['Xcode 12.8 GB', 'Adobe PS 4.1 GB', 'Final Cut 3.4 GB']   },
+  { name: 'Applications', size: 89.4, color: 'bg-emerald-500', items: ['Xcode 12.8 GB', 'Adobe PS 4.1 GB', 'Final Cut 3.4 GB']   },
   { name: 'Documents',    size: 45.2, color: 'bg-purple-500',  items: ['Work Files 22 GB', 'Projects 15 GB', 'Archives 8 GB']      },
-  { name: 'Movies',       size: 67.8, color: 'bg-pink-500',    items: ['FC Cache 18 GB', 'Downloads 32 GB', 'iMovie 17 GB']        },
+  { name: 'Movies',       size: 67.8, color: 'bg-teal-500',    items: ['FC Cache 18 GB', 'Downloads 32 GB', 'iMovie 17 GB']        },
   { name: 'Music',        size: 22.1, color: 'bg-violet-500',  items: ['Logic Sounds 9 GB', 'iTunes 8 GB', 'Podcasts 5 GB']        },
   { name: 'Photos',       size: 38.5, color: 'bg-rose-500',    items: ['Library 30 GB', 'Shared 5 GB', 'Edited 3 GB']              },
   { name: 'System',       size: 14.7, color: 'bg-indigo-500',  items: ['macOS 14 GB', 'Swap 0.7 GB']                               },
@@ -139,7 +139,7 @@ function useSectionScan(taskList) {
 
 function ScanButton({ status, onStart, onReset, label = 'Scan' }) {
   if (status === 'idle')
-    return <button onClick={onStart} className="bg-gradient-to-r from-fuchsia-500 to-pink-600 hover:opacity-90 text-white px-6 py-2.5 rounded-xl font-medium text-sm transition-all shadow-lg shadow-fuchsia-900/30">{label}</button>;
+    return <button onClick={onStart} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl font-medium text-sm transition-colors">{label}</button>;
   if (status === 'scanning')
     return <button disabled className="bg-white/10 text-white/40 px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 cursor-not-allowed"><RefreshCw size={14} className="animate-spin" /> Scanning…</button>;
   return <button onClick={onReset} className="bg-white/10 hover:bg-white/20 text-white px-6 py-2.5 rounded-xl font-medium text-sm border border-white/10 transition-all">Scan Again</button>;
@@ -150,7 +150,7 @@ function SectionHeader({ title, subtitle, status, onStart, onReset, scanLabel = 
     <div className="flex items-center justify-between mb-6">
       <div>
         <h2 className="text-2xl font-bold text-white">{title}</h2>
-        <p className="text-fuchsia-200/60 text-sm mt-1">{subtitle}</p>
+        <p className="text-emerald-200/60 text-sm mt-1">{subtitle}</p>
       </div>
       <ScanButton status={status} onStart={onStart} onReset={onReset} label={scanLabel} />
     </div>
@@ -162,10 +162,10 @@ function ProgressBar({ progress, task }) {
     <div className="my-8">
       <div className="flex justify-between items-center mb-2">
         <span className="text-sm text-white/60">{task}</span>
-        <span className="text-sm text-fuchsia-300">{progress}%</span>
+        <span className="text-sm text-emerald-300">{progress}%</span>
       </div>
       <div className="w-full h-2 bg-black/30 rounded-full overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-fuchsia-500 to-pink-500 transition-all duration-300 rounded-full" style={{ width: `${progress}%` }} />
+        <div className="h-full bg-emerald-500 transition-all duration-300 rounded-full" style={{ width: `${progress}%` }} />
       </div>
     </div>
   );
@@ -185,7 +185,7 @@ function TabBar({ tabs, active, onChange }) {
     <div className="flex gap-2 mb-6">
       {tabs.map(t => (
         <button key={t} onClick={() => onChange(t)}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${active === t ? 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30' : 'text-white/50 hover:text-white hover:bg-white/5'}`}>
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${active === t ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-white/50 hover:text-white hover:bg-white/5'}`}>
           {t}
         </button>
       ))}
@@ -219,8 +219,8 @@ function SmartCare() {
   const freed = storageBefore - storageAfter;
 
   const junkCats = [
-    { name: 'System Cache',     before: 12.4, color: 'bg-fuchsia-500', icon: Layers      },
-    { name: 'App Leftovers',    before: 5.2,  color: 'bg-pink-500',    icon: FileWarning },
+    { name: 'System Cache',     before: 12.4, color: 'bg-emerald-500', icon: Layers      },
+    { name: 'App Leftovers',    before: 5.2,  color: 'bg-teal-500',    icon: FileWarning },
     { name: 'Trash Bins',       before: 5.3,  color: 'bg-rose-500',    icon: Trash2      },
     { name: 'Large & Old Files',before: 32.1, color: 'bg-purple-500',  icon: HardDrive   },
   ];
@@ -254,8 +254,7 @@ function SmartCare() {
       {!isComplete && (
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
           <div className="relative mb-8 group">
-            <div className="absolute inset-0 bg-fuchsia-500 blur-3xl opacity-20 group-hover:opacity-30 transition-opacity duration-700 rounded-full" />
-            <div className="relative w-64 h-48 bg-gradient-to-br from-fuchsia-500 to-purple-600 rounded-3xl shadow-2xl flex items-center justify-center border-t border-white/20">
+            <div className="relative w-64 h-48 bg-emerald-700 rounded-3xl flex items-center justify-center border-t border-white/20">
               <Monitor size={80} className="text-white/80" />
               {scanStatus === 'scanning' && (
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -264,20 +263,18 @@ function SmartCare() {
               )}
             </div>
             <div className="w-32 h-12 bg-white/10 mx-auto rounded-b-xl border border-white/5" />
-            <div className="w-40 h-2 bg-black/20 mx-auto rounded-full mt-2 blur-sm" />
           </div>
           <h2 className="text-4xl font-semibold text-white mb-3">
             {scanStatus === 'idle' ? 'Welcome back!' : `${progress}%`}
           </h2>
-          <p className="text-lg text-fuchsia-200/70 mb-16">
+          <p className="text-lg text-emerald-200/70 mb-16">
             {scanStatus === 'idle' ? 'Start with a quick and extensive scan of your Mac.' : scanTask}
           </p>
           <div className="absolute bottom-12 left-1/2 -translate-x-1/2">
             {scanStatus === 'idle' && (
               <button onClick={() => { setScanStatus('scanning'); setProgress(0); setScanTask('Initializing scanner…'); }}
                 className="group relative w-24 h-24 rounded-full flex items-center justify-center focus:outline-none">
-                <div className="absolute inset-0 bg-fuchsia-500 rounded-full blur-xl opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-all duration-300" />
-                <div className="relative w-full h-full bg-gradient-to-b from-fuchsia-400 to-pink-600 rounded-full flex items-center justify-center border border-white/30 text-white font-semibold text-lg hover:scale-105 transition-transform">
+                <div className="relative w-full h-full bg-emerald-600 hover:bg-emerald-500 rounded-full flex items-center justify-center border border-white/30 text-white font-semibold text-lg transition-colors">
                   Scan
                 </div>
               </button>
@@ -294,7 +291,7 @@ function SmartCare() {
           <div className="flex justify-between items-center mb-8">
             <div>
               <h2 className="text-3xl font-bold text-white mb-1">Cleanup Complete</h2>
-              <p className="text-fuchsia-200/70">Your system is fully optimized.</p>
+              <p className="text-emerald-200/70">Your system is fully optimized.</p>
             </div>
             <button onClick={() => { setScanStatus('idle'); setProgress(0); setScanTask('Ready to scan'); }}
               className="bg-white/10 hover:bg-white/20 text-white px-5 py-2.5 rounded-xl text-sm font-medium border border-white/10 transition-colors">
@@ -310,7 +307,7 @@ function SmartCare() {
               <div className="flex justify-between mt-6">
                 <div><p className="text-xs text-white/40 uppercase tracking-widest font-semibold mb-1">Total Drive</p><p className="text-2xl font-light text-white">{totalStorage} <span className="text-sm text-white/50">GB</span></p></div>
                 <div><p className="text-xs text-white/40 uppercase tracking-widest font-semibold mb-1">Currently Used</p><p className="text-2xl font-light text-white">{storageAfter} <span className="text-sm text-white/50">GB</span></p></div>
-                <div className="text-right"><p className="text-xs text-fuchsia-300/60 uppercase tracking-widest font-semibold mb-1">Total Freed</p><p className="text-3xl font-semibold text-fuchsia-400">{freed} <span className="text-sm">GB</span></p></div>
+                <div className="text-right"><p className="text-xs text-emerald-300/60 uppercase tracking-widest font-semibold mb-1">Total Freed</p><p className="text-3xl font-semibold text-emerald-400">{freed} <span className="text-sm">GB</span></p></div>
               </div>
             </div>
             <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
@@ -318,8 +315,8 @@ function SmartCare() {
               <div className="space-y-4">
                 {perfStats.map((s, i) => (
                   <div key={i} className="bg-black/20 p-4 rounded-xl flex items-center justify-between border border-white/5">
-                    <div className="flex items-center gap-3"><s.icon size={20} className="text-fuchsia-400" strokeWidth={1.5} /><span className="text-white/80 font-medium">{s.name}</span></div>
-                    <div className="text-right"><p className="text-xs line-through text-white/30">{s.before}</p><p className="font-semibold text-fuchsia-300">{s.after}</p></div>
+                    <div className="flex items-center gap-3"><s.icon size={20} className="text-emerald-400" strokeWidth={1.5} /><span className="text-white/80 font-medium">{s.name}</span></div>
+                    <div className="text-right"><p className="text-xs line-through text-white/30">{s.before}</p><p className="font-semibold text-emerald-300">{s.after}</p></div>
                   </div>
                 ))}
               </div>
@@ -329,12 +326,11 @@ function SmartCare() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {junkCats.map((cat, i) => (
                   <div key={i} className="bg-black/20 p-5 rounded-xl border border-white/5 relative overflow-hidden">
-                    <div className={`absolute -right-4 -top-4 w-20 h-20 rounded-full opacity-20 blur-xl ${cat.color}`} />
                     <cat.icon size={24} className="mb-4 text-white/50" strokeWidth={1.5} />
                     <h4 className="text-white/80 font-medium mb-1">{cat.name}</h4>
                     <div className="flex items-end gap-2">
                       <span className="text-2xl font-light text-white/40 line-through">{cat.before} GB</span>
-                      <span className="text-sm text-fuchsia-400 font-medium mb-1">Cleaned</span>
+                      <span className="text-sm text-emerald-400 font-medium mb-1">Cleaned</span>
                     </div>
                   </div>
                 ))}
@@ -368,15 +364,22 @@ function Cleanup() {
   const toggleMail = id => setMailItems(p => p.map(i => i.id === id ? { ...i, selected: !i.selected } : i));
 
   const ItemRow = ({ item, onToggle, size }) => (
-    <div onClick={() => onToggle(item.id)} className="flex items-center justify-between bg-white/5 hover:bg-white/[0.08] p-4 rounded-xl border border-white/10 cursor-pointer transition-all">
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={item.selected}
+      aria-label={`${item.name}, ${size} GB`}
+      onClick={() => onToggle(item.id)}
+      className="w-full flex items-center justify-between bg-white/5 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 p-4 rounded-xl border border-white/10 cursor-pointer transition-all text-left"
+    >
       <div className="flex items-center gap-3">
-        <div className={`w-5 h-5 rounded flex items-center justify-center ${item.selected ? 'bg-fuchsia-500' : 'bg-white/10 border border-white/20'}`}>
+        <div className={`w-5 h-5 rounded flex items-center justify-center ${item.selected ? 'bg-emerald-500' : 'bg-white/10 border border-white/20'}`} aria-hidden="true">
           {item.selected && <Check size={12} className="text-white" />}
         </div>
         <div><p className="text-white/90 font-medium text-sm">{item.name}</p><p className="text-white/30 text-xs">{item.path}</p></div>
       </div>
-      <span className="text-fuchsia-300 font-medium text-sm">{size} GB</span>
-    </div>
+      <span className="text-emerald-300 font-medium text-sm">{size} GB</span>
+    </button>
   );
 
   return (
@@ -391,8 +394,8 @@ function Cleanup() {
         <>
           <div className="space-y-2 mb-4">{junkItems.map(i => <ItemRow key={i.id} item={i} onToggle={toggleJunk} size={i.size} />)}</div>
           <div className="flex items-center justify-between bg-black/20 p-4 rounded-xl border border-white/10">
-            <span className="text-white/60 text-sm">{junkItems.filter(i => i.selected).length} items — <span className="text-fuchsia-300">{junkSize.toFixed(1)} GB</span> to free</span>
-            <button onClick={clean} className="bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-all">Clean Up</button>
+            <span className="text-white/60 text-sm">{junkItems.filter(i => i.selected).length} items — <span className="text-emerald-300">{junkSize.toFixed(1)} GB</span> to free</span>
+            <button onClick={clean} className="bg-emerald-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-all">Clean Up</button>
           </div>
         </>
       )}
@@ -401,8 +404,8 @@ function Cleanup() {
         <>
           <div className="space-y-2 mb-4">{mailItems.map(i => <ItemRow key={i.id} item={i} onToggle={toggleMail} size={i.size} />)}</div>
           <div className="flex items-center justify-between bg-black/20 p-4 rounded-xl border border-white/10">
-            <span className="text-white/60 text-sm"><span className="text-fuchsia-300">{mailSize.toFixed(1)} GB</span> of mail data to clean</span>
-            <button onClick={clean} className="bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:opacity-90">Clean Up</button>
+            <span className="text-white/60 text-sm"><span className="text-emerald-300">{mailSize.toFixed(1)} GB</span> of mail data to clean</span>
+            <button onClick={clean} className="bg-emerald-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:opacity-90">Clean Up</button>
           </div>
         </>
       )}
@@ -413,7 +416,7 @@ function Cleanup() {
           <h3 className="text-white font-medium text-lg mb-1">Trash Contains 5.3 GB</h3>
           <p className="text-white/40 text-sm mb-6">Includes files from all apps and system bins</p>
           {!trashDone
-            ? <button onClick={() => setTrashDone(true)} className="bg-gradient-to-r from-rose-500 to-pink-600 text-white px-8 py-3 rounded-xl font-medium hover:opacity-90">Empty All Trash</button>
+            ? <button onClick={() => setTrashDone(true)} className="bg-rose-600 hover:bg-rose-500 text-white px-8 py-3 rounded-xl font-medium transition-colors">Empty All Trash</button>
             : <div className="flex items-center justify-center gap-2 text-green-400"><CheckCircle size={18} /><span>All bins emptied — 5.3 GB freed.</span></div>
           }
         </div>
@@ -456,13 +459,13 @@ function Protection() {
               <div key={item.id} className="bg-white/5 p-4 rounded-xl border border-white/10">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <item.icon size={18} className="text-fuchsia-400" />
+                    <item.icon size={18} className="text-emerald-400" />
                     <span className="text-white font-medium">{item.app}</span>
                     <span className="text-white/40 text-xs">{item.size} GB</span>
                   </div>
                   <button onClick={() => setPrivacyItems(p => p.map(i => i.id === item.id ? { ...i, selected: !i.selected } : i))} className="text-xs">
                     {item.selected
-                      ? <span className="text-fuchsia-300 bg-fuchsia-500/20 px-2 py-1 rounded-full">Selected</span>
+                      ? <span className="text-emerald-300 bg-emerald-500/20 px-2 py-1 rounded-full">Selected</span>
                       : <span className="text-white/30 bg-white/5 px-2 py-1 rounded-full">Skip</span>}
                   </button>
                 </div>
@@ -475,8 +478,8 @@ function Protection() {
             ))}
           </div>
           <div className="flex items-center justify-between bg-black/20 p-4 rounded-xl border border-white/10">
-            <span className="text-white/60 text-sm">{privacyItems.filter(i => i.selected).length} apps — <span className="text-fuchsia-300">{totalSize.toFixed(1)} GB</span> of traces to remove</span>
-            <button onClick={clean} className="bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:opacity-90">Remove Traces</button>
+            <span className="text-white/60 text-sm">{privacyItems.filter(i => i.selected).length} apps — <span className="text-emerald-300">{totalSize.toFixed(1)} GB</span> of traces to remove</span>
+            <button onClick={clean} className="bg-emerald-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:opacity-90">Remove Traces</button>
           </div>
         </>
       )}
@@ -540,7 +543,7 @@ function Performance() {
 
   return (
     <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
-      <div className="mb-6"><h2 className="text-2xl font-bold text-white">Performance</h2><p className="text-fuchsia-200/60 text-sm mt-1">Optimize your Mac's speed and responsiveness</p></div>
+      <div className="mb-6"><h2 className="text-2xl font-bold text-white">Performance</h2><p className="text-emerald-200/60 text-sm mt-1">Optimize your Mac's speed and responsiveness</p></div>
       <TabBar tabs={['Memory', 'Login Items', 'Maintenance']} active={tab} onChange={setTab} />
 
       {tab === 'Memory' && (
@@ -564,11 +567,11 @@ function Performance() {
             </div>
             <div className="grid grid-cols-3 gap-4 w-full mb-6">
               <div className="bg-black/20 p-3 rounded-xl text-center"><p className="text-white/40 text-xs mb-1">Total</p><p className="text-white font-semibold">16 GB</p></div>
-              <div className="bg-black/20 p-3 rounded-xl text-center"><p className="text-white/40 text-xs mb-1">Used</p><p className="text-fuchsia-300 font-semibold">{(16 * ramUsage / 100).toFixed(1)} GB</p></div>
+              <div className="bg-black/20 p-3 rounded-xl text-center"><p className="text-white/40 text-xs mb-1">Used</p><p className="text-emerald-300 font-semibold">{(16 * ramUsage / 100).toFixed(1)} GB</p></div>
               <div className="bg-black/20 p-3 rounded-xl text-center"><p className="text-white/40 text-xs mb-1">Free</p><p className="text-green-400 font-semibold">{(16 * (100 - ramUsage) / 100).toFixed(1)} GB</p></div>
             </div>
             {!ramCleaned
-              ? <button onClick={() => { setRamCleaned(true); setRamUsage(38); }} className="bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white px-8 py-3 rounded-xl font-medium flex items-center gap-2 hover:opacity-90"><Zap size={18} /> Free Up RAM</button>
+              ? <button onClick={() => { setRamCleaned(true); setRamUsage(38); }} className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-medium flex items-center gap-2 hover:opacity-90"><Zap size={18} /> Free Up RAM</button>
               : <div className="flex items-center gap-2 text-green-400"><CheckCircle size={18} /><span className="font-medium">RAM freed — ~6.4 GB released.</span></div>
             }
           </div>
@@ -578,7 +581,7 @@ function Performance() {
               {[{app:'Google Chrome',mem:'2.8 GB',cpu:'12%'},{app:'Xcode',mem:'1.9 GB',cpu:'8%'},{app:'Slack',mem:'0.8 GB',cpu:'3%'},{app:'Adobe Photoshop',mem:'1.2 GB',cpu:'5%'}].map((p, i) => (
                 <div key={i} className="flex items-center justify-between bg-black/20 p-3 rounded-xl">
                   <span className="text-white/80 text-sm">{p.app}</span>
-                  <div className="flex gap-4 text-xs"><span className="text-fuchsia-300">{p.mem}</span><span className="text-white/40">CPU: {p.cpu}</span><button className="text-red-400 hover:text-red-300 transition-colors">Quit</button></div>
+                  <div className="flex gap-4 text-xs"><span className="text-emerald-300">{p.mem}</span><span className="text-white/40">CPU: {p.cpu}</span><button className="text-red-400 hover:text-red-300 transition-colors">Quit</button></div>
                 </div>
               ))}
             </div>
@@ -599,7 +602,7 @@ function Performance() {
                 <div className="flex items-center gap-4">
                   <span className={`text-xs px-2 py-0.5 rounded-full ${impactCls(item.impact)}`}>{item.impact}</span>
                   <button onClick={() => toggleLogin(item.id)}>
-                    {item.enabled ? <ToggleRight size={28} className="text-fuchsia-400" /> : <ToggleLeft size={28} className="text-white/20" />}
+                    {item.enabled ? <ToggleRight size={28} className="text-emerald-400" /> : <ToggleLeft size={28} className="text-white/20" />}
                   </button>
                 </div>
               </div>
@@ -617,7 +620,7 @@ function Performance() {
             <div key={t.id} className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-center justify-between">
               <div><p className="text-white/90 font-medium text-sm">{t.name}</p><p className="text-white/30 text-xs">{t.desc} · {t.duration}</p></div>
               {t.status === 'idle'    && <button onClick={() => runTask(t.id)} className="bg-white/10 hover:bg-white/20 text-white/70 hover:text-white px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2"><Play size={12} /> Run</button>}
-              {t.status === 'running' && <div className="flex items-center gap-2 text-fuchsia-300 text-xs"><RefreshCw size={14} className="animate-spin" /> Running…</div>}
+              {t.status === 'running' && <div className="flex items-center gap-2 text-emerald-300 text-xs"><RefreshCw size={14} className="animate-spin" /> Running…</div>}
               {t.status === 'done'    && <div className="flex items-center gap-2 text-green-400 text-xs"><CheckCircle size={14} /> Done</div>}
             </div>
           ))}
@@ -642,7 +645,7 @@ function Applications() {
 
   return (
     <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
-      <div className="mb-6"><h2 className="text-2xl font-bold text-white">Applications</h2><p className="text-fuchsia-200/60 text-sm mt-1">Manage, remove, and update your installed apps</p></div>
+      <div className="mb-6"><h2 className="text-2xl font-bold text-white">Applications</h2><p className="text-emerald-200/60 text-sm mt-1">Manage, remove, and update your installed apps</p></div>
       <TabBar tabs={['Uninstaller', 'Updater']} active={tab} onChange={setTab} />
 
       {tab === 'Uninstaller' && (
@@ -650,7 +653,7 @@ function Applications() {
           <div className="relative mb-4">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search applications…"
-              className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-white placeholder-white/30 text-sm focus:outline-none focus:border-fuchsia-500/50" />
+              className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-white placeholder-white/30 text-sm focus:outline-none focus:border-emerald-500/50" />
           </div>
           <div className="space-y-2">
             {visibleApps.map(app => (
@@ -674,7 +677,7 @@ function Applications() {
         <>
           {pendingUpdates.length > 0 && (
             <div className="flex justify-end mb-4">
-              <button onClick={() => setUpdatedIds(APP_UPDATES.map(u => u.id))} className="bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:opacity-90">Update All</button>
+              <button onClick={() => setUpdatedIds(APP_UPDATES.map(u => u.id))} className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:opacity-90">Update All</button>
             </div>
           )}
           <div className="space-y-2">
@@ -682,11 +685,11 @@ function Applications() {
               <div key={app.id} className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{app.icon}</span>
-                  <div><p className="text-white/90 font-medium text-sm">{app.name}</p><p className="text-white/30 text-xs"><span className="line-through">{app.current}</span> → <span className="text-fuchsia-300">{app.latest}</span> · {app.size}</p></div>
+                  <div><p className="text-white/90 font-medium text-sm">{app.name}</p><p className="text-white/30 text-xs"><span className="line-through">{app.current}</span> → <span className="text-emerald-300">{app.latest}</span> · {app.size}</p></div>
                 </div>
                 {updatedIds.includes(app.id)
                   ? <div className="flex items-center gap-2 text-green-400 text-xs"><CheckCircle size={14} /> Updated</div>
-                  : <button onClick={() => setUpdatedIds(p => [...p, app.id])} className="bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 px-4 py-2 rounded-lg text-xs font-medium transition-all">Update</button>
+                  : <button onClick={() => setUpdatedIds(p => [...p, app.id])} className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 px-4 py-2 rounded-lg text-xs font-medium transition-all">Update</button>
                 }
               </div>
             ))}
@@ -730,11 +733,11 @@ function MyClutter() {
             {visibleLarge.map(file => (
               <div key={file.id} className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10">
                 <div className="flex items-center gap-3">
-                  <file.icon size={20} className="text-fuchsia-400" strokeWidth={1.5} />
+                  <file.icon size={20} className="text-emerald-400" strokeWidth={1.5} />
                   <div><p className="text-white/90 font-medium text-sm">{file.name}</p><p className="text-white/30 text-xs">{file.path}</p></div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-fuchsia-300 font-medium text-sm">{file.size} GB</span>
+                  <span className="text-emerald-300 font-medium text-sm">{file.size} GB</span>
                   <button onClick={() => setRemovedLarge(p => [...p, file.id])} className="bg-red-500/10 hover:bg-red-500/20 text-red-400 p-2 rounded-lg transition-all"><Trash2 size={14} /></button>
                 </div>
               </div>
@@ -756,7 +759,7 @@ function MyClutter() {
               <div key={dupe.id} className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10">
                 <div><p className="text-white/90 font-medium text-sm">{dupe.name}</p><p className="text-white/30 text-xs">{dupe.copies} copies · {dupe.path}</p></div>
                 <div className="flex items-center gap-4">
-                  <span className="text-fuchsia-300 text-sm">{(dupe.size * (dupe.copies - 1)).toFixed(2)} GB</span>
+                  <span className="text-emerald-300 text-sm">{(dupe.size * (dupe.copies - 1)).toFixed(2)} GB</span>
                   <button onClick={() => setRemovedDupes(p => [...p, dupe.id])} className="bg-red-500/10 hover:bg-red-500/20 text-red-400 p-2 rounded-lg transition-all"><Trash2 size={14} /></button>
                 </div>
               </div>
@@ -779,12 +782,12 @@ function SpaceLens() {
 
   return (
     <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
-      <div className="mb-6"><h2 className="text-2xl font-bold text-white">Space Lens</h2><p className="text-fuchsia-200/60 text-sm mt-1">Visual breakdown of your disk usage</p></div>
+      <div className="mb-6"><h2 className="text-2xl font-bold text-white">Space Lens</h2><p className="text-emerald-200/60 text-sm mt-1">Visual breakdown of your disk usage</p></div>
 
       <div className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-6">
         <div className="flex items-center justify-between mb-3">
           <span className="text-white/60 text-sm">512 GB total · {total.toFixed(0)} GB used</span>
-          <span className="text-fuchsia-300 font-medium text-sm">{(512 - total).toFixed(0)} GB free</span>
+          <span className="text-emerald-300 font-medium text-sm">{(512 - total).toFixed(0)} GB free</span>
         </div>
         <div className="w-full h-10 rounded-xl overflow-hidden flex mb-6">
           {SPACE_LENS_DATA.map((item, i) => (
@@ -876,16 +879,16 @@ function Assistant() {
 
   return (
     <div className="flex-1 flex flex-col p-6 overflow-hidden">
-      <div className="mb-4"><h2 className="text-2xl font-bold text-white">Assistant</h2><p className="text-fuchsia-200/60 text-sm mt-1">Ask anything about your Mac</p></div>
+      <div className="mb-4"><h2 className="text-2xl font-bold text-white">Assistant</h2><p className="text-emerald-200/60 text-sm mt-1">Ask anything about your Mac</p></div>
       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 mb-4 pr-1">
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'assistant' && (
-              <div className="w-8 h-8 rounded-full bg-fuchsia-500/20 flex items-center justify-center mr-2 shrink-0 mt-1">
-                <Smile size={16} className="text-fuchsia-400" />
+              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center mr-2 shrink-0 mt-1">
+                <Smile size={16} className="text-emerald-400" />
               </div>
             )}
-            <div className={`max-w-sm lg:max-w-md px-4 py-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user' ? 'bg-fuchsia-500/20 text-white rounded-tr-sm' : 'bg-white/5 text-white/80 rounded-tl-sm border border-white/10'}`}>
+            <div className={`max-w-sm lg:max-w-md px-4 py-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user' ? 'bg-emerald-500/20 text-white rounded-tr-sm' : 'bg-white/5 text-white/80 rounded-tl-sm border border-white/10'}`}>
               {msg.text}
             </div>
           </div>
@@ -895,15 +898,15 @@ function Assistant() {
       {messages.length <= 2 && (
         <div className="flex flex-wrap gap-2 mb-3">
           {suggestions.map((s, i) => (
-            <button key={i} onClick={() => setInput(s)} className="text-xs text-fuchsia-300/70 border border-fuchsia-500/20 bg-fuchsia-500/5 hover:bg-fuchsia-500/10 px-3 py-1.5 rounded-full transition-all">{s}</button>
+            <button key={i} onClick={() => setInput(s)} className="text-xs text-emerald-300/70 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 px-3 py-1.5 rounded-full transition-all">{s}</button>
           ))}
         </div>
       )}
       <div className="flex gap-3">
         <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()}
           placeholder="Ask about your Mac…"
-          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:border-fuchsia-500/50" />
-        <button onClick={send} className="bg-gradient-to-r from-fuchsia-500 to-pink-600 hover:opacity-90 text-white w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all">
+          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:border-emerald-500/50" />
+        <button onClick={send} className="bg-emerald-600 hover:opacity-90 text-white w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all">
           <Send size={18} />
         </button>
       </div>
@@ -943,11 +946,12 @@ export default function CleanMyMac() {
   const [active, setActive] = useState('Smart Care');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-teal-600 to-emerald-800 flex items-center justify-center p-4 md:p-8 font-sans">
-      <div className="w-full max-w-6xl h-[800px] max-h-[90vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl shadow-black/50 border border-white/10 bg-gradient-to-br from-[#3b0b6b] via-[#2D0B59] to-[#511378] relative">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 md:p-8 font-sans">
+      <h1 className="sr-only">CleanMyMac demo</h1>
+      <div className="w-full max-w-6xl h-[800px] max-h-[90vh] flex flex-col rounded-2xl overflow-hidden border border-white/10 bg-slate-900 relative">
 
         {/* macOS title bar */}
-        <div className="h-12 w-full flex items-center px-4 shrink-0 bg-white/5 backdrop-blur-sm z-20 absolute top-0 left-0 border-b border-white/5">
+        <div className="h-12 w-full flex items-center px-4 shrink-0 bg-white/5 z-20 absolute top-0 left-0 border-b border-white/5">
           <div className="flex gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500/80 border border-red-600/50" />
             <div className="w-3 h-3 rounded-full bg-yellow-500/80 border border-yellow-600/50" />
@@ -958,12 +962,12 @@ export default function CleanMyMac() {
 
         <div className="flex flex-1 pt-12 h-full overflow-hidden">
           {/* Sidebar */}
-          <div className="w-64 flex-shrink-0 border-r border-white/5 bg-black/10 flex flex-col justify-between py-6 backdrop-blur-md">
+          <div className="w-64 flex-shrink-0 border-r border-white/5 bg-black/20 flex flex-col justify-between py-6">
             <div className="px-4 space-y-1">
               {SIDEBAR.map(item => (
                 <button key={item.name} onClick={() => setActive(item.name)}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${active === item.name ? 'bg-white/10 text-white border border-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}>
-                  <item.icon size={18} className={active === item.name ? 'text-fuchsia-400' : ''} />
+                  <item.icon size={18} className={active === item.name ? 'text-emerald-400' : ''} />
                   {item.name}
                 </button>
               ))}
@@ -971,7 +975,7 @@ export default function CleanMyMac() {
             <div className="px-4">
               <button onClick={() => setActive('Assistant')}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${active === 'Assistant' ? 'bg-white/10 text-white border border-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}>
-                <Smile size={18} className={active === 'Assistant' ? 'text-fuchsia-400' : ''} />
+                <Smile size={18} className={active === 'Assistant' ? 'text-emerald-400' : ''} />
                 Assistant
               </button>
             </div>

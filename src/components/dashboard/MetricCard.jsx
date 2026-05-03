@@ -8,13 +8,13 @@ function MetricCard({ title, value, icon: Icon, isLoading }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}>
-      <Card className="shadow-lg">
+      <Card>
         <CardContent className="mx-4 my-3 px-12 py-6 relative">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
               <p className="text-primary mb-2 text-base font-semibold truncate">{title}</p>
               {isLoading ?
-                <div className="h-8 w-24 bg-slate-200 animate-pulse rounded-md" /> :
+                <div className="h-8 w-24 bg-muted animate-pulse rounded-md" /> :
                 <p className="text-2xl font-semibold truncate">{value}</p>
               }
             </div>

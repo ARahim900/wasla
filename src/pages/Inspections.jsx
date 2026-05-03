@@ -194,7 +194,7 @@ export default function Inspections() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <Card className="transition-all duration-200 overflow-hidden hover:shadow-md">
+                  <Card className="transition-colors duration-200 overflow-hidden hover:bg-accent/40">
                 <CardHeader className="p-4">
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                     <div className="flex-1 min-w-0">

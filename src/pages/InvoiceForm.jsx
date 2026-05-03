@@ -317,19 +317,19 @@ export default function InvoiceForm() {
                 {invoice.items?.map((item, index) => (
                     <div key={index} className="flex flex-wrap items-end gap-4">
                         <div className="flex-grow space-y-1 min-w-[150px]">
-                            <Label className="text-xs">Description</Label>
+                            <Label className="text-sm">Description</Label>
                             <Input value={item.description} disabled />
                         </div>
                         <div className="space-y-1 w-24">
-                            <Label className="text-xs">SQM</Label>
+                            <Label className="text-sm">SQM</Label>
                             <Input type="number" value={item.quantity} disabled />
                         </div>
                         <div className="space-y-1 w-24">
-                            <Label className="text-xs">Rate (OMR)</Label>
+                            <Label className="text-sm">Rate (OMR)</Label>
                             <Input type="number" value={item.rate} disabled />
                         </div>
                         <div className="space-y-1 w-32">
-                            <Label className="text-xs">Amount (OMR)</Label>
+                            <Label className="text-sm">Amount (OMR)</Label>
                             <Input type="number" value={item.amount?.toFixed(3)} disabled />
                         </div>
                     </div>

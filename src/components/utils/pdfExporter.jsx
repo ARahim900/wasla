@@ -5,6 +5,9 @@
  */
 
 import jsPDF from 'jspdf';
+import { REPORT_TOKENS } from '@/lib/reportTokens';
+
+const T = REPORT_TOKENS;
 
 // ============================================
 // CONFIGURATION & CONSTANTS
@@ -744,9 +747,8 @@ export async function exportInspectionReport(rawData, options = {}) {
     // ============================================
     const filename = options.filename || `Inspection_Report_${reportData.clientName.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
     doc.save(filename);
-    
-    console.log(`PDF generated successfully in ${Date.now() - startTime}ms`);
-    return { success: true, filename };
+
+    return { success: true, filename, durationMs: Date.now() - startTime };
     
   } catch (error) {
     console.error('PDF Generation Error:', error);
@@ -789,8 +791,8 @@ export function generateHTMLReport(reportData) {
     body {
       font-family: 'Open Sans', sans-serif;
       line-height: 1.6;
-      color: #333;
-      background: #f5f5f5;
+      color: ${T.neutral.textPrimary};
+      background: ${T.neutral.bg};
     }
     
     .arabic {
@@ -819,7 +821,7 @@ export function generateHTMLReport(reportData) {
     }
     
     .header {
-      background: linear-gradient(135deg, #033366 0%, #0066cc 100%);
+      background: ${T.brand.primaryDeep};
       color: white;
       padding: 40px;
       text-align: center;
@@ -837,16 +839,16 @@ export function generateHTMLReport(reportData) {
     
     .section {
       padding: 40px;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid ${T.neutral.border};
     }
-    
+
     .section-title {
-      background: #f8f9fa;
+      background: ${T.neutral.bg};
       padding: 15px;
       margin: -40px -40px 20px;
       font-size: 1.5em;
       font-weight: bold;
-      color: #033366;
+      color: ${T.brand.primaryDark};
     }
     
     .bilingual {
@@ -857,16 +859,16 @@ export function generateHTMLReport(reportData) {
     }
     
     .finding {
-      background: #f8f9fa;
+      background: ${T.neutral.bg};
       padding: 15px;
       margin: 10px 0;
-      border-left: 4px solid #033366;
+      border-left: 4px solid ${T.brand.primary};
       border-radius: 4px;
     }
-    
-    .status-pass { border-left-color: #22c55e; }
-    .status-fail { border-left-color: #ef4444; }
-    .status-na { border-left-color: #6b7280; }
+
+    .status-pass { border-left-color: ${T.status.pass}; }
+    .status-fail { border-left-color: ${T.status.fail}; }
+    .status-na { border-left-color: ${T.status.na}; }
     
     .photo-grid {
       display: grid;
@@ -876,7 +878,7 @@ export function generateHTMLReport(reportData) {
     }
     
     .photo-item {
-      border: 1px solid #ddd;
+      border: 1px solid ${T.neutral.borderStrong};
       border-radius: 8px;
       overflow: hidden;
     }
@@ -890,18 +892,18 @@ export function generateHTMLReport(reportData) {
     .photo-caption {
       padding: 10px;
       font-size: 0.9em;
-      color: #666;
+      color: ${T.neutral.textMuted};
     }
-    
+
     .signature-block {
       margin-top: 40px;
       padding: 20px;
-      background: #f8f9fa;
+      background: ${T.neutral.bg};
       border-radius: 8px;
     }
-    
+
     .signature-line {
-      border-bottom: 2px solid #333;
+      border-bottom: 2px solid ${T.neutral.textPrimary};
       margin: 30px 0 10px;
       width: 300px;
     }
@@ -958,10 +960,10 @@ export function generateHTMLReport(reportData) {
           <div class="finding status-${finding.status.toLowerCase()}">
             <strong>${finding.point}</strong>
             <span style="float: right; color: ${
-              finding.status === 'Pass' ? '#22c55e' : 
-              finding.status === 'Fail' ? '#ef4444' : '#6b7280'
+              finding.status === 'Pass' ? T.status.pass :
+              finding.status === 'Fail' ? T.status.fail : T.status.na
             };">${finding.status}</span>
-            ${finding.comments ? `<div style="margin-top: 10px; font-style: italic; color: #666;">${finding.comments}</div>` : ''}
+            ${finding.comments ? `<div style="margin-top: 10px; font-style: italic; color: ${T.neutral.textMuted};">${finding.comments}</div>` : ''}
           </div>
         `).join('')}
         
@@ -1003,7 +1005,7 @@ export function generateHTMLReport(reportData) {
     </div>
     
     <!-- Footer -->
-    <div style="text-align: center; padding: 40px; background: #033366; color: white;">
+    <div style="text-align: center; padding: 40px; background: ${T.brand.primaryDeep}; color: white;">
       <p style="font-size: 1.2em; font-weight: bold;">Wasla Property Solutions CR. 1068375</p>
       <p class="arabic" style="color: white;">وصلة للحلول العقارية س.ت 1068375</p>
     </div>
@@ -1012,7 +1014,7 @@ export function generateHTMLReport(reportData) {
   <!-- Print Button -->
   <div style="text-align: center; padding: 20px;" class="no-print">
     <button onclick="window.print()" style="
-      background: #033366;
+      background: ${T.brand.primary};
       color: white;
       padding: 15px 40px;
       font-size: 1.1em;

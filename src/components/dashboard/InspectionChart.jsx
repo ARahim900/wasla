@@ -40,7 +40,7 @@ export default function InspectionChart({ inspections, isLoading }) {
   }, [inspections]);
 
   return (
-    <Card className="shadow-lg">
+    <Card>
       <CardHeader>
         <CardTitle className="text-foreground flex items-center gap-2">
           Inspection Status Overview

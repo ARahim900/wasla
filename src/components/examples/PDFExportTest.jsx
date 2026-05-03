@@ -21,7 +21,6 @@ function PDFExportTest() {
   const handleBasicTest = async () => {
     setIsTestingBasic(true);
     try {
-      console.log('Testing basic PDF export...');
       const reportData = createExampleReport();
       await exportInspectionReport(reportData, 'sample-inspection-report.pdf');
       toast.success('Sample PDF generated successfully!');
@@ -67,8 +66,8 @@ function PDFExportTest() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Enhanced PDF Export System</h1>
-        <p className="text-gray-600">Test the new PDF export functionality with different report types</p>
+        <h1 className="text-3xl font-bold text-foreground mb-4">Enhanced PDF Export System</h1>
+        <p className="text-muted-foreground">Test the new PDF export functionality with different report types</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -80,13 +79,13 @@ function PDFExportTest() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Test with a pre-configured sample report that includes images, sections, and recommendations.
             </p>
             <Button 
               onClick={handleBasicTest}
               disabled={isTestingBasic}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full"
             >
               {isTestingBasic ? 'Generating...' : 'Generate Sample PDF'}
             </Button>
@@ -158,7 +157,7 @@ function PDFExportTest() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Test the EnhancedPDFExportButton component with custom data:
           </p>
           <div className="flex gap-4 flex-wrap">
@@ -187,9 +186,9 @@ function PDFExportTest() {
           <CardTitle>📖 Usage Examples</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-muted p-4 rounded-lg">
             <h4 className="font-semibold mb-2">Basic Usage:</h4>
-            <pre className="text-sm bg-white p-3 rounded border overflow-x-auto">
+            <pre className="text-sm bg-background p-3 rounded border overflow-x-auto">
 {`const reportData = {
   title: 'Building Inspection',
   inspector: 'John Doe',
@@ -208,9 +207,9 @@ await exportInspectionReport(reportData, 'building-inspection.pdf');`}
             </pre>
           </div>
           
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-muted p-4 rounded-lg">
             <h4 className="font-semibold mb-2">With Component:</h4>
-            <pre className="text-sm bg-white p-3 rounded border overflow-x-auto">
+            <pre className="text-sm bg-background p-3 rounded border overflow-x-auto">
 {`<EnhancedPDFExportButton
   inspection={inspectionData}
   client={clientData}
@@ -223,18 +222,18 @@ await exportInspectionReport(reportData, 'building-inspection.pdf');`}
       </Card>
 
       {/* Installation Instructions */}
-      <Card className="border-yellow-200 bg-yellow-50">
+      <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
         <CardHeader>
-          <CardTitle className="text-yellow-800">📦 Installation Requirements</CardTitle>
+          <CardTitle className="text-amber-900 dark:text-amber-200">📦 Installation Requirements</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-yellow-700 mb-3">
+          <p className="text-amber-800 dark:text-amber-200 mb-3">
             This enhanced PDF export system loads libraries dynamically from CDN, but for optimal performance, install them locally:
           </p>
-          <pre className="bg-yellow-100 p-3 rounded text-sm text-yellow-800 overflow-x-auto">
+          <pre className="bg-amber-100 dark:bg-amber-950/60 p-3 rounded text-sm text-amber-900 dark:text-amber-200 overflow-x-auto">
             npm install jspdf html2canvas --save
           </pre>
-          <p className="text-yellow-700 text-sm mt-2">
+          <p className="text-amber-800 dark:text-amber-200 text-sm mt-2">
             The system will fall back to CDN loading if local packages are not available.
           </p>
         </CardContent>

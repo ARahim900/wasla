@@ -48,8 +48,6 @@ class InspectionReportGenerator {
   // Main generation function - writes HTML to window
   async generateReport(inspectionData, options = {}) {
     try {
-      console.log('Starting report generation...');
-
       // Validate input data
       if (!inspectionData || typeof inspectionData !== 'object') {
         throw new Error('Invalid inspection data provided');
@@ -74,7 +72,6 @@ class InspectionReportGenerator {
 
       // Attach onload BEFORE writing content to prevent race condition
       const onLoaded = () => {
-        console.log('Report loaded successfully');
         if (options.autoPrint) {
           setTimeout(() => {
             reportWindow.print();
@@ -91,9 +88,8 @@ class InspectionReportGenerator {
             reportWindow.close();
           }
         }, { once: true });
-      } catch (e) {
+      } catch {
         // Some browsers don't support afterprint
-        console.log('afterprint event not supported');
       }
 
       reportWindow.document.open();
@@ -351,13 +347,15 @@ class InspectionReportGenerator {
         }
 
         :root {
-            --brand-primary: #1e3a8a;
+            --brand-primary: #064e3b;
             --brand-accent: #059669;
+            --brand-accent-strong: #047857;
             --brand-grey-50: #f9fafb;
             --brand-grey-100: #f3f4f6;
             --brand-grey-200: #e5e7eb;
             --brand-grey-300: #d1d5db;
             --brand-grey-500: #6b7280;
+            --brand-grey-600: #4b5563;
             --brand-grey-700: #374151;
             --brand-grey-900: #111827;
         }
@@ -366,8 +364,8 @@ class InspectionReportGenerator {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 9pt;
             line-height: 1.4;
-            color: #333;
-            background: #f5f5f5;
+            color: var(--brand-grey-900);
+            background: var(--brand-grey-50);
         }
 
         .font-cairo {
@@ -407,26 +405,26 @@ class InspectionReportGenerator {
         }
 
         .toolbar-btn:focus {
-            outline: 2px solid #10b981;
+            outline: 2px solid var(--brand-accent);
             outline-offset: 2px;
         }
 
         .print-button {
-            background: #10b981;
+            background: var(--brand-accent);
             color: white;
         }
 
         .print-button:hover {
-            background: #059669;
+            background: var(--brand-accent-strong);
         }
 
         .back-button {
-            background: #6b7280;
+            background: var(--brand-grey-500);
             color: white;
         }
 
         .back-button:hover {
-            background: #4b5563;
+            background: var(--brand-grey-600);
         }
 
         .report-container {
@@ -1173,19 +1171,12 @@ class InspectionReportGenerator {
 
         function handlePrint() {
             try {
-                console.log('Print button clicked');
                 window.print();
             } catch (error) {
                 console.error('Print error:', error);
                 alert('Unable to print. Please use your browser\\'s print function (Ctrl+P or Cmd+P)');
             }
         }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const btn = document.getElementById('printButton');
-            console.log('Print button loaded:', btn);
-            console.log('Button position:', btn ? btn.getBoundingClientRect() : 'not found');
-        });
 
         document.addEventListener('keydown', function(e) {
             if ((e.ctrlKey || e.metaKey) && e.key === 'p') {

@@ -13,9 +13,9 @@ function ItemRow({ item, onUpdate, onRemove }) {
   };
 
   const statusClasses = {
-    'Pass': 'bg-green-100 text-green-800 border-green-300',
-    'Fail': 'bg-red-100 text-red-800 border-red-300',
-    'N/A': 'bg-gray-100 text-gray-800 border-gray-300',
+    'Pass': 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900',
+    'Fail': 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900',
+    'N/A': 'bg-muted text-muted-foreground border-border',
   };
 
   return (
@@ -25,7 +25,7 @@ function ItemRow({ item, onUpdate, onRemove }) {
           <p className="font-semibold text-foreground">{item.point}</p>
           <p className="text-sm text-muted-foreground">{item.category}</p>
         </div>
-        <Button type="button" variant="ghost" size="icon" onClick={onRemove} className="text-red-500 hover:bg-red-100">
+        <Button type="button" variant="ghost" size="icon" onClick={onRemove} aria-label="Remove item" className="text-red-500 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-950/40">
           <Trash2 className="w-4 h-4" />
         </Button>
       </div>
