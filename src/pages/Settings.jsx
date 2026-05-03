@@ -51,7 +51,7 @@ const ProfileField = ({ id, label, icon: Icon, ...props }) => (
 );
 
 export default function Settings() {
-  const { logout } = useAuth();
+  const { logout, patchUser, refreshUser } = useAuth();
   const fileInputRef = useRef(null);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -134,10 +134,12 @@ export default function Settings() {
         document.documentElement.classList.toggle("dark", value);
         localStorage.setItem("theme", value ? "dark" : "light");
         await User.updateMe({ darkMode: value, theme: value ? "dark" : "light" });
+        patchUser({ darkMode: value, theme: value ? "dark" : "light" });
       } else {
         // notifications and emailReminders both flow through updateMe — entities.js
         // maps emailReminders -> email_reminders for the column name
         await User.updateMe({ [key]: value });
+        patchUser({ [key]: value });
       }
       const labels = { darkMode: "Theme", notifications: "Notifications", emailReminders: "Email reminders" };
       toast.success(`${labels[key] || key} updated`);
@@ -194,6 +196,8 @@ export default function Settings() {
 
       await User.updateMe({ avatar: publicUrl });
       setUser((prev) => ({ ...prev, avatar: publicUrl }));
+      // Push the new avatar into AuthContext so the navbar updates immediately
+      patchUser({ avatar: publicUrl });
 
       toast.success("Photo updated!", { id: toastId });
     } catch (error) {
@@ -224,6 +228,8 @@ export default function Settings() {
       setOriginalData({ ...profileData });
       setHasChanges(false);
       await loadUserData();
+      // Broadcast the new name/phone/etc. to AuthContext so the navbar refreshes
+      await refreshUser();
       toast.success("Profile saved successfully!", { id: toastId });
     } catch (error) {
       console.error("Failed to save profile:", error);

@@ -21,8 +21,13 @@ async function loadUserProfile(sessionUser) {
     full_name: profile?.full_name || sessionUser.user_metadata?.full_name,
     avatar: profile?.avatar || sessionUser.user_metadata?.avatar_url,
     role: profile?.role || 'user',
+    phone: profile?.phone || '',
+    company: profile?.company || '',
+    address: profile?.address || '',
     darkMode: profile?.dark_mode ?? false,
     theme: profile?.theme || 'light',
+    notifications: profile?.notifications ?? true,
+    emailReminders: profile?.email_reminders ?? true,
   };
 }
 
@@ -260,6 +265,28 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
+  // Re-fetch the current user's profile and broadcast it. Settings calls this
+  // after avatar upload or profile save so the navbar avatar/name update
+  // immediately without a page reload.
+  const refreshUser = async () => {
+    if (isDemoMode) {
+      const userData = await User.me();
+      setUser(userData);
+      return userData;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return null;
+    const userData = await loadUserProfile(session.user);
+    setUser(userData);
+    return userData;
+  };
+
+  // Optimistic patch — let Settings push fields it just saved without waiting
+  // for a network round-trip. Avoids a flicker between save and refresh.
+  const patchUser = (partial) => {
+    setUser((prev) => (prev ? { ...prev, ...partial } : prev));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -276,6 +303,8 @@ export const AuthProvider = ({ children }) => {
         signUp,
         resendConfirmation,
         resetPassword,
+        refreshUser,
+        patchUser,
         isDemoMode,
       }}
     >

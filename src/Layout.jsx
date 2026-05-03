@@ -25,6 +25,11 @@ import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
 import MobileTabBar, { BOTTOM_NAV_HEIGHT } from "@/components/navigation/MobileTabBar";
 
+const initialThemeFromStorage = () => {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem("theme") === "dark";
+};
+
 const navigationItems = [
   { title: "Dashboard", url: createPageUrl("Dashboard"), icon: LayoutDashboard },
   { title: "Inspections", url: createPageUrl("Inspections"), icon: ClipboardList },
@@ -37,29 +42,18 @@ const navigationItems = [
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
-  const [user, setUser] = useState(null);
+  const { logout, user, patchUser } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isMobile = useIsMobile();
 
-  // Dark mode support
-  const [isDark, setIsDark] = useState(() => {
-    const lsTheme = localStorage.getItem("theme");
-    return lsTheme === "dark";
-  });
+  // Dark mode — initialize from localStorage; sync with user prefs once they load
+  const [isDark, setIsDark] = useState(initialThemeFromStorage);
 
-  // Load user data + theme preference in a single call
   React.useEffect(() => {
-    User.me()
-      .then((me) => {
-        if (me) {
-          setUser(me);
-          if (typeof me.darkMode === "boolean") setIsDark(me.darkMode);
-          else if (me.theme) setIsDark(me.theme === "dark");
-        }
-      })
-      .catch(() => setUser(null));
-  }, []);
+    if (!user) return;
+    if (typeof user.darkMode === "boolean") setIsDark(user.darkMode);
+    else if (user.theme) setIsDark(user.theme === "dark");
+  }, [user]);
 
   // Close mobile menu whenever route changes
   React.useEffect(() => {
@@ -78,6 +72,7 @@ export default function Layout({ children, currentPageName }) {
   const toggleTheme = async () => {
     const next = !isDark;
     setIsDark(next);
+    patchUser({ darkMode: next, theme: next ? "dark" : "light" });
     try {
       await User.updateMe({ darkMode: next, theme: next ? "dark" : "light" });
     } catch (err) {
