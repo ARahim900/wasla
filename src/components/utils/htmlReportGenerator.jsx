@@ -30,6 +30,21 @@ class InspectionReportGenerator {
       .replace(/'/g, "&#39;");
   }
 
+  // Build the HTML string only — does not open any window. Use this for in-app rendering (iframe).
+  async buildHTML(inspectionData, options = {}) {
+    if (!inspectionData || typeof inspectionData !== 'object') {
+      throw new Error('Invalid inspection data provided');
+    }
+    this.page = {
+      size: options.pageSize || 'A4',
+      orientation: options.orientation || 'portrait',
+      margin: options.margin || '25mm 20mm 25mm 20mm'
+    };
+    this.embedMode = options.embedMode === true;
+    const reportData = this.processInspectionData(inspectionData);
+    return await this.buildCompleteHTML(reportData);
+  }
+
   // Main generation function - writes HTML to window
   async generateReport(inspectionData, options = {}) {
     try {
@@ -44,7 +59,7 @@ class InspectionReportGenerator {
       this.page = {
         size: options.pageSize || 'A4',
         orientation: options.orientation || 'portrait',
-        margin: options.margin || '0'
+        margin: options.margin || '25mm 20mm 25mm 20mm'
       };
 
       const reportData = this.processInspectionData(inspectionData);
@@ -117,8 +132,12 @@ class InspectionReportGenerator {
       inspector: data.inspector_name || 'Inspector',
       grade: '',
       affectedAreas: [],
-      recommendations: []
+      recommendations: [],
+      categorySummary: []
     };
+
+    // Aggregate grades per category for the executive summary
+    const categoryGrades = {};
 
     if (data.areas && Array.isArray(data.areas)) {
       data.areas.forEach(area => {
@@ -140,11 +159,21 @@ class InspectionReportGenerator {
             const hasComments = status === 'Pass' && item.comments && item.comments !== 'No additional comments';
             const hasPhotos = item.photos && item.photos.length > 0;
 
+            const itemName = item.point || item.category || 'Inspection Point';
+            const grade = this.inferGrade({ status, comments: item.comments });
+            const category = this.categoryFor(itemName);
+            if (grade) {
+              if (!categoryGrades[category]) categoryGrades[category] = [];
+              categoryGrades[category].push(grade);
+            }
+
             if (hasIssue || hasComments || hasPhotos) {
               affectedItems.push({
-                name: item.point || item.category || 'Inspection Point',
+                name: itemName,
                 status: status,
-                comments: item.comments || ''
+                comments: item.comments || '',
+                grade,
+                category
               });
 
               if (item.photos && Array.isArray(item.photos)) {
@@ -152,7 +181,8 @@ class InspectionReportGenerator {
                   if (photo.url) {
                     areaPhotos.push({
                       url: photo.url,
-                      caption: `${item.point || item.category}: ${photo.description || item.comments || 'Inspection photo'}`
+                      itemName: item.point || item.category || 'Inspection point',
+                      description: photo.description || item.comments || 'Inspection photo'
                     });
                   }
                 });
@@ -182,8 +212,25 @@ class InspectionReportGenerator {
       else processed.grade = 'D';
     }
 
+    // Build executive summary rows from category aggregates
+    const categoryOrder = ['Structure', 'MEP', 'Safety', 'Finishes', 'Exterior', 'General'];
+    processed.categorySummary = categoryOrder
+      .filter(cat => categoryGrades[cat] && categoryGrades[cat].length > 0)
+      .map(cat => {
+        const grade = this.worstGrade(categoryGrades[cat]) || 'A';
+        return {
+          category: cat,
+          grade,
+          meaning: this.gradeMeaning(grade),
+          risk: this.riskFromGrade(grade),
+          itemCount: categoryGrades[cat].length
+        };
+      });
+
     if (data.recommendations && Array.isArray(data.recommendations)) {
-      processed.recommendations = data.recommendations.filter(rec => rec && rec.trim());
+      processed.recommendations = data.recommendations
+        .filter(rec => rec && (typeof rec === 'string' ? rec.trim() : rec.action || rec.issue))
+        .map(rec => this.normalizeRecommendation(rec));
     }
 
     if (processed.recommendations.length === 0 && processed.affectedAreas.length > 0) {
@@ -191,6 +238,96 @@ class InspectionReportGenerator {
     }
 
     return processed;
+  }
+
+  // Convert string or partial object recommendations into a uniform structured row.
+  normalizeRecommendation(rec) {
+    if (typeof rec === 'string') {
+      const text = rec.trim();
+      const colonIdx = text.indexOf(':');
+      const issue = colonIdx > -1 ? text.slice(0, colonIdx).trim() : 'General';
+      const action = colonIdx > -1 ? text.slice(colonIdx + 1).trim() : text;
+      const priority = this.inferPriority(action);
+      return {
+        issue: issue || 'General',
+        priority,
+        action: action || text,
+        timeline: this.timelineFor(priority),
+        cost: 'TBD'
+      };
+    }
+    const priority = rec.priority || this.inferPriority(rec.action || rec.issue || '');
+    return {
+      issue: rec.issue || 'General',
+      priority,
+      action: rec.action || '',
+      timeline: rec.timeline || this.timelineFor(priority),
+      cost: rec.cost || 'TBD'
+    };
+  }
+
+  inferPriority(text = '') {
+    const t = String(text).toLowerCase();
+    if (/safety|leak|electric|gas|fire|hazard|broken|crack|mold|structural|urgent/.test(t)) return 'High';
+    if (/replace|repair|fix|address|service/.test(t)) return 'Medium';
+    return 'Low';
+  }
+
+  timelineFor(priority) {
+    if (priority === 'High') return 'Within 30 days';
+    if (priority === 'Medium') return 'Within 60 days';
+    return 'Within 90 days';
+  }
+
+  // Severity grading: A (Good), B (Minor), C (Moderate), D (Major), E (Critical)
+  inferGrade(item) {
+    const status = (item.status || '').toLowerCase();
+    const comment = (item.comments || '').toLowerCase();
+
+    if (status === 'pass') {
+      return comment && comment !== 'no comments' && comment !== 'no additional comments' ? 'B' : 'A';
+    }
+    if (status === 'n/a' || status === 'na') return null;
+
+    // Fail — grade by severity keywords
+    if (/safety|hazard|fire|gas|electric shock|exposed wir|short circuit|structural|collapse|severe|critical|urgent/.test(comment)) return 'E';
+    if (/leak|mold|crack|broken|water damage|pest|infestation|major|not working|failed/.test(comment)) return 'D';
+    if (/minor|small|hairline|cosmetic|stain|discolor|scratch|chip/.test(comment)) return 'C';
+    return 'D';
+  }
+
+  gradeMeaning(grade) {
+    return ({ A: 'Good', B: 'Minor', C: 'Moderate', D: 'Major', E: 'Critical' })[grade] || grade;
+  }
+
+  riskFromGrade(grade) {
+    if (grade === 'E' || grade === 'D') return 'High';
+    if (grade === 'C') return 'Medium';
+    return 'Low';
+  }
+
+  // Worst grade rank — A=1, E=5 — used to pick the dominant grade per category
+  gradeRank(grade) {
+    return ({ A: 1, B: 2, C: 3, D: 4, E: 5 })[grade] || 0;
+  }
+
+  worstGrade(grades) {
+    let worst = null;
+    grades.forEach(g => {
+      if (g && (!worst || this.gradeRank(g) > this.gradeRank(worst))) worst = g;
+    });
+    return worst;
+  }
+
+  // Category bucketing — groups items into business categories for the executive summary
+  categoryFor(itemName = '') {
+    const n = String(itemName).toLowerCase();
+    if (/wall|ceiling|floor|foundation|beam|column|slab|roof structure|crack|structural/.test(n)) return 'Structure';
+    if (/water|pipe|plumb|drain|sewer|electric|wiring|outlet|switch|breaker|ac\b|hvac|cool|heat|hot water|tank|ventilation|gas\b|panel/.test(n)) return 'MEP';
+    if (/fire|alarm|smoke|exit|emergency|safety|extinguish/.test(n)) return 'Safety';
+    if (/paint|tile|marble|wood|finish|cabinet|door|window|joinery/.test(n)) return 'Finishes';
+    if (/roof|garden|driveway|garage|exterior|facade|landscape|fence|gate/.test(n)) return 'Exterior';
+    return 'General';
   }
 
   // Build complete HTML with enhanced print optimization
@@ -211,6 +348,18 @@ class InspectionReportGenerator {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        :root {
+            --brand-primary: #1e3a8a;
+            --brand-accent: #059669;
+            --brand-grey-50: #f9fafb;
+            --brand-grey-100: #f3f4f6;
+            --brand-grey-200: #e5e7eb;
+            --brand-grey-300: #d1d5db;
+            --brand-grey-500: #6b7280;
+            --brand-grey-700: #374151;
+            --brand-grey-900: #111827;
         }
 
         body {
@@ -281,7 +430,7 @@ class InspectionReportGenerator {
         }
 
         .report-container {
-            max-width: 210mm;
+            max-width: 900px;
             margin: 20px auto;
             background: white;
             box-shadow: 0 0 20px rgba(0,0,0,0.1);
@@ -290,11 +439,12 @@ class InspectionReportGenerator {
         }
 
         .page {
-            padding: 10mm 12mm 10mm 12mm;
+            padding: 25mm 20mm 25mm 20mm;
             background: white;
             position: relative;
             box-sizing: border-box;
-            margin-bottom: 20px;
+            margin: 0 auto 20px auto;
+            max-width: 900px;
         }
 
         .page::before {
@@ -330,44 +480,122 @@ class InspectionReportGenerator {
             max-width: 100%;
         }
 
+        /* Cover page header — Logo | Title | Report Info */
+        .cover-header {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 16px;
+            align-items: center;
+            padding: 14px 18px;
+            background: var(--brand-grey-50);
+            border: 1px solid var(--brand-grey-200);
+            border-top: 3px solid var(--brand-accent);
+            border-radius: 8px;
+            margin-bottom: 14px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .cover-header-logo img {
+            width: 78px;
+            height: auto;
+            display: block;
+        }
+
+        .cover-header-title h1 {
+            text-align: center;
+            font-size: 16pt;
+            font-weight: 700;
+            color: var(--brand-primary);
+            line-height: 1.15;
+            letter-spacing: 0.3px;
+            margin: 0;
+        }
+
+        .cover-header-title .subtitle {
+            text-align: center;
+            font-size: 8pt;
+            color: var(--brand-grey-500);
+            margin-top: 4px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .cover-header-info {
+            min-width: 200px;
+            font-size: 7.8pt;
+            line-height: 1.5;
+            color: var(--brand-grey-700);
+            border-left: 2px solid var(--brand-grey-200);
+            padding-left: 14px;
+        }
+
+        .cover-header-info p {
+            margin: 0 0 2px 0;
+        }
+
+        .cover-header-info strong {
+            color: var(--brand-primary);
+            font-weight: 600;
+        }
+
         .report-title {
             text-align: center;
             font-size: 18pt;
             font-weight: 700;
-            color: #1f2937;
+            color: var(--brand-primary);
             margin-bottom: 10px;
+            letter-spacing: 0.3px;
         }
 
         .overview-box {
-            background: #e8e9eb;
-            padding: 10px;
-            margin-bottom: 8px;
+            background: var(--brand-grey-100);
+            border: 1px solid var(--brand-grey-200);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
 
         .overview-header {
             text-align: center;
             font-size: 11pt;
-            font-weight: 600;
-            color: #4b5563;
-            margin-bottom: 8px;
-            border-bottom: 2px solid #9ca3af;
-            padding-bottom: 4px;
+            font-weight: 700;
+            color: var(--brand-primary);
+            margin-bottom: 10px;
+            border-bottom: 2px solid var(--brand-accent);
+            padding-bottom: 5px;
+            letter-spacing: 0.3px;
         }
 
         .two-column {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            gap: 0;
             margin-bottom: 8px;
+        }
+
+        .two-column > .column {
+            padding: 0 14px;
+        }
+
+        .two-column > .column:first-child {
+            padding-left: 0;
+            border-right: 1px solid var(--brand-grey-200);
+        }
+
+        .two-column > .column:last-child {
+            padding-right: 0;
         }
 
         .column {
             font-size: 7.8pt;
-            line-height: 1.35;
+            line-height: 1.45;
         }
 
         .column p {
-            margin-bottom: 4px;
+            margin-bottom: 5px;
         }
 
         .column strong {
@@ -375,12 +603,34 @@ class InspectionReportGenerator {
         }
 
         .section-title {
-            font-size: 9.5pt;
+            font-size: 10.5pt;
             font-weight: 700;
-            color: #1f2937;
-            margin: 10px 0 6px 0;
-            padding-bottom: 3px;
-            border-bottom: 2px solid #e5e7eb;
+            color: var(--brand-primary);
+            margin: 0 0 12px 0;
+            padding: 9px 14px;
+            background: var(--brand-grey-100);
+            border-left: 4px solid var(--brand-accent);
+            border-radius: 4px;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .area-block {
+            border: 1px solid var(--brand-grey-200);
+            border-radius: 8px;
+            padding: 14px 14px 14px 14px;
+            margin-bottom: 18px;
+            background: #ffffff;
+        }
+
+        .area-block table {
+            margin: 0;
+        }
+
+        .area-block .photo-grid {
+            margin-top: 12px;
         }
 
         table {
@@ -467,32 +717,64 @@ class InspectionReportGenerator {
         .photo-grid {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 8px;
-            margin-top: 10px;
+            gap: 10px;
+            margin-top: 12px;
         }
 
         .photo-item {
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
+            border: 1px solid var(--brand-grey-300);
+            border-radius: 6px;
             overflow: hidden;
+            background: white;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             page-break-inside: avoid;
             break-inside: avoid;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
 
-        .photo-item img {
+        .photo-frame {
+            position: relative;
             width: 100%;
-            max-height: 150px;
-            object-fit: contain;
+            aspect-ratio: 4 / 3;
+            background: var(--brand-grey-100);
+            overflow: hidden;
+        }
+
+        .photo-frame img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
             display: block;
-            background: #f9fafb;
         }
 
         .photo-caption {
-            padding: 4px 6px;
-            background: #f9fafb;
+            padding: 6px 8px 7px 8px;
+            background: var(--brand-grey-50);
+            border-top: 1px solid var(--brand-grey-200);
+            font-size: 6.8pt;
+            color: var(--brand-grey-700);
+            line-height: 1.35;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .photo-caption .caption-label {
+            display: block;
+            color: var(--brand-accent);
+            font-weight: 700;
             font-size: 6.5pt;
-            color: #4b5563;
-            line-height: 1.2;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 1px;
+        }
+
+        .photo-caption .caption-text {
+            display: block;
+            color: var(--brand-grey-900);
+            font-weight: 500;
         }
 
         h3 {
@@ -509,6 +791,168 @@ class InspectionReportGenerator {
             margin: 8px 0;
         }
 
+        .recommendations-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 10px;
+            border: 1px solid var(--brand-grey-200);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .recommendations-table th {
+            background: var(--brand-primary);
+            color: white;
+            font-weight: 600;
+            font-size: 7.8pt;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            padding: 8px 10px;
+            text-align: left;
+            border: none;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .recommendations-table td {
+            padding: 8px 10px;
+            font-size: 8pt;
+            border: none;
+            border-bottom: 1px solid var(--brand-grey-200);
+            vertical-align: top;
+        }
+
+        .recommendations-table tbody tr:nth-child(even) td {
+            background: var(--brand-grey-50);
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .recommendations-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 7pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .priority-high {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .priority-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .priority-low {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        /* Severity grade badges A-E */
+        .grade-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 22px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 8pt;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            border: 1px solid transparent;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .grade-a { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .grade-b { background: #ecfccb; color: #3f6212; border-color: #bef264; }
+        .grade-c { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+        .grade-d { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
+        .grade-e { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+
+        .risk-pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 7pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .risk-low { background: #dcfce7; color: #166534; }
+        .risk-medium { background: #fef3c7; color: #92400e; }
+        .risk-high { background: #fee2e2; color: #991b1b; }
+
+        /* Executive Summary */
+        .executive-summary {
+            margin-bottom: 14px;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border: 1px solid var(--brand-grey-200);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .summary-table th {
+            background: var(--brand-primary);
+            color: white;
+            font-weight: 600;
+            font-size: 7.8pt;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            padding: 7px 10px;
+            text-align: left;
+            border: none;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .summary-table td {
+            padding: 7px 10px;
+            font-size: 8.5pt;
+            border: none;
+            border-bottom: 1px solid var(--brand-grey-200);
+            vertical-align: middle;
+        }
+
+        .summary-table tbody tr:nth-child(even) td {
+            background: var(--brand-grey-50);
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .summary-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .grade-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 6px;
+            font-size: 6.8pt;
+            color: var(--brand-grey-500);
+        }
+
+        .grade-legend span { white-space: nowrap; }
+
         @media print {
             html, body {
                 width: 210mm;
@@ -518,6 +962,8 @@ class InspectionReportGenerator {
                 background: white;
                 margin: 0;
                 padding: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
 
             .toolbar {
@@ -532,7 +978,7 @@ class InspectionReportGenerator {
             }
 
             .page {
-                padding: 10mm 12mm 15mm 12mm;
+                padding: 0;
                 page-break-after: always;
                 break-after: page;
                 box-sizing: border-box;
@@ -551,7 +997,9 @@ class InspectionReportGenerator {
                 break-after: auto;
             }
 
+            /* Findings flow naturally across pages */
             .findings-page {
+                padding: 0;
                 page-break-inside: auto;
                 break-inside: auto;
                 page-break-after: auto;
@@ -559,25 +1007,49 @@ class InspectionReportGenerator {
             }
 
             @page {
+                size: ${size} ${orientation};
+                margin: ${margin};
+                @bottom-left {
+                    content: "Wasla Property Solutions";
+                    font-size: 7.5pt;
+                    color: #6b7280;
+                    font-family: 'Inter', sans-serif;
+                }
                 @bottom-center {
-                    content: counter(page);
-                    font-size: 8pt;
+                    content: "Confidential";
+                    font-size: 7.5pt;
                     color: #9ca3af;
+                    font-family: 'Inter', sans-serif;
+                    letter-spacing: 0.5px;
+                }
+                @bottom-right {
+                    content: "Page " counter(page) " of " counter(pages);
+                    font-size: 7.5pt;
+                    color: #6b7280;
+                    font-family: 'Inter', sans-serif;
                 }
             }
 
-            @page {
-                size: ${size} ${orientation};
-                margin: ${margin};
-            }
-
             .no-break,
-            .section-title,
             .header-logo {
                 page-break-inside: avoid;
                 break-inside: avoid;
                 page-break-after: avoid;
                 break-after: avoid;
+            }
+
+            /* Keep section titles attached to the content that follows */
+            .section-title {
+                page-break-after: avoid;
+                break-after: avoid;
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            /* Areas flow naturally; tables and photos handle their own break rules */
+            .area-block {
+                page-break-inside: auto;
+                break-inside: auto;
             }
 
             table {
@@ -616,12 +1088,8 @@ class InspectionReportGenerator {
                 page-break-inside: avoid;
             }
 
-            .status-pass, .status-fail, .status-na {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-
-            .overview-box {
+            .status-pass, .status-fail, .status-na,
+            .overview-box, .info-box {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
@@ -632,14 +1100,14 @@ class InspectionReportGenerator {
                 background: #f3f4f6 !important;
             }
 
-            .info-box {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-
-            .two-column {
+            p, li {
                 orphans: 3;
                 widows: 3;
+            }
+
+            h1, h2, h3 {
+                page-break-after: avoid;
+                break-after: avoid;
             }
         }
 
@@ -654,7 +1122,7 @@ class InspectionReportGenerator {
     </style>
 </head>
 <body>
-    <div class="toolbar">
+    ${this.embedMode ? '' : `<div class="toolbar">
         <button class="toolbar-btn back-button"
                 onclick="handleBack()"
                 aria-label="Return to application"
@@ -668,8 +1136,8 @@ class InspectionReportGenerator {
                 title="Print or save this report as PDF">
             🖨️ Print Report
         </button>
-    </div>
-    
+    </div>`}
+
     <div class="report-container">
         ${this.renderOverviewPage(data)}
         ${this.renderScopeAndConfidentialityPage(data)}
@@ -716,29 +1184,65 @@ class InspectionReportGenerator {
 </html>`;
   }
 
+  renderExecutiveSummary(data) {
+    if (!data.categorySummary || data.categorySummary.length === 0) return '';
+    const rows = data.categorySummary.map(row => `
+      <tr>
+        <td><strong>${this.escapeHTML(row.category)}</strong> <span style="color: var(--brand-grey-500); font-size: 7.5pt;">(${row.itemCount} ${row.itemCount === 1 ? 'item' : 'items'})</span></td>
+        <td><span class="grade-badge grade-${row.grade.toLowerCase()}">${this.escapeHTML(row.grade)}</span> <span style="color: var(--brand-grey-700); font-size: 7.5pt;">${this.escapeHTML(row.meaning)}</span></td>
+        <td><span class="risk-pill risk-${row.risk.toLowerCase()}">${this.escapeHTML(row.risk)}</span></td>
+      </tr>
+    `).join('');
+
+    return `
+      <div class="executive-summary">
+        <h2 class="section-title">Executive Summary</h2>
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th style="width: 42%;">Category</th>
+              <th style="width: 32%;">Grade</th>
+              <th style="width: 26%;">Risk</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="grade-legend">
+          <span><span class="grade-badge grade-a">A</span>&nbsp;Good</span>
+          <span><span class="grade-badge grade-b">B</span>&nbsp;Minor</span>
+          <span><span class="grade-badge grade-c">C</span>&nbsp;Moderate</span>
+          <span><span class="grade-badge grade-d">D</span>&nbsp;Major</span>
+          <span><span class="grade-badge grade-e">E</span>&nbsp;Critical</span>
+        </div>
+      </div>
+    `;
+  }
+
   renderOverviewPage(data) {
+    const gradeColor = data.grade === 'D' ? '#dc2626' : data.grade === 'C' ? '#f59e0b' : '#059669';
     return `
     <div class="page">
         <div class="content">
-            <div class="header-logo">
-                <img src="${this.config.company.logo}" alt="Wasla Logo" onerror="this.style.display='none'">
-            </div>
-            
-            <h1 class="report-title">Property Inspection Report</h1>
-            
-            <div class="info-box two-column" style="margin-bottom: 10px;">
-                <div class="column">
+            <div class="cover-header">
+                <div class="cover-header-logo">
+                    <img src="${this.config.company.logo}" alt="Wasla Logo" onerror="this.style.display='none'">
+                </div>
+                <div class="cover-header-title">
+                    <h1>Property Inspection Report</h1>
+                    <div class="subtitle">Wasla Property Solutions</div>
+                </div>
+                <div class="cover-header-info">
                     <p><strong>Report Ref:</strong> ${this.escapeHTML(data.reference)}</p>
-                    <p><strong>Inspection Date:</strong> ${this.escapeHTML(data.date.en)}</p>
+                    <p><strong>Date:</strong> ${this.escapeHTML(data.date.en)}</p>
                     <p><strong>Inspector:</strong> ${this.escapeHTML(data.inspector)}</p>
-                </div>
-                <div class="column">
-                    <p><strong>Property Type:</strong> ${this.escapeHTML(data.propertyType)}</p>
+                    <p><strong>Property:</strong> ${this.escapeHTML(data.propertyType)}</p>
                     <p><strong>Location:</strong> ${this.escapeHTML(data.location)}</p>
-                    ${data.grade ? `<p><strong>Overall Grade:</strong> <span style="font-weight: 700; color: ${data.grade === 'D' ? '#dc2626' : data.grade === 'C' ? '#f59e0b' : '#059669'};">${this.escapeHTML(data.grade)}</span></p>` : ''}
+                    ${data.grade ? `<p><strong>Grade:</strong> <span style="font-weight: 700; color: ${gradeColor};">${this.escapeHTML(data.grade)}</span></p>` : ''}
                 </div>
             </div>
-            
+
+            ${this.renderExecutiveSummary(data)}
+
             <div class="overview-box">
                 <div class="overview-header">
                     OVERVIEW <span class="font-cairo">نظرة عامة</span>
@@ -898,29 +1402,29 @@ class InspectionReportGenerator {
     if (data.affectedAreas && data.affectedAreas.length > 0) {
       data.affectedAreas.forEach((area) => {
         findingsContent += `
+                <div class="area-block">
                 <h2 class="section-title no-break">${this.escapeHTML(area.name)}</h2>
 
                 <table>
                     <thead>
                         <tr>
                             <th style="width: 30%;">Item</th>
-                            <th style="width: 12%; text-align: center;">Status</th>
-                            <th style="width: 58%;">Comments</th>
+                            <th style="width: 14%; text-align: center;">Grade</th>
+                            <th style="width: 56%;">Comments</th>
                         </tr>
                     </thead>
                     <tbody>`;
 
         area.items.forEach(item => {
-          const normalizedStatus = (item.status || 'n/a').toLowerCase();
-          const statusClass = normalizedStatus === 'pass' ? 'status-pass' :
-                            normalizedStatus === 'fail' ? 'status-fail' : 'status-na';
+          const grade = item.grade;
+          const gradeBadge = grade
+            ? `<span class="grade-badge grade-${grade.toLowerCase()}" title="${this.escapeHTML(this.gradeMeaning(grade))}">${this.escapeHTML(grade)}</span>`
+            : `<span class="status-na">N/A</span>`;
 
           findingsContent += `
                         <tr>
                             <td>${this.escapeHTML(item.name)}</td>
-                            <td style="text-align: center;">
-                                <span class="${statusClass}">${this.escapeHTML(item.status)}</span>
-                            </td>
+                            <td style="text-align: center;">${gradeBadge}</td>
                             <td>${this.escapeHTML(item.comments || 'No comments')}</td>
                         </tr>`;
         });
@@ -932,30 +1436,59 @@ class InspectionReportGenerator {
         if (area.photos && area.photos.length > 0) {
           findingsContent += `<div class="photo-grid">`;
           area.photos.forEach(photo => {
+            const itemName = photo.itemName || 'Inspection point';
+            const description = photo.description || '';
+            const altText = `${itemName}: ${description}`;
             findingsContent += `
                     <div class="photo-item">
-                        <img src="${photo.url}"
-                             alt="${this.escapeHTML(photo.caption)}"
-                             onerror="this.src='${this.config.company.placeholderImage}'">
+                        <div class="photo-frame">
+                            <img src="${photo.url}"
+                                 alt="${this.escapeHTML(altText)}"
+                                 onerror="this.src='${this.config.company.placeholderImage}'">
+                        </div>
                         <div class="photo-caption">
-                            <p>${this.escapeHTML(photo.caption)}</p>
+                            <span class="caption-label">${this.escapeHTML(itemName)}</span>
+                            <span class="caption-text">${this.escapeHTML(description)}</span>
                         </div>
                     </div>`;
           });
           findingsContent += `</div>`;
         }
+        findingsContent += `</div>`;
       });
     }
 
-    // Recommendations section flows after findings
+    // Recommendations section as a structured action-items table
     if (data.recommendations && data.recommendations.length > 0) {
       findingsContent += `
-                <h2 class="section-title no-break" style="margin-top: 20px;">Action Items & Recommendations</h2>
-                <div style="background: #fefce8; border-left: 4px solid #facc15; padding: 12px; border-radius: 4px; margin-top: 8px;">
-                    <ul style="list-style: disc; margin-left: 20px; line-height: 1.6; font-size: 8pt;">
-                        ${data.recommendations.map(rec => `<li style="margin-bottom: 4px;">${this.escapeHTML(rec)}</li>`).join('')}
-                    </ul>
-                </div>`;
+                <h2 class="section-title no-break" style="margin-top: 22px;">Action Items &amp; Recommendations</h2>
+                <table class="recommendations-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 26%;">Issue</th>
+                            <th style="width: 12%;">Priority</th>
+                            <th style="width: 32%;">Action</th>
+                            <th style="width: 16%;">Timeline</th>
+                            <th style="width: 14%;">Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.recommendations.map(rec => {
+                          const priority = (rec.priority || 'Low');
+                          const priorityClass = priority.toLowerCase() === 'high' ? 'priority-high'
+                            : priority.toLowerCase() === 'medium' ? 'priority-medium'
+                            : 'priority-low';
+                          return `
+                        <tr>
+                            <td>${this.escapeHTML(rec.issue || '')}</td>
+                            <td><span class="priority-badge ${priorityClass}">${this.escapeHTML(priority)}</span></td>
+                            <td>${this.escapeHTML(rec.action || '')}</td>
+                            <td>${this.escapeHTML(rec.timeline || '')}</td>
+                            <td>${this.escapeHTML(rec.cost || '')}</td>
+                        </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>`;
     }
 
     // Wrap all findings in a single flowing page container
@@ -965,7 +1498,7 @@ class InspectionReportGenerator {
                 <div class="header-logo no-break">
                     <img src="${this.config.company.logo}" alt="Wasla Logo" onerror="this.style.display='none'">
                 </div>
-                <h1 style="font-size: 14pt; font-weight: 700; text-align: center; margin-bottom: 12px; color: #1f2937;">Inspection Findings</h1>
+                <h1 style="font-size: 14pt; font-weight: 700; text-align: center; margin-bottom: 14px; color: var(--brand-primary); letter-spacing: 0.3px;">Inspection Findings</h1>
                 ${findingsContent}
             </div>
         </div>`;
@@ -1003,14 +1536,38 @@ class InspectionReportGenerator {
     affectedAreas.forEach(area => {
       const failedItems = area.items.filter(item => item.status.toLowerCase() === 'fail');
       failedItems.forEach(item => {
-        const comment = item.comments && item.comments !== 'No comments' ? ` — ${item.comments}` : '';
-        recommendations.push(`${area.name}: Repair/address "${item.name}"${comment}`);
+        const action = item.comments && item.comments !== 'No comments'
+          ? `Repair/address: ${item.comments}`
+          : `Repair/replace "${item.name}"`;
+        const priority = this.riskFromGrade(item.grade) === 'High' ? 'High'
+                       : this.riskFromGrade(item.grade) === 'Medium' ? 'Medium'
+                       : this.inferPriority(`${item.name} ${item.comments || ''}`);
+        recommendations.push({
+          issue: `${area.name} — ${item.name}`,
+          grade: item.grade,
+          priority,
+          action,
+          timeline: this.timelineFor(priority),
+          cost: 'TBD'
+        });
       });
     });
 
     if (recommendations.length === 0) {
-      recommendations.push('Continue regular maintenance schedule');
-      recommendations.push('Schedule next inspection per maintenance calendar');
+      recommendations.push({
+        issue: 'Routine maintenance',
+        priority: 'Low',
+        action: 'Continue regular maintenance schedule',
+        timeline: 'Ongoing',
+        cost: '—'
+      });
+      recommendations.push({
+        issue: 'Next inspection',
+        priority: 'Low',
+        action: 'Schedule next inspection per maintenance calendar',
+        timeline: '12 months',
+        cost: '—'
+      });
     }
 
     return recommendations;
@@ -1020,6 +1577,11 @@ class InspectionReportGenerator {
 export async function generateInspectionReport(inspectionData, options = {}) {
   const generator = new InspectionReportGenerator();
   return await generator.generateReport(inspectionData, options);
+}
+
+export async function buildInspectionReportHTML(inspectionData, options = {}) {
+  const generator = new InspectionReportGenerator();
+  return await generator.buildHTML(inspectionData, { ...options, embedMode: true });
 }
 
 export { InspectionReportGenerator };

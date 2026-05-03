@@ -453,6 +453,9 @@ export const User = {
       full_name: profile?.full_name || user.user_metadata?.full_name,
       avatar: profile?.avatar || user.user_metadata?.avatar_url,
       role: profile?.role || 'user',
+      phone: profile?.phone || '',
+      company: profile?.company || '',
+      address: profile?.address || '',
       darkMode: profile?.dark_mode ?? false,
       theme: profile?.theme || 'light',
     };
@@ -470,16 +473,21 @@ export const User = {
       throw new Error('Not authenticated');
     }
 
+    const updatePayload = {
+      id: user.id,
+      updated_at: new Date().toISOString(),
+    };
+    if (data.full_name !== undefined) updatePayload.full_name = data.full_name;
+    if (data.avatar !== undefined) updatePayload.avatar = data.avatar;
+    if (data.phone !== undefined) updatePayload.phone = data.phone;
+    if (data.company !== undefined) updatePayload.company = data.company;
+    if (data.address !== undefined) updatePayload.address = data.address;
+    if (data.darkMode !== undefined) updatePayload.dark_mode = data.darkMode;
+    if (data.theme !== undefined) updatePayload.theme = data.theme;
+
     const { data: updated, error } = await supabase
       .from('profiles')
-      .upsert({
-        id: user.id,
-        full_name: data.full_name,
-        avatar: data.avatar,
-        dark_mode: data.darkMode,
-        theme: data.theme,
-        updated_at: new Date().toISOString(),
-      })
+      .upsert(updatePayload)
       .select()
       .single();
 
@@ -494,6 +502,9 @@ export const User = {
       full_name: updated?.full_name,
       avatar: updated?.avatar,
       role: updated?.role,
+      phone: updated?.phone || '',
+      company: updated?.company || '',
+      address: updated?.address || '',
       darkMode: updated?.dark_mode,
       theme: updated?.theme,
     };
