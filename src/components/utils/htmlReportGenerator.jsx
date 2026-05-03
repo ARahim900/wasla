@@ -471,11 +471,13 @@ class InspectionReportGenerator {
 
         .header-logo {
             text-align: center;
-            margin-bottom: 6px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--brand-grey-200);
         }
 
         .header-logo img {
-            width: 90px;
+            width: 84px;
             height: auto;
             max-width: 100%;
         }
@@ -1046,10 +1048,22 @@ class InspectionReportGenerator {
                 break-inside: avoid;
             }
 
-            /* Areas flow naturally; tables and photos handle their own break rules */
-            .area-block {
-                page-break-inside: auto;
-                break-inside: auto;
+            /* Each inspection section (Majlis, Hall, etc.) stays intact as one block.
+               Browser falls back to splitting only if a section is taller than one page. */
+            .area-block,
+            .section-card,
+            .recommendations-block {
+                page-break-inside: avoid;
+                break-inside: avoid;
+                page-break-before: auto;
+                break-before: auto;
+            }
+
+            /* Allow page breaks BETWEEN sections (default), not inside */
+            .area-block + .area-block,
+            .area-block + .recommendations-block {
+                page-break-before: auto;
+                break-before: auto;
             }
 
             table {
@@ -1402,7 +1416,7 @@ class InspectionReportGenerator {
     if (data.affectedAreas && data.affectedAreas.length > 0) {
       data.affectedAreas.forEach((area) => {
         findingsContent += `
-                <div class="area-block">
+                <div class="area-block section-card">
                 <h2 class="section-title no-break">${this.escapeHTML(area.name)}</h2>
 
                 <table>
@@ -1461,7 +1475,8 @@ class InspectionReportGenerator {
     // Recommendations section as a structured action-items table
     if (data.recommendations && data.recommendations.length > 0) {
       findingsContent += `
-                <h2 class="section-title no-break" style="margin-top: 22px;">Action Items &amp; Recommendations</h2>
+                <div class="recommendations-block" style="margin-top: 22px;">
+                <h2 class="section-title no-break">Action Items &amp; Recommendations</h2>
                 <table class="recommendations-table">
                     <thead>
                         <tr>
@@ -1488,7 +1503,8 @@ class InspectionReportGenerator {
                         </tr>`;
                         }).join('')}
                     </tbody>
-                </table>`;
+                </table>
+                </div>`;
     }
 
     // Wrap all findings in a single flowing page container
