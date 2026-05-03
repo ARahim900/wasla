@@ -13,12 +13,23 @@ CREATE TABLE IF NOT EXISTS profiles (
   full_name TEXT,
   avatar TEXT,
   phone TEXT,
+  company TEXT,
+  address TEXT,
   role TEXT DEFAULT 'user',
   dark_mode BOOLEAN DEFAULT false,
   theme TEXT DEFAULT 'light',
+  notifications BOOLEAN DEFAULT true,
+  email_reminders BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Idempotent column additions for existing databases (safe to re-run)
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS company TEXT,
+  ADD COLUMN IF NOT EXISTS address TEXT,
+  ADD COLUMN IF NOT EXISTS notifications BOOLEAN DEFAULT true,
+  ADD COLUMN IF NOT EXISTS email_reminders BOOLEAN DEFAULT true;
 
 -- Enable RLS on profiles
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -386,6 +397,57 @@ CREATE POLICY "Public can view photos"
 ON storage.objects FOR SELECT
 TO anon
 USING (bucket_id = 'inspection-photos');
+
+-- ============================================================
+-- 10. STORAGE BUCKET FOR USER AVATARS
+-- ============================================================
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'avatars',
+  'avatars',
+  true,
+  5242880, -- 5 MB
+  ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+)
+ON CONFLICT (id) DO UPDATE
+  SET public = EXCLUDED.public,
+      file_size_limit = EXCLUDED.file_size_limit,
+      allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS "Users can upload own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Public can view avatars" ON storage.objects;
+
+CREATE POLICY "Users can upload own avatar"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'avatars' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
+
+CREATE POLICY "Users can update own avatar"
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (
+  bucket_id = 'avatars' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
+
+CREATE POLICY "Users can delete own avatar"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'avatars' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
+
+CREATE POLICY "Public can view avatars"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'avatars');
 
 -- ============================================================
 -- SCHEMA COMPLETE!

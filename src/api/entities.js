@@ -458,6 +458,8 @@ export const User = {
       address: profile?.address || '',
       darkMode: profile?.dark_mode ?? false,
       theme: profile?.theme || 'light',
+      notifications: profile?.notifications ?? true,
+      emailReminders: profile?.email_reminders ?? true,
     };
   },
 
@@ -484,6 +486,8 @@ export const User = {
     if (data.address !== undefined) updatePayload.address = data.address;
     if (data.darkMode !== undefined) updatePayload.dark_mode = data.darkMode;
     if (data.theme !== undefined) updatePayload.theme = data.theme;
+    if (data.notifications !== undefined) updatePayload.notifications = data.notifications;
+    if (data.emailReminders !== undefined) updatePayload.email_reminders = data.emailReminders;
 
     const { data: updated, error } = await supabase
       .from('profiles')
@@ -493,7 +497,7 @@ export const User = {
 
     if (error) {
       console.error('Failed to update profile:', error.message);
-      throw new Error(`Failed to update profile: ${error.message}`);
+      throw new Error(error.message || 'Failed to update profile');
     }
 
     return {
@@ -507,6 +511,8 @@ export const User = {
       address: updated?.address || '',
       darkMode: updated?.dark_mode,
       theme: updated?.theme,
+      notifications: updated?.notifications ?? true,
+      emailReminders: updated?.email_reminders ?? true,
     };
   },
 

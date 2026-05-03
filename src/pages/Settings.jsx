@@ -129,16 +129,18 @@ export default function Settings() {
     const newPrefs = { ...preferences, [key]: value };
     setPreferences(newPrefs);
 
-    // Save preference immediately
     try {
       if (key === "darkMode") {
         document.documentElement.classList.toggle("dark", value);
         localStorage.setItem("theme", value ? "dark" : "light");
         await User.updateMe({ darkMode: value, theme: value ? "dark" : "light" });
       } else {
+        // notifications and emailReminders both flow through updateMe — entities.js
+        // maps emailReminders -> email_reminders for the column name
         await User.updateMe({ [key]: value });
       }
-      toast.success(`${key === "darkMode" ? "Theme" : key === "notifications" ? "Notifications" : "Email reminders"} updated`);
+      const labels = { darkMode: "Theme", notifications: "Notifications", emailReminders: "Email reminders" };
+      toast.success(`${labels[key] || key} updated`);
     } catch (error) {
       // Revert on failure
       setPreferences((prev) => ({ ...prev, [key]: !value }));
@@ -146,7 +148,7 @@ export default function Settings() {
         document.documentElement.classList.toggle("dark", !value);
         localStorage.setItem("theme", !value ? "dark" : "light");
       }
-      toast.error("Failed to update preference");
+      toast.error(error?.message || "Failed to update preference");
     }
   };
 
@@ -173,42 +175,34 @@ export default function Settings() {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) throw new Error("Not authenticated");
 
-      const fileExt = file.name.split(".").pop();
-      const filePath = `avatars/${authUser.id}/avatar.${fileExt}`;
+      // Path layout: {userId}/avatar.{ext} — RLS expects the first folder to be the user id
+      const fileExt = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const filePath = `${authUser.id}/avatar.${fileExt}`;
 
-      // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, file, { upsert: true, contentType: file.type });
 
-      if (uploadError) {
-        // If bucket doesn't exist, try the general bucket
-        const generalPath = `public/${authUser.id}/avatar.${fileExt}`;
-        const { error: generalError } = await supabase.storage
-          .from("base44-prod")
-          .upload(generalPath, file, { upsert: true });
+      if (uploadError) throw uploadError;
 
-        if (generalError) throw generalError;
+      const { data: urlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
 
-        const { data: urlData } = supabase.storage
-          .from("base44-prod")
-          .getPublicUrl(generalPath);
+      // Cache-bust so the browser fetches the new image
+      const publicUrl = `${urlData.publicUrl}?v=${Date.now()}`;
 
-        await User.updateMe({ avatar: urlData.publicUrl });
-        setUser((prev) => ({ ...prev, avatar: urlData.publicUrl }));
-      } else {
-        const { data: urlData } = supabase.storage
-          .from("avatars")
-          .getPublicUrl(filePath);
-
-        await User.updateMe({ avatar: urlData.publicUrl });
-        setUser((prev) => ({ ...prev, avatar: urlData.publicUrl }));
-      }
+      await User.updateMe({ avatar: publicUrl });
+      setUser((prev) => ({ ...prev, avatar: publicUrl }));
 
       toast.success("Photo updated!", { id: toastId });
     } catch (error) {
       console.error("Avatar upload failed:", error);
-      toast.error("Failed to upload photo. Please try again.", { id: toastId });
+      const msg = error?.message || "";
+      const friendly = /bucket.*not.*found|not found/i.test(msg)
+        ? "Avatar storage bucket missing. Run the latest supabase migration to create the 'avatars' bucket."
+        : msg || "Failed to upload photo. Please try again.";
+      toast.error(friendly, { id: toastId });
     } finally {
       setIsUploadingAvatar(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -232,7 +226,12 @@ export default function Settings() {
       await loadUserData();
       toast.success("Profile saved successfully!", { id: toastId });
     } catch (error) {
-      toast.error("Failed to save profile.", { id: toastId });
+      console.error("Failed to save profile:", error);
+      const msg = error?.message || "";
+      const friendly = /column .* does not exist/i.test(msg)
+        ? "Profile fields are out of sync with the database. Run the latest supabase migration."
+        : msg || "Failed to save profile.";
+      toast.error(friendly, { id: toastId });
     } finally {
       setIsSaving(false);
     }

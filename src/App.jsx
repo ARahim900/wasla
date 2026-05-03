@@ -16,7 +16,7 @@ const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
 const LoginPage = Pages['Login'];
 
 // Pages that don't need the Layout wrapper or auth
-const PUBLIC_PAGES = ['Login', 'CleanMyMac'];
+const PUBLIC_PAGES = ['Login'];
 
 const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
@@ -53,12 +53,10 @@ const AuthenticatedApp = () => {
   }
 
   // If not authenticated and not in demo mode, show login
-  const CleanMyMacPage = Pages['CleanMyMac'];
   if (!isAuthenticated && !isDemoMode) {
     return (
       <Routes>
         <Route path="/Login" element={<LoginPage />} />
-        <Route path="/CleanMyMac" element={<CleanMyMacPage />} />
         <Route path="*" element={<LoginPage />} />
       </Routes>
     );

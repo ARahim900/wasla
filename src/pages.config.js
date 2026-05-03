@@ -1,4 +1,3 @@
-import CleanMyMac from './pages/CleanMyMac';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
 import Inspections from './pages/Inspections';
@@ -13,7 +12,6 @@ import Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "CleanMyMac": CleanMyMac,
     "Dashboard": Dashboard,
     "Clients": Clients,
     "Inspections": Inspections,

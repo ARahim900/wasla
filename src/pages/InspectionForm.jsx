@@ -126,7 +126,9 @@ export default function InspectionForm() {
   };
 
   const preparePayload = (ins) => {
-    const payload = { ...ins };
+    // Drop server-managed columns so we don't stomp them on update
+    const { id: _id, created_at: _ca, updated_at: _ua, user_id: _uid, ...payload } = ins;
+    void _id; void _ca; void _ua; void _uid;
     // Convert empty string IDs to null (Supabase UUID columns reject empty strings)
     if (!payload.client_id) payload.client_id = null;
     if (!payload.property_id) payload.property_id = null;
@@ -170,8 +172,8 @@ export default function InspectionForm() {
       toast.success("Inspection saved successfully.", { id: toastId });
       navigate(createPageUrl("Inspections"));
     } catch (error) {
-      toast.error("Failed to save inspection.", { id: toastId });
       console.error("Failed to save inspection:", error);
+      toast.error(error?.message || "Failed to save inspection.", { id: toastId });
     } finally {
       setIsSaving(false);
     }
