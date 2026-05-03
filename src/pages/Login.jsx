@@ -4,10 +4,45 @@ import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, Lock, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+
+const LOGO_URL =
+  "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b44f73a9997833d114376d/f255c3751_image.png";
+
+// Reused header so every branch (login, signup, forgot, confirm-email) shares
+// the same logo + brand block — fixes the "inconsistent" feel.
+const BrandHeader = () => (
+  <div className="text-center mb-8">
+    <img
+      src={LOGO_URL}
+      alt="Wasla"
+      width={64}
+      height={64}
+      className="w-16 h-16 mx-auto mb-4 object-contain"
+    />
+    <h1 className="text-3xl font-bold text-primary tracking-tight">Wasla</h1>
+    <p className="text-muted-foreground text-sm mt-1">Property Solutions</p>
+  </div>
+);
+
+const PageShell = ({ children }) => (
+  <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="w-full max-w-md">{children}</div>
+  </div>
+);
+
+// Single source of truth for the icon-prefixed input — avoids the slight
+// vertical mis-alignment from the previous `top-3` magic number, and uses
+// logical properties so RTL flips correctly.
+const IconInput = ({ id, icon: Icon, ...props }) => (
+  <div className="relative">
+    <Icon className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+    <Input id={id} className="ps-10" {...props} />
+  </div>
+);
 
 export default function Login() {
   const { isDemoMode, login, signUp, resendConfirmation, resetPassword } = useAuth();
@@ -36,7 +71,7 @@ export default function Login() {
       if (msg.toLowerCase().includes("email not confirmed") || msg.toLowerCase().includes("verify")) {
         toast.error("Please verify your email address to log in.");
         setConfirmEmailSent(loginData.email);
-        resendConfirmation(loginData.email).catch(() => {}); // Attempt background resend
+        resendConfirmation(loginData.email).catch(() => {});
       } else {
         toast.error(msg);
       }
@@ -81,200 +116,184 @@ export default function Login() {
     }
   };
 
+  // ───────── Forgot password ─────────
   if (showForgotPassword) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-primary/5 p-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-primary">Wasla</h1>
-            <p className="text-muted-foreground mt-1">Property Solutions</p>
-          </div>
-          <Card>
-            <CardContent className="pt-8 pb-8">
-              <h2 className="text-xl font-bold text-foreground mb-2">Reset your password</h2>
-              <p className="text-muted-foreground text-sm mb-6">
-                Enter your email address and we'll send you a link to reset your password.
-              </p>
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!forgotEmail) {
-                    toast.error("Please enter your email address.");
-                    return;
-                  }
+      <PageShell>
+        <BrandHeader />
+        <Card>
+          <CardContent className="pt-8 pb-8">
+            <h2 className="text-xl font-bold text-foreground mb-2">Reset your password</h2>
+            <p className="text-muted-foreground text-sm mb-6">
+              Enter your email address and we&apos;ll send you a link to reset your password.
+            </p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!forgotEmail) {
+                  toast.error("Please enter your email address.");
+                  return;
+                }
+                setIsLoading(true);
+                try {
+                  await resetPassword(forgotEmail);
+                  toast.success("Password reset email sent! Check your inbox.");
+                } catch (err) {
+                  toast.error(err.message || "Failed to send reset email. Please try again.");
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              className="space-y-4"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="forgot-email">Email</Label>
+                <IconInput
+                  id="forgot-email"
+                  icon={Mail}
+                  type="email"
+                  placeholder="you@example.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                />
+              </div>
+              <Button type="submit" disabled={isLoading} className="w-full">
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin me-2" /> : null}
+                {isLoading ? "Sending..." : "Send Reset Link"}
+              </Button>
+            </form>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowForgotPassword(false);
+                setActiveTab("login");
+              }}
+              className="w-full mt-3 text-muted-foreground"
+            >
+              Back to Log In
+            </Button>
+          </CardContent>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  // ───────── Confirm email sent ─────────
+  if (confirmEmailSent) {
+    return (
+      <PageShell>
+        <BrandHeader />
+        <Card>
+          <CardContent className="pt-8 pb-8 text-center">
+            <CheckCircle2 className="w-16 h-16 text-primary mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-foreground mb-2">Check your email</h2>
+            <p className="text-muted-foreground mb-1">We sent a confirmation link to</p>
+            <p className="font-medium text-foreground mb-6 break-all">{confirmEmailSent}</p>
+            <p className="text-sm text-muted-foreground mb-6">
+              Click the link in the email to activate your account. If you don&apos;t see it, check your spam folder.
+            </p>
+            <div className="space-y-3">
+              <Button
+                onClick={async () => {
                   setIsLoading(true);
                   try {
-                    await resetPassword(forgotEmail);
-                    toast.success("Password reset email sent! Check your inbox.");
+                    await resendConfirmation(confirmEmailSent);
+                    toast.success("Verification email resent! Please check your inbox and spam folder.");
                   } catch (err) {
-                    toast.error(err.message || "Failed to send reset email. Please try again.");
+                    toast.error(err.message || "Failed to resend email. Please try again later.");
                   } finally {
                     setIsLoading(false);
                   }
                 }}
-                className="space-y-4"
+                variant="outline"
+                disabled={isLoading}
+                className="w-full"
               >
-                <div className="space-y-2">
-                  <Label htmlFor="forgot-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="forgot-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <Button type="submit" disabled={isLoading} className="w-full">
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  {isLoading ? "Sending..." : "Send Reset Link"}
-                </Button>
-              </form>
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin me-2" /> : null}
+                Resend Verification Email
+              </Button>
               <Button
-                variant="ghost"
                 onClick={() => {
-                  setShowForgotPassword(false);
+                  setConfirmEmailSent(null);
                   setActiveTab("login");
+                  setLoginData((p) => ({ ...p, email: confirmEmailSent }));
                 }}
-                className="w-full mt-3 text-muted-foreground"
+                className="w-full"
               >
                 Back to Log In
               </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  if (confirmEmailSent) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-primary/5 p-4">
-        <div className="w-full max-w-md">
-          <Card>
-            <CardContent className="pt-8 pb-8 text-center">
-              <CheckCircle2 className="w-16 h-16 text-primary mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-foreground mb-2">Check your email</h2>
-              <p className="text-muted-foreground mb-1">
-                We sent a confirmation link to
-              </p>
-              <p className="font-medium text-foreground mb-6">{confirmEmailSent}</p>
-              <p className="text-sm text-muted-foreground mb-6">
-                Click the link in the email to activate your account. If you don't see it, check your spam folder.
-              </p>
-              <div className="space-y-3">
-                <Button
-                  onClick={async () => {
-                    setIsLoading(true);
-                    try {
-                      await resendConfirmation(confirmEmailSent);
-                      toast.success("Verification email resent! Please check your inbox and spam folder.");
-                    } catch (err) {
-                      toast.error(err.message || "Failed to resend email. Please try again later.");
-                    } finally {
-                      setIsLoading(false);
-                    }
-                  }}
-                  variant="outline"
-                  disabled={isLoading}
-                  className="w-full text-primary border-primary/20 hover:bg-primary/5"
-                >
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Resend Verification Email
-                </Button>
-                <Button
-                  onClick={() => {
-                    setConfirmEmailSent(null);
-                    setActiveTab("login");
-                    setLoginData((p) => ({ ...p, email: confirmEmailSent }));
-                  }}
-                  className="w-full"
-                >
-                  Back to Log In
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  if (isDemoMode) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <p className="text-muted-foreground mb-4">Running in demo mode. No login required.</p>
-            <Button onClick={() => navigate("/")}>
-              Go to Dashboard
-            </Button>
+            </div>
           </CardContent>
         </Card>
-      </div>
+      </PageShell>
     );
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-primary/5 p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <img
-            src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b44f73a9997833d114376d/f255c3751_image.png"
-            alt="Wasla Logo"
-            className="w-16 h-16 mx-auto mb-4 object-contain"
-          />
-          <h1 className="text-3xl font-bold text-primary">Wasla</h1>
-          <p className="text-muted-foreground mt-1">Property Solutions</p>
-        </div>
-
+  // ───────── Demo mode ─────────
+  if (isDemoMode) {
+    return (
+      <PageShell>
+        <BrandHeader />
         <Card>
-          <CardHeader className="pb-4">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Log In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
+          <CardContent className="pt-8 pb-8 text-center">
+            <p className="text-muted-foreground mb-4">Running in demo mode. No login required.</p>
+            <Button onClick={() => navigate("/")}>Go to Dashboard</Button>
+          </CardContent>
+        </Card>
+      </PageShell>
+    );
+  }
 
-              <TabsContent value="login" className="mt-6">
-                <CardTitle className="text-xl text-foreground">Welcome back</CardTitle>
-                <form onSubmit={handleLogin} className="mt-4 space-y-4">
+  // ───────── Default: login + signup tabs ─────────
+  return (
+    <PageShell>
+      <BrandHeader />
+      <Card>
+        <CardContent className="pt-6 pb-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="login">Log In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
+
+            {/* Fixed-min-height wrapper so the card doesn't jump when switching
+                between login (2 fields) and signup (3 fields). */}
+            <div className="min-h-[340px]">
+              <TabsContent value="login" className="mt-0 space-y-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground">Welcome back</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Sign in to continue to your dashboard.</p>
+                </div>
+                <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="login-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="login-email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={loginData.email}
-                        onChange={(e) => setLoginData((p) => ({ ...p, email: e.target.value }))}
-                        className="pl-10"
-                      />
-                    </div>
+                    <IconInput
+                      id="login-email"
+                      icon={Mail}
+                      type="email"
+                      placeholder="you@example.com"
+                      value={loginData.email}
+                      onChange={(e) => setLoginData((p) => ({ ...p, email: e.target.value }))}
+                      autoComplete="email"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="login-password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="login-password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={loginData.password}
-                        onChange={(e) => setLoginData((p) => ({ ...p, password: e.target.value }))}
-                        className="pl-10"
-                      />
-                    </div>
+                    <IconInput
+                      id="login-password"
+                      icon={Lock}
+                      type="password"
+                      placeholder="••••••••"
+                      value={loginData.password}
+                      onChange={(e) => setLoginData((p) => ({ ...p, password: e.target.value }))}
+                      autoComplete="current-password"
+                    />
                   </div>
                   <Button type="submit" disabled={isLoading} className="w-full">
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin me-2" /> : null}
                     {isLoading ? "Logging in..." : "Log In"}
                   </Button>
-                  <div className="text-center">
+                  <div className="text-center pt-1">
                     <button
                       type="button"
                       onClick={() => {
@@ -289,61 +308,58 @@ export default function Login() {
                 </form>
               </TabsContent>
 
-              <TabsContent value="signup" className="mt-6">
-                <CardTitle className="text-xl text-foreground">Create an account</CardTitle>
-                <form onSubmit={handleSignUp} className="mt-4 space-y-4">
+              <TabsContent value="signup" className="mt-0 space-y-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground">Create an account</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Set up your Wasla workspace in seconds.</p>
+                </div>
+                <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="signup-email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={signUpData.email}
-                        onChange={(e) => setSignUpData((p) => ({ ...p, email: e.target.value }))}
-                        className="pl-10"
-                      />
-                    </div>
+                    <IconInput
+                      id="signup-email"
+                      icon={Mail}
+                      type="email"
+                      placeholder="you@example.com"
+                      value={signUpData.email}
+                      onChange={(e) => setSignUpData((p) => ({ ...p, email: e.target.value }))}
+                      autoComplete="email"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        placeholder="At least 6 characters"
-                        value={signUpData.password}
-                        onChange={(e) => setSignUpData((p) => ({ ...p, password: e.target.value }))}
-                        className="pl-10"
-                      />
-                    </div>
+                    <IconInput
+                      id="signup-password"
+                      icon={Lock}
+                      type="password"
+                      placeholder="At least 6 characters"
+                      value={signUpData.password}
+                      onChange={(e) => setSignUpData((p) => ({ ...p, password: e.target.value }))}
+                      autoComplete="new-password"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-confirm">Confirm Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="signup-confirm"
-                        type="password"
-                        placeholder="••••••••"
-                        value={signUpData.confirmPassword}
-                        onChange={(e) => setSignUpData((p) => ({ ...p, confirmPassword: e.target.value }))}
-                        className="pl-10"
-                      />
-                    </div>
+                    <IconInput
+                      id="signup-confirm"
+                      icon={Lock}
+                      type="password"
+                      placeholder="••••••••"
+                      value={signUpData.confirmPassword}
+                      onChange={(e) => setSignUpData((p) => ({ ...p, confirmPassword: e.target.value }))}
+                      autoComplete="new-password"
+                    />
                   </div>
                   <Button type="submit" disabled={isLoading} className="w-full">
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin me-2" /> : null}
                     {isLoading ? "Creating account..." : "Sign Up"}
                   </Button>
                 </form>
               </TabsContent>
-            </Tabs>
-          </CardHeader>
-        </Card>
-      </div>
-    </div>
+            </div>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </PageShell>
   );
 }
