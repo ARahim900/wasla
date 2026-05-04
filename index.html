@@ -25,6 +25,32 @@
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+
+    <!-- Theme bootstrap: apply before paint to prevent dark-mode flash -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var isDark = stored ? stored === 'dark' : prefersDark;
+          if (isDark) document.documentElement.classList.add('dark');
+        } catch (e) { /* localStorage unavailable — ignore */ }
+      })();
+    </script>
+
+    <!-- Password-recovery detection: must run BEFORE the Supabase client imports
+         and consumes the URL hash. Stash a flag for AuthContext to read. -->
+    <script>
+      (function () {
+        try {
+          var hash = window.location.hash || '';
+          var search = window.location.search || '';
+          if (hash.indexOf('type=recovery') !== -1 || search.indexOf('type=recovery') !== -1) {
+            sessionStorage.setItem('wasla_password_recovery', '1');
+          }
+        } catch (e) { /* sessionStorage unavailable — ignore */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

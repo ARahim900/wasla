@@ -334,7 +334,7 @@ class InspectionReportGenerator {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=794, initial-scale=1.0, viewport-fit=cover">
     <title>Property Inspection Report - ${this.escapeHTML(data.client)}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -360,12 +360,19 @@ class InspectionReportGenerator {
             --brand-grey-900: #111827;
         }
 
+        html, body {
+            width: 210mm;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 9pt;
             line-height: 1.4;
             color: var(--brand-grey-900);
             background: var(--brand-grey-50);
+            -webkit-text-size-adjust: 100%;
         }
 
         .font-cairo {

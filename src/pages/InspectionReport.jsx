@@ -138,7 +138,7 @@ export default function InspectionReport() {
             title="Inspection Report"
             srcDoc={reportHTML}
             className="w-full block bg-white"
-            style={{ height: 'calc(100vh - 160px)', minHeight: '600px', border: 0 }}
+            style={{ height: 'calc(100svh - 160px)', minHeight: '600px', border: 0 }}
           />
         ) : (
           <div className="p-12 text-center text-muted-foreground">

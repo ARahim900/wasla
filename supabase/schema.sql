@@ -97,9 +97,11 @@ ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 
 -- Policies for clients (users can only access their own clients)
 DROP POLICY IF EXISTS "Users can view their own clients" ON clients;
-CREATE POLICY "Users can view their own clients"
+DROP POLICY IF EXISTS "All authenticated can view clients" ON clients;
+CREATE POLICY "All authenticated can view clients"
   ON clients FOR SELECT
-  USING (auth.uid() = user_id);
+  TO authenticated
+  USING (true);
 
 DROP POLICY IF EXISTS "Users can insert their own clients" ON clients;
 CREATE POLICY "Users can insert their own clients"
@@ -140,9 +142,11 @@ ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
 
 -- Policies for properties
 DROP POLICY IF EXISTS "Users can view their own properties" ON properties;
-CREATE POLICY "Users can view their own properties"
+DROP POLICY IF EXISTS "All authenticated can view properties" ON properties;
+CREATE POLICY "All authenticated can view properties"
   ON properties FOR SELECT
-  USING (auth.uid() = user_id);
+  TO authenticated
+  USING (true);
 
 DROP POLICY IF EXISTS "Users can insert their own properties" ON properties;
 CREATE POLICY "Users can insert their own properties"
@@ -189,9 +193,11 @@ ALTER TABLE inspections ENABLE ROW LEVEL SECURITY;
 
 -- Policies for inspections
 DROP POLICY IF EXISTS "Users can view their own inspections" ON inspections;
-CREATE POLICY "Users can view their own inspections"
+DROP POLICY IF EXISTS "All authenticated can view inspections" ON inspections;
+CREATE POLICY "All authenticated can view inspections"
   ON inspections FOR SELECT
-  USING (auth.uid() = user_id);
+  TO authenticated
+  USING (true);
 
 DROP POLICY IF EXISTS "Users can insert their own inspections" ON inspections;
 CREATE POLICY "Users can insert their own inspections"
@@ -238,9 +244,11 @@ ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 
 -- Policies for invoices
 DROP POLICY IF EXISTS "Users can view their own invoices" ON invoices;
-CREATE POLICY "Users can view their own invoices"
+DROP POLICY IF EXISTS "All authenticated can view invoices" ON invoices;
+CREATE POLICY "All authenticated can view invoices"
   ON invoices FOR SELECT
-  USING (auth.uid() = user_id);
+  TO authenticated
+  USING (true);
 
 DROP POLICY IF EXISTS "Users can insert their own invoices" ON invoices;
 CREATE POLICY "Users can insert their own invoices"

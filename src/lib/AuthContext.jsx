@@ -40,6 +40,21 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [appPublicSettings] = useState(null);
+  // Set when the user lands via a Supabase password-recovery link. While true,
+  // the app routes them to /ResetPassword regardless of auth state — they must
+  // set a new password (or cancel) before doing anything else.
+  //
+  // The flag is set by an inline script in index.html that runs BEFORE the
+  // Supabase client imports (and consumes the URL hash). Reading sessionStorage
+  // here guarantees the very first render already routes to /ResetPassword.
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      if (sessionStorage.getItem('wasla_password_recovery') === '1') return true;
+    } catch (e) { /* ignore */ }
+    const hash = window.location.hash || '';
+    return hash.includes('type=recovery');
+  });
 
   useEffect(() => {
     // In demo mode, skip Supabase entirely
@@ -63,53 +78,60 @@ export const AuthProvider = ({ children }) => {
     // CRITICAL: The callback MUST be synchronous (no async/await). In Supabase
     // JS v2.65+, the callback runs inside a navigator.locks scope. Any Supabase
     // call (even .from().select()) internally calls getSession() which re-acquires
-    // the same lock, causing a deadlock. Set state from session data immediately,
-    // then defer the profile load via setTimeout to run outside the lock.
+    // the same lock, causing a deadlock. Defer the profile load via setTimeout
+    // to run outside the lock, and only mark loading complete once it resolves —
+    // this avoids the flicker where the navbar briefly renders without an avatar.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === 'INITIAL_SESSION') {
           if (session?.user) {
-            // Set basic user data immediately from session (no async, no lock needed)
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              full_name: session.user.user_metadata?.full_name || session.user.email,
-              role: 'user',
-              darkMode: false,
-              theme: 'light',
-            });
             setIsAuthenticated(true);
-            // Load full profile after lock is released
+            // Stay in loading state until the full profile arrives, so the app
+            // never renders a half-populated user object.
             setTimeout(() => {
               loadUserProfile(session.user)
                 .then(setUser)
                 .catch((error) => {
                   console.error('Failed to load profile:', error);
-                });
+                  // Fall back to session-derived data so the app still works.
+                  setUser({
+                    id: session.user.id,
+                    email: session.user.email || '',
+                    full_name: session.user.user_metadata?.full_name || session.user.email,
+                    role: 'user',
+                    darkMode: false,
+                    theme: 'light',
+                  });
+                })
+                .finally(() => setIsLoadingAuth(false));
             }, 0);
           } else {
             setUser(null);
             setIsAuthenticated(false);
+            setIsLoadingAuth(false);
           }
-          setIsLoadingAuth(false);
         } else if (event === 'SIGNED_IN' && session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            full_name: session.user.user_metadata?.full_name || session.user.email,
-            role: 'user',
-            darkMode: false,
-            theme: 'light',
-          });
           setIsAuthenticated(true);
           setTimeout(() => {
             loadUserProfile(session.user)
               .then(setUser)
               .catch((error) => console.error('Failed to load profile:', error));
           }, 0);
+        } else if (event === 'PASSWORD_RECOVERY') {
+          // User arrived from a recovery email — Supabase has just established
+          // a session for them. Flag the app so they're routed to /ResetPassword.
+          setIsPasswordRecovery(true);
+          if (session?.user) setIsAuthenticated(true);
+          setIsLoadingAuth(false);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setIsAuthenticated(false);
+          setIsPasswordRecovery(false);
+          try { sessionStorage.removeItem('wasla_password_recovery'); } catch (e) { /* ignore */ }
+        } else if (event === 'USER_UPDATED') {
+          // Fires after supabase.auth.updateUser() — e.g. password reset succeeded.
+          setIsPasswordRecovery(false);
+          try { sessionStorage.removeItem('wasla_password_recovery'); } catch (e) { /* ignore */ }
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           setTimeout(() => {
             loadUserProfile(session.user)
@@ -225,10 +247,15 @@ export const AuthProvider = ({ children }) => {
   const resetPassword = async (email) => {
     if (isDemoMode) return true;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/`,
+      redirectTo: `${window.location.origin}/ResetPassword`,
     });
     if (error) throw error;
     return true;
+  };
+
+  const clearPasswordRecovery = () => {
+    setIsPasswordRecovery(false);
+    try { sessionStorage.removeItem('wasla_password_recovery'); } catch (e) { /* ignore */ }
   };
 
   const resendConfirmation = async (email) => {
@@ -306,6 +333,8 @@ export const AuthProvider = ({ children }) => {
         refreshUser,
         patchUser,
         isDemoMode,
+        isPasswordRecovery,
+        clearPasswordRecovery,
       }}
     >
       {children}

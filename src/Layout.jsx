@@ -27,7 +27,9 @@ import MobileTabBar, { BOTTOM_NAV_HEIGHT } from "@/components/navigation/MobileT
 
 const initialThemeFromStorage = () => {
   if (typeof window === "undefined") return false;
-  return localStorage.getItem("theme") === "dark";
+  // Source of truth is the class set by the bootstrap script in index.html,
+  // which already considered localStorage and prefers-color-scheme.
+  return document.documentElement.classList.contains("dark");
 };
 
 const navigationItems = [

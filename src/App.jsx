@@ -14,16 +14,34 @@ const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
 const LoginPage = Pages['Login'];
+const ResetPasswordPage = Pages['ResetPassword'];
 
 // Pages that don't need the Layout wrapper or auth
-const PUBLIC_PAGES = ['Login'];
+const PUBLIC_PAGES = ['Login', 'ResetPassword'];
 
 const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
   : <>{children}</>;
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, isDemoMode } = useAuth();
+  const {
+    isLoadingAuth,
+    isLoadingPublicSettings,
+    authError,
+    isAuthenticated,
+    isDemoMode,
+    isPasswordRecovery,
+  } = useAuth();
+
+  // Password recovery takes priority over everything else: the user MUST set a
+  // new password before doing anything in the app.
+  if (isPasswordRecovery) {
+    return (
+      <Routes>
+        <Route path="*" element={<ResetPasswordPage />} />
+      </Routes>
+    );
+  }
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {

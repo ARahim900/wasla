@@ -12,6 +12,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { format, getYear } from "date-fns";
 import { getInspectionStatusColor } from "@/lib/status";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const [inspections, setInspections] = useState([]);
@@ -20,28 +21,35 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     const loadData = async () => {
-      try {
-        const [inspectionData, clientData, invoiceData] = await Promise.all([
-        Inspection.list().catch(() => []),
-        Client.list().catch(() => []),
-        Invoice.list().catch(() => [])]
-        );
+      // allSettled so a single failing entity doesn't blank out the whole dashboard.
+      const [insRes, cliRes, invRes] = await Promise.allSettled([
+        Inspection.list(),
+        Client.list(),
+        Invoice.list(),
+      ]);
+      if (cancelled) return;
 
-        setInspections(inspectionData || []);
-        setClients(clientData || []);
-        setInvoices(invoiceData || []);
-      } catch (error) {
-        console.error("Error loading dashboard data:", error);
-        // Set empty arrays so dashboard still works
-        setInspections([]);
-        setClients([]);
-        setInvoices([]);
-      } finally {
-        setIsLoading(false);
+      setInspections(insRes.status === 'fulfilled' ? (insRes.value || []) : []);
+      setClients(cliRes.status === 'fulfilled' ? (cliRes.value || []) : []);
+      setInvoices(invRes.status === 'fulfilled' ? (invRes.value || []) : []);
+
+      const failed = [
+        insRes.status === 'rejected' && 'inspections',
+        cliRes.status === 'rejected' && 'clients',
+        invRes.status === 'rejected' && 'invoices',
+      ].filter(Boolean);
+
+      if (failed.length) {
+        console.error('Dashboard load errors:', { insRes, cliRes, invRes });
+        toast.error(`Could not load ${failed.join(', ')}. Please refresh.`);
       }
+
+      setIsLoading(false);
     };
     loadData();
+    return () => { cancelled = true; };
   }, []);
 
   const metrics = useMemo(() => {
