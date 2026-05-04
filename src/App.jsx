@@ -75,6 +75,7 @@ const AuthenticatedApp = () => {
     return (
       <Routes>
         <Route path="/Login" element={<LoginPage />} />
+        <Route path="/ResetPassword" element={<ResetPasswordPage />} />
         <Route path="*" element={<LoginPage />} />
       </Routes>
     );
@@ -100,6 +101,9 @@ const AuthenticatedApp = () => {
         />
       ))}
       <Route path="/Login" element={<LoginPage />} />
+      {/* Public route — also reachable when already authenticated, e.g. during
+          the brief window between USER_UPDATED and the success-screen navigate. */}
+      <Route path="/ResetPassword" element={<ResetPasswordPage />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
