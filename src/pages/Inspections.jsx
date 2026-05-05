@@ -224,28 +224,28 @@ export default function Inspections() {
                               onClick={() => handleStatusChange(inspection, "scheduled")}
                               className="text-sm cursor-pointer"
                             >
-                              <Circle className="w-4 h-4 mr-2 text-blue-500" />
+                              <Circle className="w-4 h-4 mr-2 text-status-info" />
                               Scheduled
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleStatusChange(inspection, "in_progress")}
                               className="text-sm cursor-pointer"
                             >
-                              <ArrowUpCircle className="w-4 h-4 mr-2 text-yellow-500" />
+                              <ArrowUpCircle className="w-4 h-4 mr-2 text-status-warning" />
                               In Progress
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleStatusChange(inspection, "completed")}
                               className="text-sm cursor-pointer"
                             >
-                              <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+                              <CheckCircle2 className="w-4 h-4 mr-2 text-status-success" />
                               Completed
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleStatusChange(inspection, "cancelled")}
                               className="text-sm cursor-pointer"
                             >
-                              <X className="w-4 h-4 mr-2 text-red-500" />
+                              <X className="w-4 h-4 mr-2 text-status-danger" />
                               Cancelled
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -294,7 +294,7 @@ export default function Inspections() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-red-500 hover:text-red-500/80 w-8 h-8"
+                        className="text-destructive hover:text-destructive/80 w-8 h-8"
                         onClick={() => handleDelete(inspection.id)}
                         aria-label="Delete inspection"
                       >

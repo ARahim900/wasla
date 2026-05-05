@@ -98,8 +98,8 @@ export default function Invoices() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
         <Card><CardContent className="p-4 md:p-6"><p className="text-sm font-medium text-muted-foreground">Total Revenue</p><p className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mt-1 break-all">{totals.total.toFixed(3)} OMR</p></CardContent></Card>
-        <Card><CardContent className="p-4 md:p-6"><p className="text-sm font-medium text-muted-foreground">Paid</p><p className="text-xl md:text-2xl lg:text-3xl font-bold text-green-600 mt-1 break-all">{totals.paid.toFixed(3)} OMR</p></CardContent></Card>
-        <Card><CardContent className="p-4 md:p-6"><p className="text-sm font-medium text-muted-foreground">Outstanding</p><p className="text-xl md:text-2xl lg:text-3xl font-bold text-orange-600 mt-1 break-all">{totals.outstanding.toFixed(3)} OMR</p></CardContent></Card>
+        <Card><CardContent className="p-4 md:p-6"><p className="text-sm font-medium text-muted-foreground">Paid</p><p className="text-xl md:text-2xl lg:text-3xl font-bold text-status-success mt-1 break-all">{totals.paid.toFixed(3)} OMR</p></CardContent></Card>
+        <Card><CardContent className="p-4 md:p-6"><p className="text-sm font-medium text-muted-foreground">Outstanding</p><p className="text-xl md:text-2xl lg:text-3xl font-bold text-status-warning mt-1 break-all">{totals.outstanding.toFixed(3)} OMR</p></CardContent></Card>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">

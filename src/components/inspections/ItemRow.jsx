@@ -13,8 +13,8 @@ function ItemRow({ item, onUpdate, onRemove }) {
   };
 
   const statusClasses = {
-    'Pass': 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900',
-    'Fail': 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900',
+    'Pass': 'bg-status-success-bg text-status-success-foreground border-status-success/30',
+    'Fail': 'bg-status-danger-bg text-status-danger-foreground border-status-danger/30',
     'N/A': 'bg-muted text-muted-foreground border-border',
   };
 
