@@ -294,7 +294,7 @@ export default function Inspections() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-destructive hover:text-destructive/80 w-8 h-8"
+                        className="text-destructive hover:text-destructive/80"
                         onClick={() => handleDelete(inspection.id)}
                         aria-label="Delete inspection"
                       >

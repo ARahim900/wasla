@@ -191,7 +191,7 @@ export default function Clients() {
                         <Button variant="outline" size="sm" onClick={() => handleView(client)}>
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeletingClient(client)} className="text-destructive hover:text-destructive/80 w-8 h-8">
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingClient(client)} className="text-destructive hover:text-destructive/80">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>

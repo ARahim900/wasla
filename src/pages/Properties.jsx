@@ -184,13 +184,13 @@ export default function Properties() {
                         <p className="text-xs md:text-sm text-muted-foreground mt-1 line-clamp-2">{property.address}</p>
                       </div>
                       <div className="flex gap-1 flex-shrink-0 ms-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleView(property)} className="h-8 w-8">
+                        <Button variant="ghost" size="icon" onClick={() => handleView(property)}>
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(property)} className="h-8 w-8">
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(property)}>
                           <Edit2 className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeletingProperty(property)} className="text-destructive hover:text-destructive/80 h-8 w-8">
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingProperty(property)} className="text-destructive hover:text-destructive/80">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
