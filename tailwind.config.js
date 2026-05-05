@@ -5,6 +5,7 @@ module.exports = {
   theme: {
   	fontFamily: {
   		sans: ['"Inter"', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+  		display: ['"Geist"', '"Inter"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
   	},
   	extend: {
   		borderRadius: {

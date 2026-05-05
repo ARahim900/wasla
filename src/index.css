@@ -201,6 +201,9 @@ button:focus-visible {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  h1, h2 {
+    @apply font-display tracking-tight;
+  }
 }
 
 /* Header shadow — creates clear separation from page content */
