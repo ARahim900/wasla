@@ -121,7 +121,7 @@ class InspectionReportGenerator {
 
     const processed = {
       reference: `WSL-${Date.now().toString().slice(-6)}`,
-      date: this.formatDate(data.inspection_date || new Date().toISOString()),
+      date: this.formatDate(new Date().toISOString()),
       client: data.client_name || 'Client',
       propertyType: this.formatPropertyType(data.property_type || ''),
       location: data.location || 'Property Location',
