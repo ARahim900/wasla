@@ -8,22 +8,22 @@
 
 /** Badge classes for inspection statuses */
 export const inspectionStatusColor = {
-  scheduled: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-  in_progress: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-  completed: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  cancelled: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+  scheduled: "bg-status-info-bg text-status-info-foreground",
+  in_progress: "bg-status-warning-bg text-status-warning-foreground",
+  completed: "bg-status-success-bg text-status-success-foreground",
+  cancelled: "bg-status-danger-bg text-status-danger-foreground",
 };
 
 /** Badge classes for invoice statuses */
 export const invoiceStatusColor = {
-  draft: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-  sent: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-  paid: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  overdue: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
-  cancelled: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  draft: "bg-status-neutral-bg text-status-neutral-foreground",
+  sent: "bg-status-info-bg text-status-info-foreground",
+  paid: "bg-status-success-bg text-status-success-foreground",
+  overdue: "bg-status-danger-bg text-status-danger-foreground",
+  cancelled: "bg-status-neutral-bg text-status-neutral-foreground",
 };
 
-const fallback = "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+const fallback = "bg-status-neutral-bg text-status-neutral-foreground";
 
 export function getInspectionStatusColor(status) {
   return inspectionStatusColor[status] || fallback;
