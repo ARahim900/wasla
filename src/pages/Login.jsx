@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, Lock, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const LOGO_URL =
   "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b44f73a9997833d114376d/f255c3751_image.png";
@@ -40,7 +41,14 @@ const PageShell = ({ children }) => (
 const IconInput = ({ id, icon: Icon, ...props }) => (
   <div className="relative">
     <Icon className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-    <Input id={id} className="ps-10" {...props} />
+    <Input
+      id={id}
+      className={cn(
+        "ps-10",
+        props["aria-invalid"] && "border-destructive focus-visible:ring-destructive"
+      )}
+      {...props}
+    />
   </div>
 );
 
@@ -55,11 +63,17 @@ export default function Login() {
 
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signUpData, setSignUpData] = useState({ email: "", password: "", confirmPassword: "" });
+  const [loginErrors, setLoginErrors] = useState({});
+  const [signUpErrors, setSignUpErrors] = useState({});
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!loginData.email || !loginData.password) {
-      toast.error("Please enter your email and password.");
+    const errors = {};
+    if (!loginData.email) errors.email = "Email is required.";
+    if (!loginData.password) errors.password = "Password is required.";
+    setLoginErrors(errors);
+    if (Object.keys(errors).length) {
+      toast.error("Please fix the errors below.");
       return;
     }
     setIsLoading(true);
@@ -74,6 +88,8 @@ export default function Login() {
         resendConfirmation(loginData.email).catch(() => {});
       } else {
         toast.error(msg);
+        if (msg.toLowerCase().includes("password")) setLoginErrors({ password: msg });
+        else setLoginErrors({ email: msg });
       }
     } finally {
       setIsLoading(false);
@@ -82,16 +98,14 @@ export default function Login() {
 
   const handleSignUp = async (e) => {
     e.preventDefault();
-    if (!signUpData.email || !signUpData.password) {
-      toast.error("Please fill in all fields.");
-      return;
-    }
-    if (signUpData.password.length < 6) {
-      toast.error("Password must be at least 6 characters.");
-      return;
-    }
-    if (signUpData.password !== signUpData.confirmPassword) {
-      toast.error("Passwords do not match.");
+    const errors = {};
+    if (!signUpData.email) errors.email = "Email is required.";
+    if (!signUpData.password) errors.password = "Password is required.";
+    else if (signUpData.password.length < 6) errors.password = "Password must be at least 6 characters.";
+    if (signUpData.password !== signUpData.confirmPassword) errors.confirmPassword = "Passwords do not match.";
+    setSignUpErrors(errors);
+    if (Object.keys(errors).length) {
+      toast.error("Please fix the errors below.");
       return;
     }
     setIsLoading(true);
@@ -265,7 +279,7 @@ export default function Login() {
                   <h2 className="text-xl font-semibold text-foreground">Welcome back</h2>
                   <p className="text-sm text-muted-foreground mt-1">Sign in to continue to your dashboard.</p>
                 </div>
-                <form onSubmit={handleLogin} className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4" noValidate>
                   <div className="space-y-2">
                     <Label htmlFor="login-email">Email</Label>
                     <IconInput
@@ -276,7 +290,14 @@ export default function Login() {
                       value={loginData.email}
                       onChange={(e) => setLoginData((p) => ({ ...p, email: e.target.value }))}
                       autoComplete="email"
+                      aria-invalid={Boolean(loginErrors.email)}
+                      aria-describedby={loginErrors.email ? "login-email-error" : undefined}
                     />
+                    {loginErrors.email && (
+                      <p id="login-email-error" role="alert" className="text-xs text-destructive mt-1.5">
+                        {loginErrors.email}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="login-password">Password</Label>
@@ -288,7 +309,14 @@ export default function Login() {
                       value={loginData.password}
                       onChange={(e) => setLoginData((p) => ({ ...p, password: e.target.value }))}
                       autoComplete="current-password"
+                      aria-invalid={Boolean(loginErrors.password)}
+                      aria-describedby={loginErrors.password ? "login-password-error" : undefined}
                     />
+                    {loginErrors.password && (
+                      <p id="login-password-error" role="alert" className="text-xs text-destructive mt-1.5">
+                        {loginErrors.password}
+                      </p>
+                    )}
                   </div>
                   <Button type="submit" disabled={isLoading} className="w-full">
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin me-2" /> : null}
@@ -314,7 +342,7 @@ export default function Login() {
                   <h2 className="text-xl font-semibold text-foreground">Create an account</h2>
                   <p className="text-sm text-muted-foreground mt-1">Set up your Wasla workspace in seconds.</p>
                 </div>
-                <form onSubmit={handleSignUp} className="space-y-4">
+                <form onSubmit={handleSignUp} className="space-y-4" noValidate>
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
                     <IconInput
@@ -325,7 +353,14 @@ export default function Login() {
                       value={signUpData.email}
                       onChange={(e) => setSignUpData((p) => ({ ...p, email: e.target.value }))}
                       autoComplete="email"
+                      aria-invalid={Boolean(signUpErrors.email)}
+                      aria-describedby={signUpErrors.email ? "signup-email-error" : undefined}
                     />
+                    {signUpErrors.email && (
+                      <p id="signup-email-error" role="alert" className="text-xs text-destructive mt-1.5">
+                        {signUpErrors.email}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
@@ -337,7 +372,14 @@ export default function Login() {
                       value={signUpData.password}
                       onChange={(e) => setSignUpData((p) => ({ ...p, password: e.target.value }))}
                       autoComplete="new-password"
+                      aria-invalid={Boolean(signUpErrors.password)}
+                      aria-describedby={signUpErrors.password ? "signup-password-error" : undefined}
                     />
+                    {signUpErrors.password && (
+                      <p id="signup-password-error" role="alert" className="text-xs text-destructive mt-1.5">
+                        {signUpErrors.password}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-confirm">Confirm Password</Label>
@@ -349,7 +391,14 @@ export default function Login() {
                       value={signUpData.confirmPassword}
                       onChange={(e) => setSignUpData((p) => ({ ...p, confirmPassword: e.target.value }))}
                       autoComplete="new-password"
+                      aria-invalid={Boolean(signUpErrors.confirmPassword)}
+                      aria-describedby={signUpErrors.confirmPassword ? "signup-confirm-error" : undefined}
                     />
+                    {signUpErrors.confirmPassword && (
+                      <p id="signup-confirm-error" role="alert" className="text-xs text-destructive mt-1.5">
+                        {signUpErrors.confirmPassword}
+                      </p>
+                    )}
                   </div>
                   <Button type="submit" disabled={isLoading} className="w-full">
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin me-2" /> : null}
