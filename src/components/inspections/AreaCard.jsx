@@ -93,7 +93,7 @@ export default function AreaCard({ area, onUpdate, onRemove }) {
           className="text-xl font-bold bg-transparent focus:border-b-2 focus:border-primary outline-none text-foreground"
           placeholder="Area Name"
         />
-        <Button type="button" variant="ghost" onClick={onRemove} className="text-red-500 hover:text-red-700">
+        <Button type="button" variant="ghost" onClick={onRemove} className="text-destructive hover:text-destructive/80">
           <Trash2 className="w-5 h-5" />
           Remove Area
         </Button>

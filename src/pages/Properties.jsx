@@ -190,7 +190,7 @@ export default function Properties() {
                         <Button variant="ghost" size="icon" onClick={() => handleEdit(property)} className="h-8 w-8">
                           <Edit2 className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeletingProperty(property)} className="text-red-500 hover:text-red-700 h-8 w-8">
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingProperty(property)} className="text-destructive hover:text-destructive/80 h-8 w-8">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -239,7 +239,7 @@ export default function Properties() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

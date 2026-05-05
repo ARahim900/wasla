@@ -191,7 +191,7 @@ export default function InspectionForm() {
   if (!inspection) {
     return (
       <div className="p-8 text-center">
-        <p className="text-red-600 mb-4">Failed to load inspection data.</p>
+        <p className="text-destructive mb-4">Failed to load inspection data.</p>
         <Button
           variant="outline"
           onClick={() => navigate(createPageUrl("Inspections"))}

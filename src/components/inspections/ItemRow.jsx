@@ -25,7 +25,7 @@ function ItemRow({ item, onUpdate, onRemove }) {
           <p className="font-semibold text-foreground">{item.point}</p>
           <p className="text-sm text-muted-foreground">{item.category}</p>
         </div>
-        <Button type="button" variant="ghost" size="icon" onClick={onRemove} aria-label="Remove item" className="text-red-500 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-950/40">
+        <Button type="button" variant="ghost" size="icon" onClick={onRemove} aria-label="Remove item" className="text-destructive hover:bg-destructive/10">
           <Trash2 className="w-4 h-4" />
         </Button>
       </div>

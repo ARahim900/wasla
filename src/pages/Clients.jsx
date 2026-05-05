@@ -191,7 +191,7 @@ export default function Clients() {
                         <Button variant="outline" size="sm" onClick={() => handleView(client)}>
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeletingClient(client)} className="text-red-500 hover:text-red-500/80 w-8 h-8">
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingClient(client)} className="text-destructive hover:text-destructive/80 w-8 h-8">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -255,7 +255,7 @@ export default function Clients() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
