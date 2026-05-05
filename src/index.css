@@ -194,8 +194,6 @@ button:focus-visible {
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    /* Principle 1: Data first, decoration never — shadows only where they earn it */
-    box-shadow: none;
   }
   body {
     @apply bg-background text-foreground;
