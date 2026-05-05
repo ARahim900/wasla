@@ -100,9 +100,15 @@ export default function Dashboard() {
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
         <MetricCard title="Total Inspections" value={metrics.totalInspections} icon={ClipboardList} isLoading={isLoading} />
-        <MetricCard title="Revenue (YTD)" value={`${metrics.totalRevenue.toFixed(3)} OMR`} icon={DollarSign} isLoading={isLoading} />
+        <MetricCard title="Revenue (YTD)" value={`${metrics.totalRevenue.toFixed(3)} OMR`} icon={DollarSign} isLoading={isLoading} intent="success" />
         <MetricCard title="Active Clients" value={metrics.activeClients} icon={Users} isLoading={isLoading} />
-        <MetricCard title="Overdue Invoices" value={metrics.overdueInvoices} icon={FileText} isLoading={isLoading} />
+        <MetricCard
+          title="Overdue Invoices"
+          value={metrics.overdueInvoices}
+          icon={FileText}
+          isLoading={isLoading}
+          intent={metrics.overdueInvoices > 0 ? "danger" : "default"}
+        />
       </motion.div>
 
       <motion.div variants={itemVariants} className="grid lg:grid-cols-3 gap-6 lg:gap-8">
