@@ -249,16 +249,17 @@ class InspectionReportGenerator {
         priority,
         action: action || text,
         timeline: this.timelineFor(priority),
-        cost: 'TBD'
+        cost: '—'
       };
     }
     const priority = rec.priority || this.inferPriority(rec.action || rec.issue || '');
+    const itemCtx = { name: rec.issue, grade: rec.grade };
     return {
       issue: rec.issue || 'General',
       priority,
-      action: rec.action || '',
-      timeline: rec.timeline || this.timelineFor(priority),
-      cost: rec.cost || 'TBD'
+      action: rec.action || this.actionFor(itemCtx),
+      timeline: rec.timeline || this.timelineFor(priority, itemCtx),
+      cost: rec.cost || this.costBandFor(rec.grade)
     };
   }
 
@@ -269,10 +270,45 @@ class InspectionReportGenerator {
     return 'Low';
   }
 
-  timelineFor(priority) {
+  timelineFor(priority, item) {
+    if (item) {
+      const name = String(item.name || '').toLowerCase();
+      const grade = item.grade;
+      if (/safety|gas|fire|electric shock|exposed wir|leak/.test(name) || grade === 'E') return 'Immediate';
+      if (grade === 'D') return 'Within 30 days';
+      if (grade === 'C') return 'Within 90 days';
+      if (grade === 'B') return 'Annual maintenance';
+    }
     if (priority === 'High') return 'Within 30 days';
     if (priority === 'Medium') return 'Within 60 days';
     return 'Within 90 days';
+  }
+
+  costBandFor(grade) {
+    if (grade === 'C') return 'Low';
+    if (grade === 'D') return 'Medium';
+    if (grade === 'E') return 'High';
+    return '—';
+  }
+
+  actionFor(item) {
+    const name = String(item?.name || '').trim();
+    const grade = item?.grade;
+    if (!name) return '';
+    const lower = name.toLowerCase();
+    let text;
+    if (grade === 'D' || grade === 'E') {
+      text = /crack|leak|structural|foundation|beam|column/.test(lower)
+        ? `Investigate ${name}`
+        : `Repair/replace ${lower}`;
+    } else if (grade === 'C') {
+      text = `Service ${lower}`;
+    } else if (grade === 'B') {
+      text = `Monitor ${lower}`;
+    } else {
+      text = `Review ${lower}`;
+    }
+    return text.length > 80 ? text.slice(0, 77) + '...' : text;
   }
 
   // Severity grading: A (Good), B (Minor), C (Moderate), D (Major), E (Critical)
@@ -775,13 +811,6 @@ class InspectionReportGenerator {
             font-size: 6.5pt;
             text-transform: uppercase;
             letter-spacing: 0.3px;
-            margin-bottom: 1px;
-        }
-
-        .photo-caption .caption-text {
-            display: block;
-            color: var(--brand-grey-900);
-            font-weight: 500;
         }
 
         h3 {
@@ -885,8 +914,8 @@ class InspectionReportGenerator {
         .grade-a { background: #dcfce7; color: #166534; border-color: #86efac; }
         .grade-b { background: #ecfccb; color: #3f6212; border-color: #bef264; }
         .grade-c { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
-        .grade-d { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
-        .grade-e { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+        .grade-d { background: #fde68a; color: #92400e; border: 1.5px solid #b45309; }
+        .grade-e { background: #fecaca; color: #991b1b; border: 1.5px solid #991b1b; }
 
         .risk-pill {
             display: inline-block;
@@ -1016,24 +1045,12 @@ class InspectionReportGenerator {
             @page {
                 size: ${size} ${orientation};
                 margin: ${margin};
-                @bottom-left {
-                    content: "Wasla Property Solutions";
-                    font-size: 7.5pt;
-                    color: #6b7280;
-                    font-family: 'Inter', sans-serif;
-                }
                 @bottom-center {
-                    content: "Confidential";
-                    font-size: 7.5pt;
-                    color: #9ca3af;
-                    font-family: 'Inter', sans-serif;
-                    letter-spacing: 0.5px;
-                }
-                @bottom-right {
-                    content: "Page " counter(page) " of " counter(pages);
+                    content: "Wasla Property Solutions • ${data.reference} • Confidential • Page " counter(page) " of " counter(pages);
                     font-size: 7.5pt;
                     color: #6b7280;
                     font-family: 'Inter', sans-serif;
+                    letter-spacing: 0.3px;
                 }
             }
 
@@ -1206,9 +1223,36 @@ class InspectionReportGenerator {
       </tr>
     `).join('');
 
+    let totalFindings = 0;
+    let highCount = 0;
+    let criticalCount = 0;
+    const areaNames = [];
+    (data.affectedAreas || []).forEach(area => {
+      if (area.name && !areaNames.includes(area.name)) areaNames.push(area.name);
+      (area.items || []).forEach(item => {
+        totalFindings++;
+        if (item.grade === 'D') highCount++;
+        if (item.grade === 'E') criticalCount++;
+      });
+    });
+
+    const num = (n) => `<span style="color: var(--brand-accent); font-weight: 700;">${n}</span>`;
+    const headlineParts = [];
+    if (totalFindings > 0) headlineParts.push(`${num(totalFindings)} ${totalFindings === 1 ? 'finding' : 'findings'}`);
+    if (highCount > 0) headlineParts.push(`${num(highCount)} high priority`);
+    if (criticalCount > 0) headlineParts.push(`${num(criticalCount)} critical`);
+    const headline = headlineParts.length
+      ? `<div style="font-size: 9pt; color: var(--brand-grey-700); margin: 0 0 8px 0; letter-spacing: 0.2px;">${headlineParts.join(' • ')}</div>`
+      : '';
+
+    const areasLine = areaNames.length
+      ? `<div style="font-size: 8pt; color: var(--brand-grey-500); margin-top: 6px;">Areas inspected: ${this.escapeHTML(areaNames.join(', '))}</div>`
+      : '';
+
     return `
       <div class="executive-summary">
         <h2 class="section-title">Executive Summary</h2>
+        ${headline}
         <table class="summary-table">
           <thead>
             <tr>
@@ -1219,6 +1263,7 @@ class InspectionReportGenerator {
           </thead>
           <tbody>${rows}</tbody>
         </table>
+        ${areasLine}
         <div class="grade-legend">
           <span><span class="grade-badge grade-a">A</span>&nbsp;Good</span>
           <span><span class="grade-badge grade-b">B</span>&nbsp;Minor</span>
@@ -1232,6 +1277,11 @@ class InspectionReportGenerator {
 
   renderOverviewPage(data) {
     const gradeColor = data.grade === 'D' ? '#dc2626' : data.grade === 'C' ? '#f59e0b' : '#059669';
+    const metaRow = (label, value) => {
+      const v = value == null ? '' : String(value).trim();
+      if (!v || v.toLowerCase() === 'n/a') return '';
+      return `<p><strong>${label}:</strong> ${this.escapeHTML(v)}</p>`;
+    };
     return `
     <div class="page">
         <div class="content">
@@ -1244,11 +1294,11 @@ class InspectionReportGenerator {
                     <div class="subtitle">Wasla Property Solutions</div>
                 </div>
                 <div class="cover-header-info">
-                    <p><strong>Report Ref:</strong> ${this.escapeHTML(data.reference)}</p>
-                    <p><strong>Date:</strong> ${this.escapeHTML(data.date.en)}</p>
-                    <p><strong>Inspector:</strong> ${this.escapeHTML(data.inspector)}</p>
-                    <p><strong>Property:</strong> ${this.escapeHTML(data.propertyType)}</p>
-                    <p><strong>Location:</strong> ${this.escapeHTML(data.location)}</p>
+                    ${metaRow('Report Ref', data.reference)}
+                    ${metaRow('Date', data.date.en)}
+                    ${metaRow('Inspector', data.inspector)}
+                    ${metaRow('Property', data.propertyType)}
+                    ${metaRow('Location', data.location)}
                     ${data.grade ? `<p><strong>Grade:</strong> <span style="font-weight: 700; color: ${gradeColor};">${this.escapeHTML(data.grade)}</span></p>` : ''}
                 </div>
             </div>
@@ -1274,9 +1324,9 @@ class InspectionReportGenerator {
                         <p>الأفاضل/ <strong>${this.escapeHTML(data.client)}</strong> المحترمون</p>
                         <p>نشكر لكم اختياركم <strong>"${this.escapeHTML(this.config.company.nameAr)}"</strong> للقيام بفحص العقار الخاص بكم.</p>
                         <p>يُقدم هذا التقرير نتائج الفحص والقياسات كما تم توثيقها ميدانيًا في تاريخ الزيارة، ووجود بعض الملاحظات يُعد أمر شائع في عمليات الفحص العقاري.</p>
-                        <p>يرجى مراجعة التقرير المرفق بعناية قبل اتخاذ قراركم النهائي، و إذا كنتم بحاجة إلى توضيحات إضافية حول حالة العقار، فلا تترددوا بالتواصل معنا عبر الهاتف أو البريد الإلكتروني من الساعة 9 صباحًا حتى 5 مساءً على وسائل التواصل التالية:</p>
+                        <p>يرجى مراجعة التقرير المرفق بعناية قبل اتخاذ قراركم النهائي، و إذا كنتم بحاجة إلى توضيحات إضافية حول حالة العقار، فلا تترددوا بالتواصل معنا عبر الهاتف أو البريد الإلكتروني من الساعة ٩ صباحًا حتى ٥ مساءً على وسائل التواصل التالية:</p>
                         <p><strong>البريد الإلكتروني:</strong> ${this.escapeHTML(this.config.company.email)}</p>
-                        <p><strong>الهاتف:</strong> ${this.escapeHTML(this.config.company.phone)}</p>
+                        <p><strong>الهاتف:</strong> 968+ ٩٠٦٩٩٧٩٩</p>
                     </div>
                 </div>
             </div>
@@ -1310,7 +1360,7 @@ class InspectionReportGenerator {
                 </div>
                 <div class="column font-cairo" style="text-align: right;" dir="rtl">
                     <h3>تكاليف الصيانة أمر طبيعي</h3>
-                    <p>ينبغي على مالكي العقارات تخصيص ما يُعادل 1% من قيمة العقار سنويًا لأعمال الصيانة الدورية. أما العقارات المؤجرة فقد تصل النسبة إلى 2% أو أكثر. وإذا لم يتم استثمار هذه النسبة على مدى عدة سنوات، فستظهر مؤشرات واضحة على الإهمال، مما يُحتم على المالك الجديد دفع تكاليف كبيرة لاحقًا لمعالجة هذه الإهمالات.</p>
+                    <p>ينبغي على مالكي العقارات تخصيص ما يُعادل ١٪ من قيمة العقار سنويًا لأعمال الصيانة الدورية. أما العقارات المؤجرة فقد تصل النسبة إلى ٢٪ أو أكثر. وإذا لم يتم استثمار هذه النسبة على مدى عدة سنوات، فستظهر مؤشرات واضحة على الإهمال، مما يُحتم على المالك الجديد دفع تكاليف كبيرة لاحقًا لمعالجة هذه الإهمالات.</p>
                 </div>
             </div>
         </div>
@@ -1360,7 +1410,7 @@ class InspectionReportGenerator {
                         </div>
                         <div class="signature-row">
                             <span style="font-weight: 600;">Signature:</span>
-                            <span style="color: #9ca3af;">_____________________</span>
+                            <span style="color: #9ca3af;">_____________________<br><span style="font-size: 6.5pt; color: #9ca3af;">Sign on print</span></span>
                         </div>
                         <div class="signature-row">
                             <span style="font-weight: 600;">Prepared by:</span>
@@ -1368,7 +1418,7 @@ class InspectionReportGenerator {
                         </div>
                         <div class="signature-row">
                             <span style="font-weight: 600;">Stamp</span>
-                            <span style="color: #9ca3af;">_____________________</span>
+                            <span style="color: #9ca3af;">_____________________<br><span style="font-size: 6.5pt; color: #9ca3af;">Stamp on print</span></span>
                         </div>
                         <div class="signature-row">
                             <span style="font-weight: 600;">Date:</span>
@@ -1381,7 +1431,7 @@ class InspectionReportGenerator {
                             <span style="font-weight: 600;">:اسم العميل</span>
                         </div>
                         <div class="signature-row">
-                            <span style="color: #9ca3af;">_____________________</span>
+                            <span style="color: #9ca3af;">_____________________<br><span style="font-size: 6.5pt; color: #9ca3af;">ُيوقع عند الطباعة</span></span>
                             <span style="font-weight: 600;">:التوقيع</span>
                         </div>
                         <div class="signature-row">
@@ -1389,7 +1439,7 @@ class InspectionReportGenerator {
                             <span style="font-weight: 600;">:أعد التقرير بواسطة</span>
                         </div>
                         <div class="signature-row">
-                            <span style="color: #9ca3af;">_____________________</span>
+                            <span style="color: #9ca3af;">_____________________<br><span style="font-size: 6.5pt; color: #9ca3af;">يُختم عند الطباعة</span></span>
                             <span style="font-weight: 600;">الختم</span>
                         </div>
                         <div class="signature-row">
@@ -1449,18 +1499,15 @@ class InspectionReportGenerator {
           findingsContent += `<div class="photo-grid">`;
           area.photos.forEach(photo => {
             const itemName = photo.itemName || 'Inspection point';
-            const description = photo.description || '';
-            const altText = `${itemName}: ${description}`;
             findingsContent += `
                     <div class="photo-item">
                         <div class="photo-frame">
                             <img src="${photo.url}"
-                                 alt="${this.escapeHTML(altText)}"
+                                 alt="${this.escapeHTML(itemName)}"
                                  onerror="this.src='${this.config.company.placeholderImage}'">
                         </div>
                         <div class="photo-caption">
                             <span class="caption-label">${this.escapeHTML(itemName)}</span>
-                            <span class="caption-text">${this.escapeHTML(description)}</span>
                         </div>
                     </div>`;
           });
@@ -1550,9 +1597,7 @@ class InspectionReportGenerator {
     affectedAreas.forEach(area => {
       const failedItems = area.items.filter(item => item.status.toLowerCase() === 'fail');
       failedItems.forEach(item => {
-        const action = item.comments && item.comments !== 'No comments'
-          ? `Repair/address: ${item.comments}`
-          : `Repair/replace "${item.name}"`;
+        const action = this.actionFor(item);
         const priority = this.riskFromGrade(item.grade) === 'High' ? 'High'
                        : this.riskFromGrade(item.grade) === 'Medium' ? 'Medium'
                        : this.inferPriority(`${item.name} ${item.comments || ''}`);
@@ -1561,8 +1606,8 @@ class InspectionReportGenerator {
           grade: item.grade,
           priority,
           action,
-          timeline: this.timelineFor(priority),
-          cost: 'TBD'
+          timeline: this.timelineFor(priority, item),
+          cost: this.costBandFor(item.grade)
         });
       });
     });
