@@ -11,6 +11,40 @@ import {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB (matches Supabase bucket limit)
 
+// Common phone/desktop screenshot resolutions
+const SCREENSHOT_DIMS = new Set([
+  '1170x2532', '1179x2556', '1284x2778', '1290x2796',
+  '1080x1920', '1080x2340', '1080x2400', '1440x3120',
+  '390x844', '414x896', '375x812', '393x852',
+  '1920x1080', '2560x1440', '2880x1800', '1440x900', '3024x1964',
+]);
+
+const looksLikeScreenshot = (file) =>
+  new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const key = `${w}x${h}`;
+      const keySwapped = `${h}x${w}`;
+      const ratio = w / h;
+      const suspicious =
+        SCREENSHOT_DIMS.has(key) ||
+        SCREENSHOT_DIMS.has(keySwapped) ||
+        ratio > 2.4 ||
+        ratio < 0.42 ||
+        (w < 400 && h < 400);
+      resolve(suspicious);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(false);
+    };
+    img.src = url;
+  });
+
 const compressImage = async (file) => {
   if (file.size < 500 * 1024) return file; // Skip if already small
 
@@ -56,6 +90,7 @@ export default function PhotoUpload({ photos, onUpdate }) {
     let failCount = 0;
     let skippedSize = 0;
     let skippedType = 0;
+    let suspiciousCount = 0;
 
     for (let file of Array.from(files)) {
       if (!file.type.startsWith('image/')) {
@@ -67,6 +102,7 @@ export default function PhotoUpload({ photos, onUpdate }) {
         continue;
       }
       try {
+        if (await looksLikeScreenshot(file)) suspiciousCount++;
         file = await compressImage(file);
         const { file_url } = await UploadFile({ file, bucket: 'inspection-photos' });
         uploadedPhotos.push({ url: file_url, name: file.name });
@@ -87,6 +123,13 @@ export default function PhotoUpload({ photos, onUpdate }) {
     }
     if (failCount > 0) {
       toast.error(`Failed to upload ${failCount} photo${failCount > 1 ? 's' : ''}. Please try again.`);
+    }
+    if (suspiciousCount > 0) {
+      toast.warning(
+        suspiciousCount > 1
+          ? `${suspiciousCount} images look like screenshots or graphics — make sure they are inspection photos.`
+          : 'This image looks like a screenshot or graphic — make sure it is an inspection photo.'
+      );
     }
     setUploading(false);
   };
