@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Mail, Phone, MapPin, Building2, FileText } from "lucide-react";
 
 // Sub-component to reduce repetition in the form
-const FormField = ({ id, label, icon: Icon, value, onChange, required, type = "text", placeholder }) => (
+const FormField = ({ id, label, icon: Icon, error, value, onChange, required, type = "text", placeholder }) => (
   <div className="space-y-2">
     <Label htmlFor={id} className="text-foreground font-medium">
       {label} {required && '*'}
@@ -21,11 +21,18 @@ const FormField = ({ id, label, icon: Icon, value, onChange, required, type = "t
         type={type}
         value={value}
         onChange={onChange}
-        className="pl-10"
+        className={`pl-10 ${error ? "border-destructive focus-visible:ring-destructive" : ""}`}
         placeholder={placeholder}
         required={required}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}-error` : undefined}
       />
     </div>
+    {error && (
+      <p id={`${id}-error`} role="alert" className="text-xs text-destructive">
+        {error}
+      </p>
+    )}
   </div>
 );
 
@@ -37,6 +44,15 @@ const initialClientState = {
 
 export default function ClientForm({ client, onSubmit, onCancel, isLoading }) {
   const [formData, setFormData] = useState(client || initialClientState);
+  const [errors, setErrors] = useState({});
+
+  const validate = () => {
+    const next = {};
+    if (!formData.name?.trim()) next.name = "Full name is required.";
+    if (!formData.email?.trim()) next.email = "Email is required.";
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(formData.email)) next.email = "Enter a valid email.";
+    return next;
+  };
 
   // Effect to update form if the client prop changes
   // The 'client' prop is correctly identified as a dependency.
@@ -44,15 +60,25 @@ export default function ClientForm({ client, onSubmit, onCancel, isLoading }) {
   // need to be included in the dependency array.
   useEffect(() => {
     setFormData(client || initialClientState);
+    setErrors({});
   }, [client]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors(prev => {
+        const { [name]: _omit, ...rest } = prev;
+        return rest;
+      });
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const next = validate();
+    setErrors(next);
+    if (Object.keys(next).length) return;
     onSubmit(formData);
   };
 
@@ -67,8 +93,8 @@ export default function ClientForm({ client, onSubmit, onCancel, isLoading }) {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
-            <FormField id="name" label="Full Name" icon={User} value={formData.name} onChange={handleChange} placeholder="Enter client's full name" required />
-            <FormField id="email" label="Email Address" icon={Mail} type="email" value={formData.email} onChange={handleChange} placeholder="client@example.com" required />
+            <FormField id="name" label="Full Name" icon={User} value={formData.name} onChange={handleChange} placeholder="Enter client's full name" required error={errors.name} />
+            <FormField id="email" label="Email Address" icon={Mail} type="email" value={formData.email} onChange={handleChange} placeholder="client@example.com" required error={errors.email} />
             <FormField id="phone" label="Phone Number" icon={Phone} value={formData.phone} onChange={handleChange} placeholder="+1 (555) 123-4567" />
             <FormField id="company" label="Company" icon={Building2} value={formData.company} onChange={handleChange} placeholder="Company name" />
           </div>
