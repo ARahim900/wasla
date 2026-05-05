@@ -207,7 +207,7 @@ export default function Properties() {
             ) : (
               <div className="text-center py-16 col-span-full">
                 <Home className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium text-foreground">No properties found</h3>
+                <h2 className="text-lg font-medium text-foreground">No properties found</h2>
                 <p className="text-muted-foreground mb-4">{searchTerm ? "Try adjusting your search." : "Get started by adding your first property."}</p>
                 {!searchTerm && <Button onClick={handleAddNew} className="min-h-[44px]"><Plus className="w-4 h-4 me-2" />Add First Property</Button>}
               </div>

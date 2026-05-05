@@ -340,9 +340,9 @@ export default function Settings() {
                   />
                 </div>
                 <div className="text-center sm:text-start space-y-1">
-                  <h3 className="text-lg font-semibold text-foreground">
+                  <h2 className="text-lg font-semibold text-foreground">
                     {profileData.full_name || "User"}
-                  </h3>
+                  </h2>
                   <p className="text-sm text-muted-foreground">
                     {profileData.email}
                   </p>

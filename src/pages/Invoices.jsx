@@ -160,7 +160,7 @@ export default function Invoices() {
             ) : (
               <div className="text-center py-16 col-span-full">
                 <FileText className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-                <h3 className="text-xl font-medium text-foreground mb-2">No Invoices Found</h3>
+                <h2 className="text-xl font-medium text-foreground mb-2">No Invoices Found</h2>
                 <p className="text-muted-foreground mb-4">{searchTerm || statusFilter !== "all" ? "Try adjusting your filters." : "Get started by creating your first invoice."}</p>
                 <Button onClick={() => navigate(createPageUrl("InvoiceForm"))} className="mt-2 min-h-[44px]"><Plus className="w-4 h-4 me-2" />Create First Invoice</Button>
               </div>

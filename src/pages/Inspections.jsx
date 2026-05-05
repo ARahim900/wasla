@@ -311,9 +311,9 @@ export default function Inspections() {
         ) : (
           <div className="text-center py-16">
             <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-            <h3 className="text-xl font-medium text-foreground mb-2">
+            <h2 className="text-xl font-medium text-foreground mb-2">
               {searchTerm || statusFilter !== "all" ? "No Matching Inspections" : "No Inspections Found"}
-            </h3>
+            </h2>
             <p className="text-muted-foreground mb-4 max-w-md mx-auto">
               {searchTerm || statusFilter !== "all"
                 ? "Try adjusting your search terms or filters."

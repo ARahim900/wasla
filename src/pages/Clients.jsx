@@ -223,7 +223,7 @@ export default function Clients() {
             ) : (
               <div className="text-center py-16">
                 <Users className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-                <h3 className="text-xl font-medium text-foreground mb-2">No clients found</h3>
+                <h2 className="text-xl font-medium text-foreground mb-2">No clients found</h2>
                 <p className="text-muted-foreground mb-4">{searchTerm ? "Try adjusting your search terms." : "Get started by adding your first client."}</p>
                 {!searchTerm && <Button onClick={handleAddNew} className="min-h-[44px]"><Plus className="w-4 h-4 me-2" />Add First Client</Button>}
               </div>
