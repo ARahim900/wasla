@@ -1,10 +1,12 @@
 import './App.css'
+import { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import VisualEditAgent from '@/lib/VisualEditAgent'
 import NavigationTracker from '@/lib/NavigationTracker'
+import AppLoader from '@/lib/AppLoader';
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
@@ -37,19 +39,17 @@ const AuthenticatedApp = () => {
   // new password before doing anything in the app.
   if (isPasswordRecovery) {
     return (
-      <Routes>
-        <Route path="*" element={<ResetPasswordPage />} />
-      </Routes>
+      <Suspense fallback={<AppLoader />}>
+        <Routes>
+          <Route path="*" element={<ResetPasswordPage />} />
+        </Routes>
+      </Suspense>
     );
   }
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
-      </div>
-    );
+    return <AppLoader />;
   }
 
   // Handle authentication errors
@@ -73,39 +73,43 @@ const AuthenticatedApp = () => {
   // If not authenticated and not in demo mode, show login
   if (!isAuthenticated && !isDemoMode) {
     return (
-      <Routes>
-        <Route path="/Login" element={<LoginPage />} />
-        <Route path="/ResetPassword" element={<ResetPasswordPage />} />
-        <Route path="*" element={<LoginPage />} />
-      </Routes>
+      <Suspense fallback={<AppLoader />}>
+        <Routes>
+          <Route path="/Login" element={<LoginPage />} />
+          <Route path="/ResetPassword" element={<ResetPasswordPage />} />
+          <Route path="*" element={<LoginPage />} />
+        </Routes>
+      </Suspense>
     );
   }
 
   // Render the main app
   return (
-    <Routes>
-      <Route path="/" element={
-        <LayoutWrapper currentPageName={mainPageKey}>
-          <MainPage />
-        </LayoutWrapper>
-      } />
-      {Object.entries(Pages).filter(([path]) => !PUBLIC_PAGES.includes(path)).map(([path, Page]) => (
-        <Route
-          key={path}
-          path={`/${path}`}
-          element={
-            <LayoutWrapper currentPageName={path}>
-              <Page />
-            </LayoutWrapper>
-          }
-        />
-      ))}
-      <Route path="/Login" element={<LoginPage />} />
-      {/* Public route — also reachable when already authenticated, e.g. during
-          the brief window between USER_UPDATED and the success-screen navigate. */}
-      <Route path="/ResetPassword" element={<ResetPasswordPage />} />
-      <Route path="*" element={<PageNotFound />} />
-    </Routes>
+    <Suspense fallback={<AppLoader />}>
+      <Routes>
+        <Route path="/" element={
+          <LayoutWrapper currentPageName={mainPageKey}>
+            <MainPage />
+          </LayoutWrapper>
+        } />
+        {Object.entries(Pages).filter(([path]) => !PUBLIC_PAGES.includes(path)).map(([path, Page]) => (
+          <Route
+            key={path}
+            path={`/${path}`}
+            element={
+              <LayoutWrapper currentPageName={path}>
+                <Page />
+              </LayoutWrapper>
+            }
+          />
+        ))}
+        <Route path="/Login" element={<LoginPage />} />
+        {/* Public route — also reachable when already authenticated, e.g. during
+            the brief window between USER_UPDATED and the success-screen navigate. */}
+        <Route path="/ResetPassword" element={<ResetPasswordPage />} />
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+    </Suspense>
   );
 };
 
