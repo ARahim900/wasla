@@ -55,6 +55,16 @@ export default function InspectionForm() {
           }
 
           if (!inspectionData.areas) inspectionData.areas = [];
+
+          // Backfill client_id from client_name for legacy inspections so the
+          // Select shows the right entry instead of "Select a client".
+          if (!inspectionData.client_id && inspectionData.client_name) {
+            const match = (clientData || []).find(
+              c => c.name?.trim().toLowerCase() === inspectionData.client_name.trim().toLowerCase()
+            );
+            if (match) inspectionData.client_id = match.id;
+          }
+
           setInspection(inspectionData);
         } else {
           setInspection({
@@ -62,6 +72,7 @@ export default function InspectionForm() {
             client_name: "",
             property_id: "",
             property_type: "villa",
+            area_sqm: "",
             inspector_name: "",
             inspection_date: new Date().toISOString().split("T")[0],
             inspection_type: "pre_purchase",
@@ -79,6 +90,7 @@ export default function InspectionForm() {
             client_name: "",
             property_id: "",
             property_type: "villa",
+            area_sqm: "",
             inspector_name: "",
             inspection_date: new Date().toISOString().split("T")[0],
             inspection_type: "pre_purchase",
@@ -96,6 +108,45 @@ export default function InspectionForm() {
 
   const handleUpdateField = (field, value) => {
     setInspection((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const handleClientChange = (clientId) => {
+    const c = clients.find((x) => x.id === clientId);
+    setInspection((prev) =>
+      prev
+        ? {
+            ...prev,
+            client_id: clientId,
+            client_name: c?.name || "",
+            // If the previously chosen property doesn't belong to this client,
+            // clear it so the property dropdown isn't showing a stale label.
+            property_id:
+              prev.property_id &&
+              properties.find((p) => p.id === prev.property_id)?.client_id === clientId
+                ? prev.property_id
+                : "",
+          }
+        : prev
+    );
+  };
+
+  const handlePropertyChange = (propertyId) => {
+    const p = properties.find((x) => x.id === propertyId);
+    setInspection((prev) => {
+      if (!prev) return prev;
+      // Default area from property only if the inspection doesn't have its
+      // own value yet — don't clobber an inspector's on-site measurement.
+      const next = {
+        ...prev,
+        property_id: propertyId,
+        property_type: p?.property_type || prev.property_type,
+      };
+      const prevArea = prev.area_sqm === "" || prev.area_sqm == null ? null : Number(prev.area_sqm);
+      if ((!Number.isFinite(prevArea) || prevArea <= 0) && p?.area_sqm) {
+        next.area_sqm = p.area_sqm;
+      }
+      return next;
+    });
   };
 
   const handleAddArea = () => {
@@ -132,6 +183,13 @@ export default function InspectionForm() {
     // Convert empty string IDs to null (Supabase UUID columns reject empty strings)
     if (!payload.client_id) payload.client_id = null;
     if (!payload.property_id) payload.property_id = null;
+    // Coerce area_sqm to a number (or null) so downstream pricing math works.
+    if (payload.area_sqm === "" || payload.area_sqm == null) {
+      payload.area_sqm = null;
+    } else {
+      const n = Number(payload.area_sqm);
+      payload.area_sqm = Number.isFinite(n) && n > 0 ? n : null;
+    }
     payload.areas = (payload.areas || []).map((a) => ({
       ...a,
       id: String(a.id),
@@ -152,8 +210,17 @@ export default function InspectionForm() {
     e.preventDefault();
     if (!inspection) return;
 
-    if (!inspection.client_name || !inspection.property_type) {
-      toast.error("Please enter Client's Name and select Property Type.");
+    if (!inspection.client_id) {
+      toast.error("Please select a client.");
+      return;
+    }
+    if (!inspection.property_id) {
+      toast.error("Please select a property.");
+      return;
+    }
+    const areaCheck = Number(inspection.area_sqm);
+    if (!Number.isFinite(areaCheck) || areaCheck <= 0) {
+      toast.error("Please enter a valid Area (SQM). The invoice depends on it.");
       return;
     }
 
@@ -204,6 +271,19 @@ export default function InspectionForm() {
   
   const selectedClient = clients.find(c => c.id === inspection.client_id);
   const selectedProperty = properties.find(p => p.id === inspection.property_id);
+  const propertiesForClient = inspection.client_id
+    ? properties.filter(p => p.client_id === inspection.client_id)
+    : properties;
+
+  // Mirror InvoiceForm's rate table so inspectors see the live estimate
+  // before the invoice is created. Keep this in sync with InvoiceForm.
+  const RATE_PER_SQM = { villa: 1.0, apartment: 0.7, office: 2.0, building: 2.0 };
+  const areaNum = Number(inspection.area_sqm);
+  const ratePerSqm = RATE_PER_SQM[inspection.property_type] || 0;
+  const estimatedFee = Number.isFinite(areaNum) && areaNum > 0 && ratePerSqm > 0
+    ? areaNum * ratePerSqm
+    : 0;
+  const formatType = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : "");
 
   return (
     <div>
@@ -228,31 +308,79 @@ export default function InspectionForm() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             <div className="space-y-2">
-              <Label htmlFor="client_name">Client *</Label>
-              <Input
-                id="client_name"
-                value={inspection.client_name || ""}
-                onChange={(e) => handleUpdateField("client_name", e.target.value)}
-                placeholder="Enter client's name"
-                className="w-full h-10 text-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="property_type">Property Type *</Label>
+              <Label htmlFor="client_id">Client *</Label>
               <Select
-                value={inspection.property_type}
-                onValueChange={(value) => handleUpdateField("property_type", value)}
+                value={inspection.client_id || ""}
+                onValueChange={handleClientChange}
               >
-                <SelectTrigger id="property_type" className="h-10 text-sm">
-                  <SelectValue placeholder="Select property type" />
+                <SelectTrigger id="client_id" className="h-10 text-sm">
+                  <SelectValue placeholder={clients.length ? "Select a client" : "No clients yet"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="building">Building</SelectItem>
-                  <SelectItem value="villa">Villa</SelectItem>
-                  <SelectItem value="apartment">Apartment</SelectItem>
-                  <SelectItem value="office">Office</SelectItem>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {clients.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Add a client first from the{" "}
+                  <button
+                    type="button"
+                    onClick={() => navigate(createPageUrl("Clients"))}
+                    className="text-primary hover:underline"
+                  >
+                    Clients
+                  </button>{" "}
+                  page.
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="property_id">Property *</Label>
+              <Select
+                value={inspection.property_id || ""}
+                onValueChange={handlePropertyChange}
+                disabled={!inspection.client_id}
+              >
+                <SelectTrigger id="property_id" className="h-10 text-sm">
+                  <SelectValue
+                    placeholder={
+                      !inspection.client_id
+                        ? "Select a client first"
+                        : propertiesForClient.length
+                        ? "Select a property"
+                        : "No properties for this client"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {propertiesForClient.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      <span className="capitalize">{p.property_type}</span> — {p.address}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {inspection.client_id && propertiesForClient.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No properties yet for this client. Add one from the{" "}
+                  <button
+                    type="button"
+                    onClick={() => navigate(createPageUrl("Properties"))}
+                    className="text-primary hover:underline"
+                  >
+                    Properties
+                  </button>{" "}
+                  page.
+                </p>
+              )}
+              {selectedProperty && (
+                <p className="text-xs text-muted-foreground capitalize">
+                  Type: {selectedProperty.property_type}
+                  {selectedProperty.area_sqm ? ` · ${selectedProperty.area_sqm} SQM` : ""}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="inspector_name">Inspector Name</Label>
@@ -292,7 +420,35 @@ export default function InspectionForm() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="area_sqm">Area (SQM) *</Label>
+              <Input
+                id="area_sqm"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={inspection.area_sqm ?? ""}
+                onChange={(e) => handleUpdateField("area_sqm", e.target.value)}
+                placeholder={selectedProperty?.area_sqm ? String(selectedProperty.area_sqm) : "e.g. 350"}
+                className="w-full h-10 text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Defaults from the property; override if you measure differently on site.
+              </p>
+            </div>
           </div>
+
+          {(areaNum > 0 && ratePerSqm > 0) && (
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2">
+              <div className="text-xs text-muted-foreground">
+                Estimated invoice ({formatType(inspection.property_type)}: {ratePerSqm.toFixed(3)} OMR/SQM × {areaNum} SQM)
+              </div>
+              <div className="text-sm font-semibold text-foreground">
+                {estimatedFee.toFixed(3)} OMR
+              </div>
+            </div>
+          )}
         </div>
 
         <div>

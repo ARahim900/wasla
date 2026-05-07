@@ -61,7 +61,7 @@ function initDemoData() {
         type: 'Villa',
         bedrooms: 4,
         bathrooms: 3,
-        area_sqft: 3500,
+        area_sqm: 325,
       },
       {
         id: generateId(),
@@ -73,7 +73,7 @@ function initDemoData() {
         type: 'Apartment',
         bedrooms: 2,
         bathrooms: 2,
-        area_sqft: 1200,
+        area_sqm: 110,
       },
     ];
     setDemoData('properties', properties);

@@ -662,18 +662,92 @@ class InspectionReportGenerator {
 
         .area-block {
             border: 1px solid var(--brand-grey-200);
-            border-radius: 8px;
-            padding: 14px 14px 14px 14px;
-            margin-bottom: 18px;
+            border-top: 3px solid var(--brand-accent);
+            border-radius: 6px;
+            padding: 0;
+            margin-bottom: 22px;
             background: #ffffff;
+            page-break-inside: auto;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .area-block + .area-block {
+            margin-top: 22px;
         }
 
         .area-block table {
             margin: 0;
         }
 
-        .area-block .photo-grid {
+        .area-body {
+            padding: 12px 14px 14px 14px;
+        }
+
+        .area-body .photo-grid {
             margin-top: 12px;
+        }
+
+        .area-header {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: var(--brand-grey-50);
+            border-bottom: 1px solid var(--brand-grey-200);
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            page-break-after: avoid;
+        }
+
+        .area-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 26px;
+            height: 26px;
+            padding: 0 6px;
+            border-radius: 4px;
+            background: var(--brand-primary);
+            color: #ffffff;
+            font-size: 9pt;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .area-name {
+            font-size: 11pt;
+            font-weight: 700;
+            color: var(--brand-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            line-height: 1.15;
+        }
+
+        .area-meta {
+            font-size: 7pt;
+            color: var(--brand-grey-500);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-top: 2px;
+        }
+
+        .area-summary {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 7pt;
+            color: var(--brand-grey-600);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+        }
+
+        .area-block table thead {
+            display: table-header-group;
         }
 
         table {
@@ -806,11 +880,11 @@ class InspectionReportGenerator {
 
         .photo-caption .caption-label {
             display: block;
-            color: var(--brand-accent);
-            font-weight: 700;
+            color: var(--brand-grey-700);
+            font-weight: 600;
             font-size: 6.5pt;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.4px;
         }
 
         h3 {
@@ -1462,11 +1536,26 @@ class InspectionReportGenerator {
     let findingsContent = '';
 
     if (data.affectedAreas && data.affectedAreas.length > 0) {
-      data.affectedAreas.forEach((area) => {
+      data.affectedAreas.forEach((area, areaIndex) => {
+        const itemCount = (area.items || []).length;
+        const worst = this.worstGrade((area.items || []).map(i => i.grade));
+        const summaryChip = worst
+          ? `<span class="grade-badge grade-${worst.toLowerCase()}" title="${this.escapeHTML(this.gradeMeaning(worst))}">${this.escapeHTML(worst)}</span><span>${this.escapeHTML(this.gradeMeaning(worst))}</span>`
+          : `<span class="grade-badge grade-a">A</span><span>Good</span>`;
+        const areaNumber = String(areaIndex + 1).padStart(2, '0');
+
         findingsContent += `
                 <div class="area-block section-card">
-                <h2 class="section-title no-break">${this.escapeHTML(area.name)}</h2>
+                <div class="area-header no-break">
+                    <span class="area-number">${areaNumber}</span>
+                    <div>
+                        <div class="area-name">${this.escapeHTML(area.name)}</div>
+                        <div class="area-meta">${itemCount} ${itemCount === 1 ? 'item' : 'items'} inspected</div>
+                    </div>
+                    <span class="area-summary">${summaryChip}</span>
+                </div>
 
+                <div class="area-body">
                 <table>
                     <thead>
                         <tr>
@@ -1513,7 +1602,7 @@ class InspectionReportGenerator {
           });
           findingsContent += `</div>`;
         }
-        findingsContent += `</div>`;
+        findingsContent += `</div></div>`;
       });
     }
 
