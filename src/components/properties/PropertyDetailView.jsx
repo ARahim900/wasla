@@ -112,11 +112,11 @@ export default function PropertyDetailView({ property, onEdit }) {
                   label="Property Type" 
                   value={property.property_type?.charAt(0).toUpperCase() + property.property_type?.slice(1)} 
                 />
-                {property.square_footage && (
-                  <InfoRow 
-                    icon={Home} 
-                    label="Square Footage" 
-                    value={`${property.square_footage} sq ft`} 
+                {property.area_sqm && (
+                  <InfoRow
+                    icon={Home}
+                    label="Area"
+                    value={`${property.area_sqm} SQM`}
                   />
                 )}
                 {property.year_built && (

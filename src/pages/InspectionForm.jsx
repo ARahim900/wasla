@@ -55,6 +55,16 @@ export default function InspectionForm() {
           }
 
           if (!inspectionData.areas) inspectionData.areas = [];
+
+          // Backfill client_id from client_name for legacy inspections so the
+          // Select shows the right entry instead of "Select a client".
+          if (!inspectionData.client_id && inspectionData.client_name) {
+            const match = (clientData || []).find(
+              c => c.name?.trim().toLowerCase() === inspectionData.client_name.trim().toLowerCase()
+            );
+            if (match) inspectionData.client_id = match.id;
+          }
+
           setInspection(inspectionData);
         } else {
           setInspection({
@@ -96,6 +106,41 @@ export default function InspectionForm() {
 
   const handleUpdateField = (field, value) => {
     setInspection((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const handleClientChange = (clientId) => {
+    const c = clients.find((x) => x.id === clientId);
+    setInspection((prev) =>
+      prev
+        ? {
+            ...prev,
+            client_id: clientId,
+            client_name: c?.name || "",
+            // If the previously chosen property doesn't belong to this client,
+            // clear it so the property dropdown isn't showing a stale label.
+            property_id:
+              prev.property_id &&
+              properties.find((p) => p.id === prev.property_id)?.client_id === clientId
+                ? prev.property_id
+                : "",
+          }
+        : prev
+    );
+  };
+
+  const handlePropertyChange = (propertyId) => {
+    const p = properties.find((x) => x.id === propertyId);
+    setInspection((prev) =>
+      prev
+        ? {
+            ...prev,
+            property_id: propertyId,
+            // Auto-derive property_type from the chosen property so invoice
+            // pricing logic (which reads property.property_type) stays accurate.
+            property_type: p?.property_type || prev.property_type,
+          }
+        : prev
+    );
   };
 
   const handleAddArea = () => {
@@ -152,8 +197,12 @@ export default function InspectionForm() {
     e.preventDefault();
     if (!inspection) return;
 
-    if (!inspection.client_name || !inspection.property_type) {
-      toast.error("Please enter Client's Name and select Property Type.");
+    if (!inspection.client_id) {
+      toast.error("Please select a client.");
+      return;
+    }
+    if (!inspection.property_id) {
+      toast.error("Please select a property.");
       return;
     }
 
@@ -204,6 +253,9 @@ export default function InspectionForm() {
   
   const selectedClient = clients.find(c => c.id === inspection.client_id);
   const selectedProperty = properties.find(p => p.id === inspection.property_id);
+  const propertiesForClient = inspection.client_id
+    ? properties.filter(p => p.client_id === inspection.client_id)
+    : properties;
 
   return (
     <div>
@@ -228,31 +280,79 @@ export default function InspectionForm() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             <div className="space-y-2">
-              <Label htmlFor="client_name">Client *</Label>
-              <Input
-                id="client_name"
-                value={inspection.client_name || ""}
-                onChange={(e) => handleUpdateField("client_name", e.target.value)}
-                placeholder="Enter client's name"
-                className="w-full h-10 text-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="property_type">Property Type *</Label>
+              <Label htmlFor="client_id">Client *</Label>
               <Select
-                value={inspection.property_type}
-                onValueChange={(value) => handleUpdateField("property_type", value)}
+                value={inspection.client_id || ""}
+                onValueChange={handleClientChange}
               >
-                <SelectTrigger id="property_type" className="h-10 text-sm">
-                  <SelectValue placeholder="Select property type" />
+                <SelectTrigger id="client_id" className="h-10 text-sm">
+                  <SelectValue placeholder={clients.length ? "Select a client" : "No clients yet"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="building">Building</SelectItem>
-                  <SelectItem value="villa">Villa</SelectItem>
-                  <SelectItem value="apartment">Apartment</SelectItem>
-                  <SelectItem value="office">Office</SelectItem>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {clients.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Add a client first from the{" "}
+                  <button
+                    type="button"
+                    onClick={() => navigate(createPageUrl("Clients"))}
+                    className="text-primary hover:underline"
+                  >
+                    Clients
+                  </button>{" "}
+                  page.
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="property_id">Property *</Label>
+              <Select
+                value={inspection.property_id || ""}
+                onValueChange={handlePropertyChange}
+                disabled={!inspection.client_id}
+              >
+                <SelectTrigger id="property_id" className="h-10 text-sm">
+                  <SelectValue
+                    placeholder={
+                      !inspection.client_id
+                        ? "Select a client first"
+                        : propertiesForClient.length
+                        ? "Select a property"
+                        : "No properties for this client"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {propertiesForClient.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      <span className="capitalize">{p.property_type}</span> — {p.address}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {inspection.client_id && propertiesForClient.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No properties yet for this client. Add one from the{" "}
+                  <button
+                    type="button"
+                    onClick={() => navigate(createPageUrl("Properties"))}
+                    className="text-primary hover:underline"
+                  >
+                    Properties
+                  </button>{" "}
+                  page.
+                </p>
+              )}
+              {selectedProperty && (
+                <p className="text-xs text-muted-foreground capitalize">
+                  Type: {selectedProperty.property_type}
+                  {selectedProperty.area_sqm ? ` · ${selectedProperty.area_sqm} SQM` : ""}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="inspector_name">Inspector Name</Label>

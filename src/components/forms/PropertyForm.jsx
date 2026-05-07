@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Client } from "@/api/entities";
 
 const initialPropertyState = {
-  address: "", client_id: "", property_type: "villa", notes: ""
+  address: "", client_id: "", property_type: "villa", area_sqm: "", notes: ""
 };
 
 export default function PropertyForm({ property, onSubmit, onCancel, isLoading }) {
@@ -24,6 +24,10 @@ export default function PropertyForm({ property, onSubmit, onCancel, isLoading }
     if (!formData.client_id) next.client_id = "Client is required.";
     if (!formData.address?.trim()) next.address = "Address is required.";
     if (!formData.property_type) next.property_type = "Property type is required.";
+    if (formData.area_sqm !== "" && formData.area_sqm !== null && formData.area_sqm !== undefined) {
+      const n = Number(formData.area_sqm);
+      if (!Number.isFinite(n) || n <= 0) next.area_sqm = "Enter a positive number.";
+    }
     return next;
   };
 
@@ -53,7 +57,11 @@ export default function PropertyForm({ property, onSubmit, onCancel, isLoading }
     const next = validate();
     setErrors(next);
     if (Object.keys(next).length) return;
-    onSubmit(formData);
+    const payload = {
+      ...formData,
+      area_sqm: formData.area_sqm === "" || formData.area_sqm == null ? null : Number(formData.area_sqm),
+    };
+    onSubmit(payload);
   };
 
   return (
@@ -128,7 +136,29 @@ export default function PropertyForm({ property, onSubmit, onCancel, isLoading }
               )}
             </div>
           </div>
-          
+
+          <div className="space-y-2">
+            <Label htmlFor="area_sqm">Area (SQM)</Label>
+            <Input
+              id="area_sqm"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              value={formData.area_sqm ?? ""}
+              onChange={e => handleChange('area_sqm', e.target.value)}
+              placeholder="e.g. 350"
+              aria-invalid={Boolean(errors.area_sqm)}
+              aria-describedby={errors.area_sqm ? "area_sqm-error" : "area_sqm-help"}
+              className={errors.area_sqm ? "border-destructive focus-visible:ring-destructive" : ""}
+            />
+            {errors.area_sqm ? (
+              <p id="area_sqm-error" role="alert" className="text-xs text-destructive">{errors.area_sqm}</p>
+            ) : (
+              <p id="area_sqm-help" className="text-xs text-muted-foreground">Used to auto-calculate invoice pricing.</p>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
             <Textarea id="notes" value={formData.notes} onChange={e => handleChange('notes', e.target.value)} />

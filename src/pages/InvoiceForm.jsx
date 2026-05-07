@@ -107,7 +107,8 @@ export default function InvoiceForm() {
       newClientId = selectedInspection.client_id || invoice.client_id;
       const linkedProperty = properties.find(p => p.id === selectedInspection.property_id);
 
-      if (linkedProperty && linkedProperty.square_footage) {
+      const areaSqm = Number(linkedProperty?.area_sqm);
+      if (linkedProperty && Number.isFinite(areaSqm) && areaSqm > 0) {
         let pricePerSqm = 0;
         if (COMMERCIAL_TYPES.includes(linkedProperty.property_type)) {
           pricePerSqm = PRICING.COMMERCIAL_PER_SQM;
@@ -116,9 +117,9 @@ export default function InvoiceForm() {
         }
 
         if (pricePerSqm > 0) {
-          const subtotal = linkedProperty.square_footage * pricePerSqm;
-          const description = `Inspection services for ${linkedProperty.property_type} property at ${linkedProperty.address} (${linkedProperty.square_footage} SQM)`;
-          const lineItem = { description, quantity: linkedProperty.square_footage, rate: pricePerSqm, amount: subtotal };
+          const subtotal = areaSqm * pricePerSqm;
+          const description = `Inspection services for ${linkedProperty.property_type} property at ${linkedProperty.address} (${areaSqm} SQM)`;
+          const lineItem = { description, quantity: areaSqm, rate: pricePerSqm, amount: subtotal };
           
           newLineItems = [lineItem];
           newSubtotal = subtotal;

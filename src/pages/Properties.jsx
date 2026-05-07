@@ -94,22 +94,24 @@ export default function Properties() {
 
   const handleSubmit = async (propertyData) => {
     setIsSaving(true);
+    // Capture before closeForm() nulls editingProperty.
+    const editedId = editingProperty?.id;
     try {
-      if (editingProperty) {
-        await Property.update(editingProperty.id, propertyData);
+      if (editedId) {
+        await Property.update(editedId, propertyData);
         toast.success("Property updated successfully.");
       } else {
         await Property.create(propertyData);
         toast.success("Property created successfully.");
       }
       await loadData();
-      closeForm();
-      
-      // Refresh detail view if it's open
-      if (selectedProperty && editingProperty?.id === selectedProperty.id) {
+
+      // Refresh detail view if it's open for the same property.
+      if (selectedProperty && editedId === selectedProperty.id) {
         const updated = await Property.filter({ id: selectedProperty.id });
-        setSelectedProperty(updated[0]);
+        setSelectedProperty(updated[0] || null);
       }
+      closeForm();
     } catch (error) {
       console.error("Error saving property:", error);
       toast.error(`Failed to save property: ${error.message}`);
