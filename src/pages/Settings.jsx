@@ -177,8 +177,18 @@ export default function Settings() {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) throw new Error("Not authenticated");
 
-      // Path layout: {userId}/avatar.{ext} — RLS expects the first folder to be the user id
-      const fileExt = (file.name.split(".").pop() || "jpg").toLowerCase();
+      // Path layout: {userId}/avatar.{ext} — RLS expects the first folder to
+      // be the user id. Derive the extension from the mime-type so files
+      // pasted from clipboard (no .ext on the name) don't end up as
+      // `avatar.image`, which breaks downstream extension-sniffing proxies.
+      const mimeToExt = {
+        'image/jpeg': 'jpg',
+        'image/jpg': 'jpg',
+        'image/png': 'png',
+        'image/gif': 'gif',
+        'image/webp': 'webp',
+      };
+      const fileExt = mimeToExt[file.type] || 'jpg';
       const filePath = `${authUser.id}/avatar.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage

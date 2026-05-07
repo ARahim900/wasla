@@ -11,18 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Save } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
-import { format } from 'date-fns'; // Added format from date-fns
-
-// Per-property-type rates in OMR per SQM. Single source of truth — update
-// here and both InspectionForm preview and invoice line items recalculate.
-const RATE_PER_SQM = {
-  villa: 1.0,
-  apartment: 0.7,
-  office: 2.0,
-  building: 2.0,
-};
-
-const formatPropertyType = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : '');
+import { format } from 'date-fns';
+import { RATE_PER_SQM, formatPropertyType } from "@/lib/pricing";
 
 export default function InvoiceForm() {
   const navigate = useNavigate();
@@ -91,87 +81,96 @@ export default function InvoiceForm() {
     loadData();
   }, [location.search, navigate]);
 
+  // Auto-populate line items + client from the linked inspection, and
+  // recalc totals when the tax rate changes. The deps list is *not* the
+  // whole `invoice` object — that caused a feedback loop because each
+  // setInvoice call produced a new reference and re-ran the effect.
   useEffect(() => {
-    // This effect handles both auto-populating from a linked inspection
-    // and recalculating totals when tax rate changes.
-    if (!invoice || !inspections.length || !properties.length) return;
+    if (!invoice || !inspections.length) return;
 
-    // Default values from current invoice state
+    const selectedInspection = invoice.inspection_id
+      ? inspections.find(i => i.id === invoice.inspection_id)
+      : null;
+    const linkedProperty = selectedInspection?.property_id
+      ? properties.find(p => p.id === selectedInspection.property_id)
+      : null;
+
     let newClientId = invoice.client_id;
-    let newLineItems = invoice.items;
-    let newSubtotal = invoice.subtotal;
+    let newLineItems = invoice.items || [];
+    let newSubtotal = Number(invoice.subtotal) || 0;
+    let didAutoPopulate = false;
 
-    const selectedInspection = inspections.find(i => i.id === invoice.inspection_id);
-    let autoPopulatedSuccessfully = false;
-
-    // If an inspection is linked, derive line items and client from it.
     if (selectedInspection) {
       newClientId = selectedInspection.client_id || invoice.client_id;
-      const linkedProperty = properties.find(p => p.id === selectedInspection.property_id);
-
-      // Prefer the inspection's measured area (inspector may have re-measured
-      // on site); fall back to the property's stored area.
       const inspectionArea = Number(selectedInspection.area_sqm);
       const propertyArea = Number(linkedProperty?.area_sqm);
       const areaSqm = Number.isFinite(inspectionArea) && inspectionArea > 0
         ? inspectionArea
         : (Number.isFinite(propertyArea) && propertyArea > 0 ? propertyArea : 0);
-
       const propertyType = linkedProperty?.property_type || selectedInspection.property_type;
       const pricePerSqm = RATE_PER_SQM[propertyType] || 0;
+      const address = linkedProperty?.address || selectedInspection.property_address;
 
-      if (linkedProperty && areaSqm > 0 && pricePerSqm > 0) {
+      if (areaSqm > 0 && pricePerSqm > 0 && address) {
         const subtotal = areaSqm * pricePerSqm;
-        const description = `Inspection services for ${formatPropertyType(propertyType)} at ${linkedProperty.address} (${areaSqm} SQM @ ${pricePerSqm.toFixed(3)} OMR/SQM)`;
-        const lineItem = { description, quantity: areaSqm, rate: pricePerSqm, amount: subtotal };
-
-        newLineItems = [lineItem];
+        newLineItems = [{
+          description: `Inspection services for ${formatPropertyType(propertyType)} at ${address} (${areaSqm} SQM @ ${pricePerSqm.toFixed(3)} OMR/SQM)`,
+          quantity: areaSqm,
+          rate: pricePerSqm,
+          amount: subtotal,
+        }];
         newSubtotal = subtotal;
-        autoPopulatedSuccessfully = true;
+        didAutoPopulate = true;
       } else {
-        // Missing area or unknown type — clear line items so the user notices.
-        if (newLineItems.length > 0 || newSubtotal > 0) {
-          newLineItems = [];
-          newSubtotal = 0;
-        }
+        newLineItems = [];
+        newSubtotal = 0;
       }
     } else {
-      // If no inspection is linked (inspection_id is empty/null), clear the line items.
-      if (newLineItems.length > 0 || newSubtotal > 0) {
+      // No inspection linked — leave any user-entered items alone unless
+      // they came from a previous auto-fill (subtotal>0 but no inspection).
+      if (newLineItems.length > 0 && newSubtotal > 0 && !invoice.id) {
+        // For a brand-new invoice that lost its inspection link, clear.
         newLineItems = [];
         newSubtotal = 0;
       }
     }
 
-    // Always recalculate tax and total based on the subtotal.
-    const taxRate = (invoice.tax_rate || 0) / 100;
+    const taxRate = (Number(invoice.tax_rate) || 0) / 100;
     const newTaxAmount = newSubtotal * taxRate;
     const newTotal = newSubtotal + newTaxAmount;
 
-    // Only update state if something has actually changed to prevent infinite loops.
-    // Use JSON.stringify for deep comparison of items array
-    const clientChanged = invoice.client_id !== newClientId;
-    const lineItemsChanged = JSON.stringify(invoice.items) !== JSON.stringify(newLineItems);
-    const subtotalChanged = invoice.subtotal !== newSubtotal;
-    const taxAmountChanged = invoice.tax_amount !== newTaxAmount;
-    const totalChanged = invoice.total !== newTotal;
+    // Compare via stable scalars — id-based for items — so we don't spin on
+    // floating-point round-trip differences.
+    const itemsKey = (items) => (items || [])
+      .map(i => `${i.description}|${i.quantity}|${i.rate}|${i.amount}`)
+      .join('||');
 
-    if (clientChanged || lineItemsChanged || subtotalChanged || taxAmountChanged || totalChanged) {
-      setInvoice(prev => ({
-        ...prev,
-        client_id: newClientId,
-        items: newLineItems,
-        subtotal: newSubtotal,
-        tax_amount: newTaxAmount,
-        total: newTotal
-      }));
-      
-      // Show success toast only if auto-population occurred and resulted in a change to line items
-      if (autoPopulatedSuccessfully && lineItemsChanged) {
-        toast.success("Invoice details populated from inspection.");
-      }
+    const clientChanged = invoice.client_id !== newClientId;
+    const lineItemsChanged = itemsKey(invoice.items) !== itemsKey(newLineItems);
+    const subtotalChanged = Math.abs((Number(invoice.subtotal) || 0) - newSubtotal) > 1e-6;
+    const taxAmountChanged = Math.abs((Number(invoice.tax_amount) || 0) - newTaxAmount) > 1e-6;
+    const totalChanged = Math.abs((Number(invoice.total) || 0) - newTotal) > 1e-6;
+
+    if (!clientChanged && !lineItemsChanged && !subtotalChanged && !taxAmountChanged && !totalChanged) {
+      return;
     }
-  }, [invoice, inspections, properties]);
+
+    setInvoice(prev => ({
+      ...prev,
+      client_id: newClientId,
+      items: newLineItems,
+      subtotal: newSubtotal,
+      tax_amount: newTaxAmount,
+      total: newTotal,
+    }));
+
+    if (didAutoPopulate && lineItemsChanged) {
+      toast.success("Invoice details populated from inspection.");
+    }
+    // Depend on the specific scalars that should drive recompute, not the
+    // whole `invoice` object — that's what caused the loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoice?.inspection_id, invoice?.tax_rate, inspections, properties]);
 
 
   const handleSubmit = async (e) => {
@@ -193,16 +192,22 @@ export default function InvoiceForm() {
 
     setIsSaving(true);
     try {
+      // Normalize empty UUID strings to null — Postgres rejects "" as uuid.
+      const payload = {
+        ...invoice,
+        inspection_id: invoice.inspection_id || null,
+        client_id: invoice.client_id || null,
+      };
       if (invoice.id) {
-        await Invoice.update(invoice.id, invoice);
+        await Invoice.update(invoice.id, payload);
       } else {
-        await Invoice.create(invoice);
+        await Invoice.create(payload);
       }
       toast.success("Invoice saved successfully");
       navigate(createPageUrl("Invoices"));
     } catch (error) {
       console.error("Error saving invoice:", error);
-      toast.error("Failed to save invoice");
+      toast.error(error?.message || "Failed to save invoice");
     } finally {
       setIsSaving(false);
     }

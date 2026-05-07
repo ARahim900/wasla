@@ -52,20 +52,29 @@ export default function Invoices() {
 
   const clientsMap = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients]);
 
+  // null due_date or unparseable date should never be flagged overdue —
+  // `new Date(null) < new Date()` is true (1970 < now), which silently
+  // mis-categorizes legacy/imported rows.
+  const computeIsOverdue = (invoice) => {
+    if (invoice.status === 'paid' || invoice.status === 'cancelled') return false;
+    if (!invoice.due_date) return false;
+    const due = new Date(invoice.due_date);
+    if (isNaN(due.getTime())) return false;
+    return due < new Date();
+  };
+
   const filteredInvoices = useMemo(() => {
+    const needle = searchTerm.trim().toLowerCase();
     return invoices.filter(invoice => {
       const client = clientsMap.get(invoice.client_id);
-      const search = searchTerm.toLowerCase();
-      
-      const matchesSearch = !search ||
-        client?.name.toLowerCase().includes(search) ||
-        invoice.invoice_number.toLowerCase().includes(search);
-      
-      const isOverdue = invoice.status !== 'paid' && invoice.status !== 'cancelled' && new Date(invoice.due_date) < new Date();
+      const matchesSearch = !needle ||
+        (client?.name ?? "").toLowerCase().includes(needle) ||
+        (invoice.invoice_number ?? "").toLowerCase().includes(needle);
+
+      const isOverdue = computeIsOverdue(invoice);
       const effectiveStatus = isOverdue ? 'overdue' : invoice.status;
-      
       const matchesStatus = statusFilter === "all" || effectiveStatus === statusFilter;
-      
+
       return matchesSearch && matchesStatus;
     });
   }, [invoices, searchTerm, statusFilter, clientsMap]);
@@ -124,7 +133,7 @@ export default function Invoices() {
             {filteredInvoices.length > 0 ? (
               filteredInvoices.map((invoice) => {
                 const client = clientsMap.get(invoice.client_id);
-                const isOverdue = invoice.status !== 'paid' && invoice.status !== 'cancelled' && new Date(invoice.due_date) < new Date();
+                const isOverdue = computeIsOverdue(invoice);
                 const status = isOverdue ? 'overdue' : invoice.status;
 
                 return (

@@ -49,8 +49,11 @@ export default function ClientForm({ client, onSubmit, onCancel, isLoading }) {
   const validate = () => {
     const next = {};
     if (!formData.name?.trim()) next.name = "Full name is required.";
-    if (!formData.email?.trim()) next.email = "Email is required.";
-    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(formData.email)) next.email = "Enter a valid email.";
+    // Email is optional (matches schema and the inspection find-or-create flow);
+    // only enforce a format check when the user actually typed something.
+    if (formData.email?.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(formData.email)) {
+      next.email = "Enter a valid email.";
+    }
     return next;
   };
 
@@ -94,7 +97,7 @@ export default function ClientForm({ client, onSubmit, onCancel, isLoading }) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             <FormField id="name" label="Full Name" icon={User} value={formData.name} onChange={handleChange} placeholder="Enter client's full name" required error={errors.name} />
-            <FormField id="email" label="Email Address" icon={Mail} type="email" value={formData.email} onChange={handleChange} placeholder="client@example.com" required error={errors.email} />
+            <FormField id="email" label="Email Address" icon={Mail} type="email" value={formData.email} onChange={handleChange} placeholder="client@example.com" error={errors.email} />
             <FormField id="phone" label="Phone Number" icon={Phone} value={formData.phone} onChange={handleChange} placeholder="+1 (555) 123-4567" />
             <FormField id="company" label="Company" icon={Building2} value={formData.company} onChange={handleChange} placeholder="Company name" />
           </div>

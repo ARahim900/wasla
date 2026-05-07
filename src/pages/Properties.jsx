@@ -55,11 +55,16 @@ export default function Properties() {
 
   const clientsMap = useMemo(() => new Map(clients.map(c => [c.id, c.name])), [clients]);
 
-  const filteredProperties = useMemo(() =>
-    properties.filter(property =>
-      property.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      clientsMap.get(property.client_id)?.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [properties, searchTerm, clientsMap]);
+  const filteredProperties = useMemo(() => {
+    const needle = searchTerm.trim().toLowerCase();
+    if (!needle) return properties;
+    return properties.filter(property => {
+      const address = (property.address ?? "").toLowerCase();
+      const clientName = (clientsMap.get(property.client_id) ?? "").toLowerCase();
+      const type = (property.property_type ?? "").toLowerCase();
+      return address.includes(needle) || clientName.includes(needle) || type.includes(needle);
+    });
+  }, [properties, searchTerm, clientsMap]);
 
   const handleAddNew = () => {
     setEditingProperty(null);

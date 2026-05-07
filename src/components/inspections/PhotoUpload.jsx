@@ -92,24 +92,36 @@ export default function PhotoUpload({ photos, onUpdate }) {
     let skippedType = 0;
     let suspiciousCount = 0;
 
-    for (let file of Array.from(files)) {
-      if (!file.type.startsWith('image/')) {
-        skippedType++;
-        continue;
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        skippedSize++;
-        continue;
-      }
-      try {
-        if (await looksLikeScreenshot(file)) suspiciousCount++;
-        file = await compressImage(file);
-        const { file_url } = await UploadFile({ file, bucket: 'inspection-photos' });
-        uploadedPhotos.push({ url: file_url, name: file.name });
-      } catch (error) {
-        failCount++;
-        console.error('Error uploading file:', error);
-      }
+    // Filter into a queue first so the size/type counts are accurate before
+    // we start uploading. Then process in batches of 3 — sequential uploads
+    // on mobile take ~10s for 5 photos and freeze the UI; concurrency 3 keeps
+    // peak memory bounded but cuts wall time meaningfully.
+    const queue = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) { skippedType++; continue; }
+      if (file.size > MAX_FILE_SIZE) { skippedSize++; continue; }
+      queue.push(file);
+    }
+
+    const processOne = async (originalFile) => {
+      if (await looksLikeScreenshot(originalFile)) suspiciousCount++;
+      const compressed = await compressImage(originalFile);
+      const { file_url } = await UploadFile({ file: compressed, bucket: 'inspection-photos' });
+      return { url: file_url, name: compressed.name };
+    };
+
+    const CONCURRENCY = 3;
+    for (let i = 0; i < queue.length; i += CONCURRENCY) {
+      const batch = queue.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(batch.map(processOne));
+      results.forEach((r) => {
+        if (r.status === 'fulfilled') {
+          uploadedPhotos.push(r.value);
+        } else {
+          failCount++;
+          console.error('Error uploading file:', r.reason);
+        }
+      });
     }
 
     if (uploadedPhotos.length > 0) {

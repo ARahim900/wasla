@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/api/entities';
 
@@ -85,15 +85,18 @@ export const AuthProvider = ({ children }) => {
       (event, session) => {
         if (event === 'INITIAL_SESSION') {
           if (session?.user) {
-            setIsAuthenticated(true);
-            // Stay in loading state until the full profile arrives, so the app
-            // never renders a half-populated user object.
+            // Set both isAuthenticated and user atomically once the profile
+            // resolves, so consumers reading `user` synchronously never see
+            // a half-populated state. Layout reads user.darkMode on the very
+            // first render — this prevents a flash of the wrong theme.
             setTimeout(() => {
               loadUserProfile(session.user)
-                .then(setUser)
+                .then((profile) => {
+                  setUser(profile);
+                  setIsAuthenticated(true);
+                })
                 .catch((error) => {
                   console.error('Failed to load profile:', error);
-                  // Fall back to session-derived data so the app still works.
                   setUser({
                     id: session.user.id,
                     email: session.user.email || '',
@@ -102,6 +105,7 @@ export const AuthProvider = ({ children }) => {
                     darkMode: false,
                     theme: 'light',
                   });
+                  setIsAuthenticated(true);
                 })
                 .finally(() => setIsLoadingAuth(false));
             }, 0);
@@ -111,11 +115,16 @@ export const AuthProvider = ({ children }) => {
             setIsLoadingAuth(false);
           }
         } else if (event === 'SIGNED_IN' && session?.user) {
-          setIsAuthenticated(true);
           setTimeout(() => {
             loadUserProfile(session.user)
-              .then(setUser)
-              .catch((error) => console.error('Failed to load profile:', error));
+              .then((profile) => {
+                setUser(profile);
+                setIsAuthenticated(true);
+              })
+              .catch((error) => {
+                console.error('Failed to load profile:', error);
+                setIsAuthenticated(true); // session is valid even if profile load fails
+              });
           }, 0);
         } else if (event === 'PASSWORD_RECOVERY') {
           // User arrived from a recovery email — Supabase has just established
@@ -273,16 +282,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Idempotent logout — guard against double-clicks racing the
+  // signOut/redirect, which previously caused a flicker where the second
+  // navigation cancelled the first on flaky networks.
+  const isLoggingOutRef = useRef(false);
   const logout = async (shouldRedirect = true) => {
+    if (isLoggingOutRef.current) return;
+    isLoggingOutRef.current = true;
     setUser(null);
     setIsAuthenticated(false);
 
-    if (!isDemoMode) {
-      await supabase.auth.signOut();
-    }
-
-    if (shouldRedirect) {
-      window.location.href = '/';
+    try {
+      if (!isDemoMode) {
+        await supabase.auth.signOut();
+      }
+    } catch (err) {
+      console.error('Logout failed:', err);
+    } finally {
+      if (shouldRedirect) {
+        window.location.href = '/';
+      } else {
+        // Only release the lock when we're staying on the page — a redirect
+        // unmounts everything anyway.
+        isLoggingOutRef.current = false;
+      }
     }
   };
 

@@ -13,7 +13,7 @@ function buildReportData(inspection, client, property) {
     inspector_name: inspection?.inspector_name || 'Wasla Inspector',
     inspection_date: inspection?.inspection_date || new Date().toISOString(),
     property_type: property?.property_type || inspection?.property_type || 'N/A',
-    location: property?.address || inspection?.location || 'N/A',
+    location: property?.address || inspection?.property_address || 'N/A',
     areas: Array.isArray(inspection?.areas) ? inspection.areas : [],
     recommendations: Array.isArray(inspection?.recommendations) ? inspection.recommendations : []
   };
@@ -28,6 +28,9 @@ export default function InspectionReport() {
   const [loading, setLoading] = useState(true);
   const [reportHTML, setReportHTML] = useState("");
   const [building, setBuilding] = useState(false);
+  // Distinguishes "no id in URL" (bad link) from "id given but not found"
+  // (record deleted). The empty-state below renders different copy for each.
+  const [notFoundReason, setNotFoundReason] = useState(null); // 'no-id' | 'deleted' | null
 
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get("id");
@@ -40,7 +43,11 @@ export default function InspectionReport() {
         const res = await Inspection.filter({ id });
         const ins = res?.[0];
         if (!ins) {
-          if (!cancelled) setLoading(false);
+          if (!cancelled) {
+            setNotFoundReason('deleted');
+            setLoading(false);
+            toast.error('Inspection not found — it may have been deleted.');
+          }
           return;
         }
         const [propRes, cliRes] = await Promise.all([
@@ -58,8 +65,12 @@ export default function InspectionReport() {
         if (!cancelled) setLoading(false);
       }
     };
-    if (id) load();
-    else setLoading(false);
+    if (id) {
+      load();
+    } else {
+      setNotFoundReason('no-id');
+      setLoading(false);
+    }
     return () => { cancelled = true; };
   }, [id]);
 
@@ -106,14 +117,19 @@ export default function InspectionReport() {
   }
 
   if (!inspection) {
+    const heading = notFoundReason === 'no-id'
+      ? 'No report selected'
+      : 'Report not found';
+    const message = notFoundReason === 'no-id'
+      ? 'This page needs an inspection ID. Pick one from the Inspections list.'
+      : 'This inspection may have been deleted, or the link is incorrect.';
     return (
-      <div className="p-8 text-center">
-        Report not found.
-        <div className="mt-4">
-          <Button variant="outline" onClick={() => navigate(createPageUrl("Inspections"))}>
-            <ArrowLeft className="w-4 h-4 mr-2" />Back
-          </Button>
-        </div>
+      <div className="p-8 text-center max-w-md mx-auto">
+        <h2 className="text-xl font-semibold text-foreground mb-2">{heading}</h2>
+        <p className="text-sm text-muted-foreground mb-4">{message}</p>
+        <Button variant="outline" onClick={() => navigate(createPageUrl("Inspections"))}>
+          <ArrowLeft className="w-4 h-4 mr-2" />Back to Inspections
+        </Button>
       </div>
     );
   }

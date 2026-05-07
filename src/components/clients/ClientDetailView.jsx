@@ -35,6 +35,12 @@ export default function ClientDetailView({ client, onEdit }) {
   const [inspections, setInspections] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const propertyAddressFor = (inspection) => {
+    if (inspection.property_address) return inspection.property_address;
+    const linked = properties.find(p => p.id === inspection.property_id);
+    return linked?.address || 'Location not specified';
+  };
+
   useEffect(() => {
     const loadClientData = async () => {
       if (!client?.id) return;
@@ -232,7 +238,7 @@ export default function ClientDetailView({ client, onEdit }) {
                         )}
                         {inspection.property_type && (
                           <p className="text-muted-foreground">
-                            Property: {inspection.property_type} • {inspection.location || 'Location not specified'}
+                            Property: {inspection.property_type} • {propertyAddressFor(inspection)}
                           </p>
                         )}
                       </div>

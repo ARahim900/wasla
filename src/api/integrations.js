@@ -33,7 +33,20 @@ export async function UploadFile({ file, bucket = 'uploads' }) {
   }
 
   const userId = userData.user.id;
-  const fileExt = file.name.split('.').pop();
+  // Prefer mime-type → extension over the file name. Files pasted from the
+  // clipboard or coming from camera capture often arrive without an
+  // extension on `file.name`.
+  const mimeToExt = {
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/heic': 'heic',
+    'image/heif': 'heif',
+  };
+  const nameExt = (file.name?.includes('.') ? file.name.split('.').pop() : '').toLowerCase();
+  const fileExt = mimeToExt[file.type] || nameExt || 'jpg';
   const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
   // Include user_id in path for RLS policy: {user_id}/{filename}
   const filePath = `${userId}/${fileName}`;

@@ -60,6 +60,7 @@ export default function Login() {
   const [confirmEmailSent, setConfirmEmailSent] = useState(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
+  const [resetLinkSentTo, setResetLinkSentTo] = useState(null);
 
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signUpData, setSignUpData] = useState({ email: "", password: "", confirmPassword: "" });
@@ -130,6 +131,39 @@ export default function Login() {
     }
   };
 
+  // ───────── Forgot password — confirmation card ─────────
+  if (resetLinkSentTo) {
+    return (
+      <PageShell>
+        <BrandHeader />
+        <Card>
+          <CardContent className="pt-6 pb-6 sm:pt-8 sm:pb-8 text-center">
+            <CheckCircle2 className="w-14 h-14 sm:w-16 sm:h-16 text-primary mx-auto mb-4" />
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">Check your email</h2>
+            <p className="text-muted-foreground mb-1">If an account exists for</p>
+            <p className="font-medium text-foreground mb-6 break-all">{resetLinkSentTo}</p>
+            <p className="text-sm text-muted-foreground mb-6">
+              we&apos;ve sent a password reset link. Check your inbox (and spam folder).
+            </p>
+            <div className="space-y-3">
+              <Button
+                onClick={() => {
+                  setResetLinkSentTo(null);
+                  setShowForgotPassword(false);
+                  setActiveTab("login");
+                  setLoginData((p) => ({ ...p, email: resetLinkSentTo }));
+                }}
+                className="w-full"
+              >
+                Back to Log In
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </PageShell>
+    );
+  }
+
   // ───────── Forgot password ─────────
   if (showForgotPassword) {
     return (
@@ -151,7 +185,7 @@ export default function Login() {
                 setIsLoading(true);
                 try {
                   await resetPassword(forgotEmail);
-                  toast.success("Password reset email sent! Check your inbox.");
+                  setResetLinkSentTo(forgotEmail);
                 } catch (err) {
                   toast.error(err.message || "Failed to send reset email. Please try again.");
                 } finally {

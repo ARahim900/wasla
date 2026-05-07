@@ -39,9 +39,12 @@ export default function Inspections() {
         Client.list().catch(() => [])
       ]);
 
-      setInspections(inspectionData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) || []);
-      setProperties(propertyData || []);
-      setClients(clientData || []);
+      const safeInspections = Array.isArray(inspectionData) ? inspectionData : [];
+      setInspections(
+        [...safeInspections].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      );
+      setProperties(Array.isArray(propertyData) ? propertyData : []);
+      setClients(Array.isArray(clientData) ? clientData : []);
 
     } catch (error) {
       console.error("Error loading data:", error);
@@ -60,7 +63,7 @@ export default function Inspections() {
     // Optimistic update
     setInspections(prev => prev.map(i => i.id === inspection.id ? { ...i, status: newStatus } : i));
     try {
-      await Inspection.update(inspection.id, { ...inspection, status: newStatus });
+      await Inspection.update(inspection.id, { status: newStatus });
       toast.success(`Inspection status updated to ${newStatus.replace('_', ' ')}`);
     } catch (error) {
       // Rollback on failure
@@ -74,28 +77,36 @@ export default function Inspections() {
     if (!confirm("Are you sure you want to delete this inspection?")) return;
 
     try {
-      // Clean up photos from storage before deleting the record
+      // Clean up photos from storage before deleting the record. Await the
+      // results so we can warn the user if any orphaned files remain — silent
+      // failures here lead to growing storage costs over time.
       const inspection = inspections.find(i => i.id === inspectionId);
+      let photoFailures = 0;
       if (inspection) {
         const photoUrls = [];
-        // Collect photos from areas → items
         (inspection.areas || []).forEach(area => {
           (area.items || []).forEach(item => {
             (item.photos || []).forEach(p => { if (p.url) photoUrls.push(p.url); });
           });
         });
-        // Collect top-level photos
         (inspection.photos || []).forEach(p => { if (p.url) photoUrls.push(p.url); });
-        // Delete all in background
-        photoUrls.forEach(url => DeleteFile({ url }).catch(() => {}));
+
+        if (photoUrls.length > 0) {
+          const results = await Promise.allSettled(photoUrls.map(url => DeleteFile({ url })));
+          photoFailures = results.filter(r => r.status === 'rejected').length;
+        }
       }
 
       await Inspection.delete(inspectionId);
-      toast.success("Inspection deleted successfully");
+      if (photoFailures > 0) {
+        toast.warning(`Inspection deleted, but ${photoFailures} photo${photoFailures > 1 ? 's' : ''} could not be removed from storage.`);
+      } else {
+        toast.success("Inspection deleted successfully");
+      }
       await loadData();
     } catch (error) {
       console.error("Error deleting inspection:", error);
-      toast.error("Failed to delete inspection");
+      toast.error(error?.message || "Failed to delete inspection");
     }
   };
 

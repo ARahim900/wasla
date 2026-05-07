@@ -60,7 +60,10 @@ export default function Dashboard() {
 
     const overdueInvoices = invoices.filter((inv) => {
       if (inv.status === 'paid' || inv.status === 'cancelled' || inv.status === 'draft') return false;
-      return new Date(inv.due_date) < new Date();
+      if (!inv.due_date) return false;
+      const due = new Date(inv.due_date);
+      if (isNaN(due.getTime())) return false;
+      return due < new Date();
     }).length;
 
     return {

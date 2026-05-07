@@ -23,8 +23,21 @@ function generateId() {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
-// Initialize demo data if empty
+// Bump this when seed shape changes — forces existing demo users onto the
+// new shape on their next visit instead of silently rendering stale data.
+const DEMO_SEED_VERSION = 2;
+
+// Initialize demo data if empty (or if the seed version has bumped).
 function initDemoData() {
+  const seenVersion = Number(localStorage.getItem(`${STORAGE_PREFIX}seed_version`)) || 0;
+  const needsReseed = seenVersion < DEMO_SEED_VERSION;
+  if (needsReseed) {
+    // Drop legacy seed data so the keys match production schema.
+    ['clients', 'properties', 'inspections', 'invoices'].forEach(k =>
+      localStorage.removeItem(`${STORAGE_PREFIX}${k}`)
+    );
+    localStorage.setItem(`${STORAGE_PREFIX}seed_version`, String(DEMO_SEED_VERSION));
+  }
   if (getDemoData('clients').length === 0) {
     const clients = [
       {
@@ -58,7 +71,7 @@ function initDemoData() {
         client_id: clients[0].id,
         name: 'Seaside Villa',
         address: '123 Beach Road, Muscat',
-        type: 'Villa',
+        property_type: 'villa',
         bedrooms: 4,
         bathrooms: 3,
         area_sqm: 325,
@@ -70,7 +83,7 @@ function initDemoData() {
         client_id: clients[1].id,
         name: 'Downtown Apartment',
         address: '456 City Center, Muscat',
-        type: 'Apartment',
+        property_type: 'apartment',
         bedrooms: 2,
         bathrooms: 2,
         area_sqm: 110,
@@ -85,9 +98,13 @@ function initDemoData() {
         updated_at: new Date().toISOString(),
         property_id: properties[0].id,
         client_id: clients[0].id,
+        client_name: clients[0].name,
+        property_address: properties[0].address,
+        property_type: properties[0].property_type,
+        area_sqm: properties[0].area_sqm,
         inspector_name: 'Mohammed Al-Siyabi',
         inspection_date: new Date().toISOString().split('T')[0],
-        type: 'Move-in',
+        inspection_type: 'pre_purchase',
         status: 'completed',
         areas: [],
         notes: 'Property in excellent condition',

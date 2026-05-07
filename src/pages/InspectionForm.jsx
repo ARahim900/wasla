@@ -11,14 +11,20 @@ import { Inspection, Property, Client } from "@/api/entities";
 import AreaCard from "../components/inspections/AreaCard";
 import { createPageUrl } from "@/utils";
 import PDFExportButton from "../components/inspections/PDFExportButton";
+import { RATE_PER_SQM, calculateInspectionFee, formatPropertyType } from "@/lib/pricing";
+
+const norm = (s) => (s || "").trim().toLowerCase();
 
 export default function InspectionForm() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const [inspection, setInspection] = useState(null);
-  const [properties, setProperties] = useState([]);
+  // Loaded for find-or-create resolution on save (no UI dropdowns).
   const [clients, setClients] = useState([]);
+  const [properties, setProperties] = useState([]);
+  const [linkedClient, setLinkedClient] = useState(null);
+  const [linkedProperty, setLinkedProperty] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -47,22 +53,36 @@ export default function InspectionForm() {
           }
 
           if (inspectionData.inspection_date) {
-            inspectionData.inspection_date = new Date(
-              inspectionData.inspection_date
-            )
-              .toISOString()
-              .split("T")[0];
+            // The DB column is DATE (no timezone). If we ever get a timestamp
+            // back, slice the YYYY-MM-DD prefix without round-tripping through
+            // Date — that round-trip shifts the day for users east of UTC.
+            inspectionData.inspection_date = String(inspectionData.inspection_date).slice(0, 10);
           }
 
           if (!inspectionData.areas) inspectionData.areas = [];
 
-          // Backfill client_id from client_name for legacy inspections so the
-          // Select shows the right entry instead of "Select a client".
-          if (!inspectionData.client_id && inspectionData.client_name) {
-            const match = (clientData || []).find(
-              c => c.name?.trim().toLowerCase() === inspectionData.client_name.trim().toLowerCase()
-            );
-            if (match) inspectionData.client_id = match.id;
+          // Surface client + property names from linked records so the manual
+          // fields don't appear blank when editing a legacy inspection.
+          const linkedC = (clientData || []).find(c => c.id === inspectionData.client_id) || null;
+          const linkedP = (propertyData || []).find(p => p.id === inspectionData.property_id) || null;
+          setLinkedClient(linkedC);
+          setLinkedProperty(linkedP);
+
+          if (!inspectionData.client_name && linkedC?.name) {
+            inspectionData.client_name = linkedC.name;
+          }
+          if (!inspectionData.client_phone && linkedC?.phone) {
+            inspectionData.client_phone = linkedC.phone;
+          }
+          if (!inspectionData.property_address && linkedP?.address) {
+            inspectionData.property_address = linkedP.address;
+          }
+          if (!inspectionData.property_type && linkedP?.property_type) {
+            inspectionData.property_type = linkedP.property_type;
+          }
+          const inspArea = Number(inspectionData.area_sqm);
+          if ((!Number.isFinite(inspArea) || inspArea <= 0) && linkedP?.area_sqm) {
+            inspectionData.area_sqm = linkedP.area_sqm;
           }
 
           setInspection(inspectionData);
@@ -70,7 +90,9 @@ export default function InspectionForm() {
           setInspection({
             client_id: "",
             client_name: "",
+            client_phone: "",
             property_id: "",
+            property_address: "",
             property_type: "villa",
             area_sqm: "",
             inspector_name: "",
@@ -83,12 +105,13 @@ export default function InspectionForm() {
       } catch (err) {
         toast.error("Failed to load data. Please check your connection.");
         console.error("Failed to load data:", err);
-        // Create default inspection so form still renders (for new inspections)
         if (!inspectionId) {
           setInspection({
             client_id: "",
             client_name: "",
+            client_phone: "",
             property_id: "",
+            property_address: "",
             property_type: "villa",
             area_sqm: "",
             inspector_name: "",
@@ -108,45 +131,6 @@ export default function InspectionForm() {
 
   const handleUpdateField = (field, value) => {
     setInspection((prev) => (prev ? { ...prev, [field]: value } : prev));
-  };
-
-  const handleClientChange = (clientId) => {
-    const c = clients.find((x) => x.id === clientId);
-    setInspection((prev) =>
-      prev
-        ? {
-            ...prev,
-            client_id: clientId,
-            client_name: c?.name || "",
-            // If the previously chosen property doesn't belong to this client,
-            // clear it so the property dropdown isn't showing a stale label.
-            property_id:
-              prev.property_id &&
-              properties.find((p) => p.id === prev.property_id)?.client_id === clientId
-                ? prev.property_id
-                : "",
-          }
-        : prev
-    );
-  };
-
-  const handlePropertyChange = (propertyId) => {
-    const p = properties.find((x) => x.id === propertyId);
-    setInspection((prev) => {
-      if (!prev) return prev;
-      // Default area from property only if the inspection doesn't have its
-      // own value yet — don't clobber an inspector's on-site measurement.
-      const next = {
-        ...prev,
-        property_id: propertyId,
-        property_type: p?.property_type || prev.property_type,
-      };
-      const prevArea = prev.area_sqm === "" || prev.area_sqm == null ? null : Number(prev.area_sqm);
-      if ((!Number.isFinite(prevArea) || prevArea <= 0) && p?.area_sqm) {
-        next.area_sqm = p.area_sqm;
-      }
-      return next;
-    });
   };
 
   const handleAddArea = () => {
@@ -176,14 +160,93 @@ export default function InspectionForm() {
     handleUpdateField("areas", newAreas);
   };
 
+  // Find-or-create a Client by name. Re-fetches just before matching so a
+  // concurrent edit in another tab doesn't cause a duplicate row.
+  const resolveClient = async (clientName, clientPhone) => {
+    const trimmedName = (clientName || "").trim();
+    if (!trimmedName) return null;
+    let pool = clients;
+    try {
+      const fresh = await Client.list();
+      if (Array.isArray(fresh)) pool = fresh;
+    } catch (err) {
+      console.warn("Could not refresh clients before save:", err?.message);
+    }
+    const match = pool.find(c => norm(c.name) === norm(trimmedName));
+    if (match) {
+      if (clientPhone && !match.phone) {
+        try {
+          await Client.update(match.id, { phone: clientPhone.trim() });
+        } catch (err) {
+          console.warn("Could not backfill client phone:", err?.message);
+        }
+      }
+      return match;
+    }
+    const created = await Client.create({
+      name: trimmedName,
+      phone: clientPhone ? clientPhone.trim() : null,
+    });
+    setClients(prev => [...prev, created]);
+    return created;
+  };
+
+  // Find-or-create a Property by address. Re-fetches before matching to
+  // avoid duplicates from concurrent edits.
+  const resolveProperty = async ({ address, propertyType, areaSqm, clientId }) => {
+    const trimmedAddress = (address || "").trim();
+    if (!trimmedAddress) return null;
+    let pool = properties;
+    try {
+      const fresh = await Property.list();
+      if (Array.isArray(fresh)) pool = fresh;
+    } catch (err) {
+      console.warn("Could not refresh properties before save:", err?.message);
+    }
+    const match = pool.find(p => norm(p.address) === norm(trimmedAddress));
+    if (match) {
+      const patch = {};
+      if (clientId && !match.client_id) patch.client_id = clientId;
+      if (propertyType && !match.property_type) patch.property_type = propertyType;
+      const matchArea = Number(match.area_sqm);
+      if ((!Number.isFinite(matchArea) || matchArea <= 0) && areaSqm) {
+        patch.area_sqm = areaSqm;
+      }
+      if (Object.keys(patch).length > 0) {
+        try {
+          const updated = await Property.update(match.id, patch);
+          return updated || { ...match, ...patch };
+        } catch (err) {
+          console.warn("Could not patch property:", err?.message);
+          return match;
+        }
+      }
+      return match;
+    }
+    const created = await Property.create({
+      address: trimmedAddress,
+      property_type: propertyType || "villa",
+      area_sqm: areaSqm || null,
+      client_id: clientId || null,
+    });
+    setProperties(prev => [...prev, created]);
+    return created;
+  };
+
   const preparePayload = (ins) => {
-    // Drop server-managed columns so we don't stomp them on update
-    const { id: _id, created_at: _ca, updated_at: _ua, user_id: _uid, ...payload } = ins;
-    void _id; void _ca; void _ua; void _uid;
-    // Convert empty string IDs to null (Supabase UUID columns reject empty strings)
+    // Drop server-managed columns and UI-only fields so we don't write
+    // unknown columns. client_phone lives on the clients table, not here.
+    const {
+      id: _id,
+      created_at: _ca,
+      updated_at: _ua,
+      user_id: _uid,
+      client_phone: _cp,
+      ...payload
+    } = ins;
+    void _id; void _ca; void _ua; void _uid; void _cp;
     if (!payload.client_id) payload.client_id = null;
     if (!payload.property_id) payload.property_id = null;
-    // Coerce area_sqm to a number (or null) so downstream pricing math works.
     if (payload.area_sqm === "" || payload.area_sqm == null) {
       payload.area_sqm = null;
     } else {
@@ -195,13 +258,10 @@ export default function InspectionForm() {
       id: String(a.id),
       items: (a.items || []).map((it) => ({ ...it, id: String(it.id) })),
     }));
-    if (
-      payload.inspection_date &&
-      /^\d{4}-\d{2}-\d{2}$/.test(payload.inspection_date)
-    ) {
-      payload.inspection_date = new Date(
-        payload.inspection_date + "T00:00:00"
-      ).toISOString();
+    // Pass the YYYY-MM-DD string through unchanged. Postgres DATE accepts it
+    // as-is, and we avoid the timezone shift caused by new Date(...).toISOString().
+    if (payload.inspection_date && !/^\d{4}-\d{2}-\d{2}$/.test(payload.inspection_date)) {
+      payload.inspection_date = String(payload.inspection_date).slice(0, 10) || null;
     }
     return payload;
   };
@@ -210,12 +270,12 @@ export default function InspectionForm() {
     e.preventDefault();
     if (!inspection) return;
 
-    if (!inspection.client_id) {
-      toast.error("Please select a client.");
+    if (!inspection.client_name?.trim()) {
+      toast.error("Please enter the client name.");
       return;
     }
-    if (!inspection.property_id) {
-      toast.error("Please select a property.");
+    if (!inspection.property_address?.trim()) {
+      toast.error("Please enter the property address.");
       return;
     }
     const areaCheck = Number(inspection.area_sqm);
@@ -224,17 +284,51 @@ export default function InspectionForm() {
       return;
     }
 
+    // When editing, warn before silently re-linking to a different client or
+    // property — protects against typos changing existing relationships.
+    if (inspection.id) {
+      const typedClientName = (inspection.client_name || "").trim();
+      const typedAddress = (inspection.property_address || "").trim();
+      const switchingClient = linkedClient && norm(linkedClient.name) !== norm(typedClientName);
+      const switchingProperty = linkedProperty && norm(linkedProperty.address) !== norm(typedAddress);
+      if (switchingClient || switchingProperty) {
+        const lines = [];
+        if (switchingClient) lines.push(`Client: "${linkedClient.name}" → "${typedClientName}"`);
+        if (switchingProperty) lines.push(`Property: "${linkedProperty.address}" → "${typedAddress}"`);
+        const msg = `You're about to change this inspection's link:\n\n${lines.join('\n')}\n\nThe original record(s) will stay in your database, but this inspection will move. Continue?`;
+        if (!window.confirm(msg)) return;
+      }
+    }
+
     setIsSaving(true);
     const toastId = toast.loading(
       inspection.id ? "Updating inspection..." : "Saving inspection..."
     );
     try {
-      const payload = preparePayload(inspection);
-      let savedInspection;
+      const resolvedClient = await resolveClient(
+        inspection.client_name,
+        inspection.client_phone
+      );
+      const resolvedProperty = await resolveProperty({
+        address: inspection.property_address,
+        propertyType: inspection.property_type,
+        areaSqm: areaCheck,
+        clientId: resolvedClient?.id,
+      });
+
+      const enriched = {
+        ...inspection,
+        client_id: resolvedClient?.id || null,
+        client_name: resolvedClient?.name || inspection.client_name?.trim() || null,
+        property_id: resolvedProperty?.id || null,
+        property_address: resolvedProperty?.address || inspection.property_address?.trim() || null,
+      };
+
+      const payload = preparePayload(enriched);
       if (inspection.id) {
-        savedInspection = await Inspection.update(inspection.id, payload);
+        await Inspection.update(inspection.id, payload);
       } else {
-        savedInspection = await Inspection.create(payload);
+        await Inspection.create(payload);
       }
       toast.success("Inspection saved successfully.", { id: toastId });
       navigate(createPageUrl("Inspections"));
@@ -268,22 +362,16 @@ export default function InspectionForm() {
       </div>
     );
   }
-  
-  const selectedClient = clients.find(c => c.id === inspection.client_id);
-  const selectedProperty = properties.find(p => p.id === inspection.property_id);
-  const propertiesForClient = inspection.client_id
-    ? properties.filter(p => p.client_id === inspection.client_id)
-    : properties;
 
-  // Mirror InvoiceForm's rate table so inspectors see the live estimate
-  // before the invoice is created. Keep this in sync with InvoiceForm.
-  const RATE_PER_SQM = { villa: 1.0, apartment: 0.7, office: 2.0, building: 2.0 };
   const areaNum = Number(inspection.area_sqm);
   const ratePerSqm = RATE_PER_SQM[inspection.property_type] || 0;
-  const estimatedFee = Number.isFinite(areaNum) && areaNum > 0 && ratePerSqm > 0
-    ? areaNum * ratePerSqm
-    : 0;
-  const formatType = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : "");
+  const estimatedFee = calculateInspectionFee(areaNum, inspection.property_type);
+  const trimmedClientName = (inspection.client_name || "").trim();
+  const trimmedAddress = (inspection.property_address || "").trim();
+  const willCreateClient = trimmedClientName.length > 0
+    && !clients.some(c => norm(c.name) === norm(trimmedClientName));
+  const willCreateProperty = trimmedAddress.length > 0
+    && !properties.some(p => norm(p.address) === norm(trimmedAddress));
 
   return (
     <div>
@@ -303,84 +391,86 @@ export default function InspectionForm() {
         </div>
 
         <div className="bg-card p-4 sm:p-6 rounded-lg shadow-sm border">
-          <h2 className="text-xl font-bold mb-6 text-foreground">
+          <h2 className="text-xl font-bold mb-2 text-foreground">
             Inspection Details
           </h2>
+          <p className="text-xs text-muted-foreground mb-6">
+            Type the client and property details directly. New entries are added to your Clients and Properties on save; existing ones are matched by name and address.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             <div className="space-y-2">
-              <Label htmlFor="client_id">Client *</Label>
-              <Select
-                value={inspection.client_id || ""}
-                onValueChange={handleClientChange}
-              >
-                <SelectTrigger id="client_id" className="h-10 text-sm">
-                  <SelectValue placeholder={clients.length ? "Select a client" : "No clients yet"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {clients.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Add a client first from the{" "}
-                  <button
-                    type="button"
-                    onClick={() => navigate(createPageUrl("Clients"))}
-                    className="text-primary hover:underline"
-                  >
-                    Clients
-                  </button>{" "}
-                  page.
-                </p>
+              <Label htmlFor="client_name">Client Name *</Label>
+              <Input
+                id="client_name"
+                value={inspection.client_name || ""}
+                onChange={(e) => handleUpdateField("client_name", e.target.value)}
+                placeholder="e.g. Ahmed Al-Rashid"
+                className="w-full h-10 text-sm"
+                autoComplete="off"
+              />
+              {willCreateClient && (
+                <p className="text-xs text-muted-foreground">New client — will be added to your Clients on save.</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="property_id">Property *</Label>
+              <Label htmlFor="client_phone">Client Phone</Label>
+              <Input
+                id="client_phone"
+                type="tel"
+                value={inspection.client_phone || ""}
+                onChange={(e) => handleUpdateField("client_phone", e.target.value)}
+                placeholder="+968 9123 4567"
+                className="w-full h-10 text-sm"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="property_address">Property Address *</Label>
+              <Input
+                id="property_address"
+                value={inspection.property_address || ""}
+                onChange={(e) => handleUpdateField("property_address", e.target.value)}
+                placeholder="e.g. Villa 12, Al Mouj, Muscat"
+                className="w-full h-10 text-sm"
+                autoComplete="off"
+              />
+              {willCreateProperty && (
+                <p className="text-xs text-muted-foreground">New property — will be added to your Properties on save.</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="property_type">Property Type *</Label>
               <Select
-                value={inspection.property_id || ""}
-                onValueChange={handlePropertyChange}
-                disabled={!inspection.client_id}
+                value={inspection.property_type}
+                onValueChange={(value) => handleUpdateField("property_type", value)}
               >
-                <SelectTrigger id="property_id" className="h-10 text-sm">
-                  <SelectValue
-                    placeholder={
-                      !inspection.client_id
-                        ? "Select a client first"
-                        : propertiesForClient.length
-                        ? "Select a property"
-                        : "No properties for this client"
-                    }
-                  />
+                <SelectTrigger id="property_type" className="h-10">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {propertiesForClient.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      <span className="capitalize">{p.property_type}</span> — {p.address}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="villa">Villa</SelectItem>
+                  <SelectItem value="apartment">Apartment</SelectItem>
+                  <SelectItem value="office">Office</SelectItem>
+                  <SelectItem value="building">Building</SelectItem>
                 </SelectContent>
               </Select>
-              {inspection.client_id && propertiesForClient.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  No properties yet for this client. Add one from the{" "}
-                  <button
-                    type="button"
-                    onClick={() => navigate(createPageUrl("Properties"))}
-                    className="text-primary hover:underline"
-                  >
-                    Properties
-                  </button>{" "}
-                  page.
-                </p>
-              )}
-              {selectedProperty && (
-                <p className="text-xs text-muted-foreground capitalize">
-                  Type: {selectedProperty.property_type}
-                  {selectedProperty.area_sqm ? ` · ${selectedProperty.area_sqm} SQM` : ""}
-                </p>
-              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="area_sqm">Area (SQM) *</Label>
+              <Input
+                id="area_sqm"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={inspection.area_sqm ?? ""}
+                onChange={(e) => handleUpdateField("area_sqm", e.target.value)}
+                placeholder="e.g. 350"
+                className="w-full h-10 text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Drives the invoice fee — measure on site if it differs from the listing.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="inspector_name">Inspector Name</Label>
@@ -420,29 +510,12 @@ export default function InspectionForm() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="area_sqm">Area (SQM) *</Label>
-              <Input
-                id="area_sqm"
-                type="number"
-                inputMode="decimal"
-                min="0"
-                step="0.01"
-                value={inspection.area_sqm ?? ""}
-                onChange={(e) => handleUpdateField("area_sqm", e.target.value)}
-                placeholder={selectedProperty?.area_sqm ? String(selectedProperty.area_sqm) : "e.g. 350"}
-                className="w-full h-10 text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Defaults from the property; override if you measure differently on site.
-              </p>
-            </div>
           </div>
 
           {(areaNum > 0 && ratePerSqm > 0) && (
             <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2">
               <div className="text-xs text-muted-foreground">
-                Estimated invoice ({formatType(inspection.property_type)}: {ratePerSqm.toFixed(3)} OMR/SQM × {areaNum} SQM)
+                Estimated invoice ({formatPropertyType(inspection.property_type)}: {ratePerSqm.toFixed(3)} OMR/SQM × {areaNum} SQM)
               </div>
               <div className="text-sm font-semibold text-foreground">
                 {estimatedFee.toFixed(3)} OMR
@@ -476,8 +549,8 @@ export default function InspectionForm() {
             {inspection.id && (
               <PDFExportButton
                 inspection={inspection}
-                client={selectedClient}
-                property={selectedProperty}
+                client={linkedClient}
+                property={linkedProperty}
                 variant="outline"
                 size="default"
                 showIcon={true}

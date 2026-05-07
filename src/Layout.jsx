@@ -53,8 +53,16 @@ export default function Layout({ children, currentPageName }) {
 
   React.useEffect(() => {
     if (!user) return;
-    if (typeof user.darkMode === "boolean") setIsDark(user.darkMode);
-    else if (user.theme) setIsDark(user.theme === "dark");
+    let resolved;
+    if (typeof user.darkMode === "boolean") resolved = user.darkMode;
+    else if (user.theme) resolved = user.theme === "dark";
+    if (typeof resolved === "boolean") {
+      setIsDark(resolved);
+      // Persist so the next bootstrap (index.html inline script) picks up the
+      // user's saved preference instead of the system default — avoids a
+      // first-paint flash when system pref disagrees with profile.
+      try { localStorage.setItem("theme", resolved ? "dark" : "light"); } catch (e) { /* ignore */ }
+    }
   }, [user]);
 
   // Close mobile menu whenever route changes

@@ -61,12 +61,16 @@ export default function Clients() {
     }, {});
   }, [clients, properties]);
 
-  const filteredClients = useMemo(() =>
-    clients.filter((client) =>
-      client.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (client.company && client.company.toLowerCase().includes(searchTerm.toLowerCase()))
-    ), [clients, searchTerm]);
+  const filteredClients = useMemo(() => {
+    const needle = searchTerm.trim().toLowerCase();
+    if (!needle) return clients;
+    return clients.filter((client) =>
+      (client.name ?? "").toLowerCase().includes(needle) ||
+      (client.email ?? "").toLowerCase().includes(needle) ||
+      (client.company ?? "").toLowerCase().includes(needle) ||
+      (client.phone ?? "").toLowerCase().includes(needle)
+    );
+  }, [clients, searchTerm]);
 
   const handleAddNew = () => {
     setEditingClient(null);

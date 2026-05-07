@@ -21,7 +21,9 @@ export default function PropertyForm({ property, onSubmit, onCancel, isLoading }
 
   const validate = () => {
     const next = {};
-    if (!formData.client_id) next.client_id = "Client is required.";
+    // client_id is optional — the schema column is nullable and the
+    // inspection find-or-create flow already creates properties without
+    // a client. Keeping these consistent avoids "Unassigned" surprises.
     if (!formData.address?.trim()) next.address = "Address is required.";
     if (!formData.property_type) next.property_type = "Property type is required.";
     if (formData.area_sqm !== "" && formData.area_sqm !== null && formData.area_sqm !== undefined) {
@@ -60,6 +62,7 @@ export default function PropertyForm({ property, onSubmit, onCancel, isLoading }
     const payload = {
       ...formData,
       area_sqm: formData.area_sqm === "" || formData.area_sqm == null ? null : Number(formData.area_sqm),
+      client_id: formData.client_id || null,
     };
     onSubmit(payload);
   };
@@ -93,23 +96,19 @@ export default function PropertyForm({ property, onSubmit, onCancel, isLoading }
 
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="client_id">Client *</Label>
-              <Select value={formData.client_id} onValueChange={value => handleChange('client_id', value)}>
-                <SelectTrigger
-                  id="client_id"
-                  aria-invalid={Boolean(errors.client_id)}
-                  aria-describedby={errors.client_id ? "client_id-error" : undefined}
-                  className={errors.client_id ? "border-destructive focus-visible:ring-destructive" : ""}
-                >
-                  <SelectValue placeholder="Select a client" />
+              <Label htmlFor="client_id">Client</Label>
+              <Select
+                value={formData.client_id || "none"}
+                onValueChange={value => handleChange('client_id', value === "none" ? "" : value)}
+              >
+                <SelectTrigger id="client_id">
+                  <SelectValue placeholder="Unassigned" />
                 </SelectTrigger>
-                <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
               </Select>
-              {errors.client_id && (
-                <p id="client_id-error" role="alert" className="text-xs text-destructive">
-                  {errors.client_id}
-                </p>
-              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="property_type">Property Type *</Label>
