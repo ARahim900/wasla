@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, FileText, Calendar, User, Eye } from "lucide-react";
+import { Plus, Search, FileText, Calendar, User, Eye, DollarSign, CheckCircle2, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
 import { getInvoiceStatusColor } from "@/lib/status";
+import MetricCard from "../components/dashboard/MetricCard";
 
 const STATUS_OPTIONS = ["all", "draft", "sent", "paid", "overdue", "cancelled"];
 
@@ -106,9 +107,29 @@ export default function Invoices() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-        <Card><CardContent className="p-4 md:p-6"><p className="text-sm font-medium text-muted-foreground">Total Revenue</p><p className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mt-1 break-all">{totals.total.toFixed(3)} OMR</p></CardContent></Card>
-        <Card><CardContent className="p-4 md:p-6"><p className="text-sm font-medium text-muted-foreground">Paid</p><p className="text-xl md:text-2xl lg:text-3xl font-bold text-status-success mt-1 break-all">{totals.paid.toFixed(3)} OMR</p></CardContent></Card>
-        <Card><CardContent className="p-4 md:p-6"><p className="text-sm font-medium text-muted-foreground">Outstanding</p><p className="text-xl md:text-2xl lg:text-3xl font-bold text-status-warning mt-1 break-all">{totals.outstanding.toFixed(3)} OMR</p></CardContent></Card>
+        <MetricCard
+          title="Total Revenue"
+          value={`${totals.total.toFixed(3)} OMR`}
+          icon={DollarSign}
+          iconTone="emerald"
+          isLoading={isLoading}
+        />
+        <MetricCard
+          title="Paid"
+          value={`${totals.paid.toFixed(3)} OMR`}
+          icon={CheckCircle2}
+          iconTone="blue"
+          intent="success"
+          isLoading={isLoading}
+        />
+        <MetricCard
+          title="Outstanding"
+          value={`${totals.outstanding.toFixed(3)} OMR`}
+          icon={Clock}
+          iconTone="amber"
+          intent="warning"
+          isLoading={isLoading}
+        />
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">

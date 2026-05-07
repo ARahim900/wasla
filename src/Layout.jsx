@@ -100,11 +100,11 @@ export default function Layout({ children, currentPageName }) {
         Skip to content
       </a>
       {/* Header with Logo, Controls, and Navigation */}
-      <header className="app-header bg-card sticky top-0 z-50">
+      <header className="app-header sticky top-0 z-50">
         {/* Top Bar - Logo and Controls */}
-        <div>
+        <div className="app-header-top bg-card border-b border-border">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center min-h-[60px]">
+            <div className="flex justify-between items-center min-h-[64px]">
               {/* Logo + Brand Name */}
               <Link to="/" className="flex items-center gap-2.5 group">
                 <img
@@ -176,11 +176,11 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </div>
 
-        {/* Navigation Bar */}
-        <div className="border-t border-border bg-muted/40">
+        {/* Navigation Bar — recessed tier, visually distinct from top bar */}
+        <div className="app-header-nav bg-muted/70 dark:bg-muted/40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex space-x-1 space-x-reverse py-1.5">
+            <nav className="hidden md:flex space-x-1 space-x-reverse py-2">
               {navigationItems.map((item) => {
                 const isActive = location.pathname === item.url || (item.url === '/Dashboard' && location.pathname === '/');
                 return (

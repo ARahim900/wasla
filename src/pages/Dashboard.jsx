@@ -102,15 +102,16 @@ export default function Dashboard() {
       </div>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
-        <MetricCard title="Total Inspections" value={metrics.totalInspections} icon={ClipboardList} isLoading={isLoading} />
-        <MetricCard title="Revenue (YTD)" value={`${metrics.totalRevenue.toFixed(3)} OMR`} icon={DollarSign} isLoading={isLoading} intent="success" />
-        <MetricCard title="Active Clients" value={metrics.activeClients} icon={Users} isLoading={isLoading} />
+        <MetricCard title="Total Inspections" value={metrics.totalInspections} icon={ClipboardList} isLoading={isLoading} iconTone="blue" />
+        <MetricCard title="Revenue (YTD)" value={`${metrics.totalRevenue.toFixed(1)} OMR`} icon={DollarSign} isLoading={isLoading} intent="success" iconTone="emerald" />
+        <MetricCard title="Active Clients" value={metrics.activeClients} icon={Users} isLoading={isLoading} iconTone="violet" />
         <MetricCard
           title="Overdue Invoices"
           value={metrics.overdueInvoices}
           icon={FileText}
           isLoading={isLoading}
           intent={metrics.overdueInvoices > 0 ? "danger" : "default"}
+          iconTone={metrics.overdueInvoices > 0 ? "rose" : "amber"}
         />
       </motion.div>
 
@@ -120,7 +121,7 @@ export default function Dashboard() {
         </div>
         
         <div>
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg text-foreground">Recent Inspections</CardTitle>
               <Button variant="outline" size="sm" asChild>
