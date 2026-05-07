@@ -115,8 +115,8 @@ export default function PropertyDetailView({ property, onEdit }) {
                 {property.area_sqm && (
                   <InfoRow
                     icon={Home}
-                    label="Area"
-                    value={`${property.area_sqm} SQM`}
+                    label="Property Area"
+                    value={`${property.area_sqm} m²`}
                   />
                 )}
                 {property.year_built && (

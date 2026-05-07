@@ -138,7 +138,7 @@ export default function PropertyForm({ property, onSubmit, onCancel, isLoading }
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="area_sqm">Area (SQM)</Label>
+            <Label htmlFor="area_sqm">Property Area (m²)</Label>
             <Input
               id="area_sqm"
               type="number"

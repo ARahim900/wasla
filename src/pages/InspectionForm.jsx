@@ -220,7 +220,7 @@ export default function InspectionForm() {
     }
     const areaCheck = Number(inspection.area_sqm);
     if (!Number.isFinite(areaCheck) || areaCheck <= 0) {
-      toast.error("Please enter a valid Area (SQM). The invoice depends on it.");
+      toast.error("Please enter a valid Property Area (m²). The invoice depends on it.");
       return;
     }
 
@@ -378,7 +378,7 @@ export default function InspectionForm() {
               {selectedProperty && (
                 <p className="text-xs text-muted-foreground capitalize">
                   Type: {selectedProperty.property_type}
-                  {selectedProperty.area_sqm ? ` · ${selectedProperty.area_sqm} SQM` : ""}
+                  {selectedProperty.area_sqm ? ` · ${selectedProperty.area_sqm} m²` : ""}
                 </p>
               )}
             </div>
@@ -398,7 +398,7 @@ export default function InspectionForm() {
                 type="date"
                 value={inspection.inspection_date || ""}
                 onChange={(e) => handleUpdateField("inspection_date", e.target.value)}
-                className="w-full h-10 text-sm px-3"
+                className="w-full h-10 text-sm"
               />
             </div>
             <div className="space-y-2">
@@ -407,7 +407,7 @@ export default function InspectionForm() {
                 value={inspection.inspection_type}
                 onValueChange={(value) => handleUpdateField("inspection_type", value)}
               >
-                <SelectTrigger id="inspection_type" className="h-10">
+                <SelectTrigger id="inspection_type" className="h-10 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -421,7 +421,7 @@ export default function InspectionForm() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="area_sqm">Area (SQM) *</Label>
+              <Label htmlFor="area_sqm">Property Area (m²) *</Label>
               <Input
                 id="area_sqm"
                 type="number"
@@ -442,7 +442,7 @@ export default function InspectionForm() {
           {(areaNum > 0 && ratePerSqm > 0) && (
             <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2">
               <div className="text-xs text-muted-foreground">
-                Estimated invoice ({formatType(inspection.property_type)}: {ratePerSqm.toFixed(3)} OMR/SQM × {areaNum} SQM)
+                Estimated invoice ({formatType(inspection.property_type)}: {ratePerSqm.toFixed(3)} OMR/m² × {areaNum} m²)
               </div>
               <div className="text-sm font-semibold text-foreground">
                 {estimatedFee.toFixed(3)} OMR

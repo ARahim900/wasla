@@ -122,7 +122,7 @@ export default function InvoiceForm() {
 
       if (linkedProperty && areaSqm > 0 && pricePerSqm > 0) {
         const subtotal = areaSqm * pricePerSqm;
-        const description = `Inspection services for ${formatPropertyType(propertyType)} at ${linkedProperty.address} (${areaSqm} SQM @ ${pricePerSqm.toFixed(3)} OMR/SQM)`;
+        const description = `Inspection services for ${formatPropertyType(propertyType)} at ${linkedProperty.address} (${areaSqm} m² @ ${pricePerSqm.toFixed(3)} OMR/m²)`;
         const lineItem = { description, quantity: areaSqm, rate: pricePerSqm, amount: subtotal };
 
         newLineItems = [lineItem];
@@ -319,7 +319,7 @@ export default function InvoiceForm() {
                             <Input value={item.description} disabled />
                         </div>
                         <div className="space-y-1 w-24">
-                            <Label className="text-sm">SQM</Label>
+                            <Label className="text-sm">Area (m²)</Label>
                             <Input type="number" value={item.quantity} disabled />
                         </div>
                         <div className="space-y-1 w-24">
@@ -343,7 +343,7 @@ export default function InvoiceForm() {
                   const knownType = type && Object.prototype.hasOwnProperty.call(RATE_PER_SQM, type);
                   let reason = "";
                   if (!prop) reason = "The linked inspection has no property attached.";
-                  else if (area <= 0) reason = "Set an Area (SQM) on the inspection or the property to auto-calculate.";
+                  else if (area <= 0) reason = "Set a Property Area (m²) on the inspection or the property to auto-calculate.";
                   else if (!knownType) reason = `No rate is configured for property type "${type}".`;
                   return (
                     <p className="text-sm text-amber-700 dark:text-amber-400 text-center py-4">
