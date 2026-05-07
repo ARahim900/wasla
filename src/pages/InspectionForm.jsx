@@ -398,7 +398,7 @@ export default function InspectionForm() {
                 type="date"
                 value={inspection.inspection_date || ""}
                 onChange={(e) => handleUpdateField("inspection_date", e.target.value)}
-                className="w-full h-10 text-sm px-3"
+                className="w-full h-10 text-sm"
               />
             </div>
             <div className="space-y-2">
@@ -407,7 +407,7 @@ export default function InspectionForm() {
                 value={inspection.inspection_type}
                 onValueChange={(value) => handleUpdateField("inspection_type", value)}
               >
-                <SelectTrigger id="inspection_type" className="h-10">
+                <SelectTrigger id="inspection_type" className="h-10 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
