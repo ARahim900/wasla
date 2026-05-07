@@ -72,6 +72,7 @@ export default function InspectionForm() {
             client_name: "",
             property_id: "",
             property_type: "villa",
+            area_sqm: "",
             inspector_name: "",
             inspection_date: new Date().toISOString().split("T")[0],
             inspection_type: "pre_purchase",
@@ -89,6 +90,7 @@ export default function InspectionForm() {
             client_name: "",
             property_id: "",
             property_type: "villa",
+            area_sqm: "",
             inspector_name: "",
             inspection_date: new Date().toISOString().split("T")[0],
             inspection_type: "pre_purchase",
@@ -130,17 +132,21 @@ export default function InspectionForm() {
 
   const handlePropertyChange = (propertyId) => {
     const p = properties.find((x) => x.id === propertyId);
-    setInspection((prev) =>
-      prev
-        ? {
-            ...prev,
-            property_id: propertyId,
-            // Auto-derive property_type from the chosen property so invoice
-            // pricing logic (which reads property.property_type) stays accurate.
-            property_type: p?.property_type || prev.property_type,
-          }
-        : prev
-    );
+    setInspection((prev) => {
+      if (!prev) return prev;
+      // Default area from property only if the inspection doesn't have its
+      // own value yet — don't clobber an inspector's on-site measurement.
+      const next = {
+        ...prev,
+        property_id: propertyId,
+        property_type: p?.property_type || prev.property_type,
+      };
+      const prevArea = prev.area_sqm === "" || prev.area_sqm == null ? null : Number(prev.area_sqm);
+      if ((!Number.isFinite(prevArea) || prevArea <= 0) && p?.area_sqm) {
+        next.area_sqm = p.area_sqm;
+      }
+      return next;
+    });
   };
 
   const handleAddArea = () => {
@@ -177,6 +183,13 @@ export default function InspectionForm() {
     // Convert empty string IDs to null (Supabase UUID columns reject empty strings)
     if (!payload.client_id) payload.client_id = null;
     if (!payload.property_id) payload.property_id = null;
+    // Coerce area_sqm to a number (or null) so downstream pricing math works.
+    if (payload.area_sqm === "" || payload.area_sqm == null) {
+      payload.area_sqm = null;
+    } else {
+      const n = Number(payload.area_sqm);
+      payload.area_sqm = Number.isFinite(n) && n > 0 ? n : null;
+    }
     payload.areas = (payload.areas || []).map((a) => ({
       ...a,
       id: String(a.id),
@@ -203,6 +216,11 @@ export default function InspectionForm() {
     }
     if (!inspection.property_id) {
       toast.error("Please select a property.");
+      return;
+    }
+    const areaCheck = Number(inspection.area_sqm);
+    if (!Number.isFinite(areaCheck) || areaCheck <= 0) {
+      toast.error("Please enter a valid Area (SQM). The invoice depends on it.");
       return;
     }
 
@@ -256,6 +274,16 @@ export default function InspectionForm() {
   const propertiesForClient = inspection.client_id
     ? properties.filter(p => p.client_id === inspection.client_id)
     : properties;
+
+  // Mirror InvoiceForm's rate table so inspectors see the live estimate
+  // before the invoice is created. Keep this in sync with InvoiceForm.
+  const RATE_PER_SQM = { villa: 1.0, apartment: 0.7, office: 2.0, building: 2.0 };
+  const areaNum = Number(inspection.area_sqm);
+  const ratePerSqm = RATE_PER_SQM[inspection.property_type] || 0;
+  const estimatedFee = Number.isFinite(areaNum) && areaNum > 0 && ratePerSqm > 0
+    ? areaNum * ratePerSqm
+    : 0;
+  const formatType = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : "");
 
   return (
     <div>
@@ -392,7 +420,35 @@ export default function InspectionForm() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="area_sqm">Area (SQM) *</Label>
+              <Input
+                id="area_sqm"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={inspection.area_sqm ?? ""}
+                onChange={(e) => handleUpdateField("area_sqm", e.target.value)}
+                placeholder={selectedProperty?.area_sqm ? String(selectedProperty.area_sqm) : "e.g. 350"}
+                className="w-full h-10 text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Defaults from the property; override if you measure differently on site.
+              </p>
+            </div>
           </div>
+
+          {(areaNum > 0 && ratePerSqm > 0) && (
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2">
+              <div className="text-xs text-muted-foreground">
+                Estimated invoice ({formatType(inspection.property_type)}: {ratePerSqm.toFixed(3)} OMR/SQM × {areaNum} SQM)
+              </div>
+              <div className="text-sm font-semibold text-foreground">
+                {estimatedFee.toFixed(3)} OMR
+              </div>
+            </div>
+          )}
         </div>
 
         <div>

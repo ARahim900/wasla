@@ -13,14 +13,16 @@ import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
 import { format } from 'date-fns'; // Added format from date-fns
 
-// Constants for smart invoicing
-const PRICING = {
-  COMMERCIAL_PER_SQM: 2, // OMR
-  RESIDENTIAL_PER_SQM: 1, // OMR
+// Per-property-type rates in OMR per SQM. Single source of truth — update
+// here and both InspectionForm preview and invoice line items recalculate.
+const RATE_PER_SQM = {
+  villa: 1.0,
+  apartment: 0.7,
+  office: 2.0,
+  building: 2.0,
 };
 
-const COMMERCIAL_TYPES = ['office', 'building'];
-const RESIDENTIAL_TYPES = ['villa', 'apartment'];
+const formatPropertyType = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : '');
 
 export default function InvoiceForm() {
   const navigate = useNavigate();
@@ -107,35 +109,30 @@ export default function InvoiceForm() {
       newClientId = selectedInspection.client_id || invoice.client_id;
       const linkedProperty = properties.find(p => p.id === selectedInspection.property_id);
 
-      const areaSqm = Number(linkedProperty?.area_sqm);
-      if (linkedProperty && Number.isFinite(areaSqm) && areaSqm > 0) {
-        let pricePerSqm = 0;
-        if (COMMERCIAL_TYPES.includes(linkedProperty.property_type)) {
-          pricePerSqm = PRICING.COMMERCIAL_PER_SQM;
-        } else if (RESIDENTIAL_TYPES.includes(linkedProperty.property_type)) {
-          pricePerSqm = PRICING.RESIDENTIAL_PER_SQM;
-        }
+      // Prefer the inspection's measured area (inspector may have re-measured
+      // on site); fall back to the property's stored area.
+      const inspectionArea = Number(selectedInspection.area_sqm);
+      const propertyArea = Number(linkedProperty?.area_sqm);
+      const areaSqm = Number.isFinite(inspectionArea) && inspectionArea > 0
+        ? inspectionArea
+        : (Number.isFinite(propertyArea) && propertyArea > 0 ? propertyArea : 0);
 
-        if (pricePerSqm > 0) {
-          const subtotal = areaSqm * pricePerSqm;
-          const description = `Inspection services for ${linkedProperty.property_type} property at ${linkedProperty.address} (${areaSqm} SQM)`;
-          const lineItem = { description, quantity: areaSqm, rate: pricePerSqm, amount: subtotal };
-          
-          newLineItems = [lineItem];
-          newSubtotal = subtotal;
-          autoPopulatedSuccessfully = true;
-        } else {
-            // If pricePerSqm is 0 (e.g., unknown property type), clear line items
-            if (newLineItems.length > 0 || newSubtotal > 0) {
-                newLineItems = [];
-                newSubtotal = 0;
-            }
-        }
+      const propertyType = linkedProperty?.property_type || selectedInspection.property_type;
+      const pricePerSqm = RATE_PER_SQM[propertyType] || 0;
+
+      if (linkedProperty && areaSqm > 0 && pricePerSqm > 0) {
+        const subtotal = areaSqm * pricePerSqm;
+        const description = `Inspection services for ${formatPropertyType(propertyType)} at ${linkedProperty.address} (${areaSqm} SQM @ ${pricePerSqm.toFixed(3)} OMR/SQM)`;
+        const lineItem = { description, quantity: areaSqm, rate: pricePerSqm, amount: subtotal };
+
+        newLineItems = [lineItem];
+        newSubtotal = subtotal;
+        autoPopulatedSuccessfully = true;
       } else {
-        // If no property linked or no square footage, clear line items
+        // Missing area or unknown type — clear line items so the user notices.
         if (newLineItems.length > 0 || newSubtotal > 0) {
-            newLineItems = [];
-            newSubtotal = 0;
+          newLineItems = [];
+          newSubtotal = 0;
         }
       }
     } else {
@@ -335,7 +332,25 @@ export default function InvoiceForm() {
                         </div>
                     </div>
                 ))}
-                {invoice.items?.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Select an inspection to auto-fill or add items manually.</p>}
+                {invoice.items?.length === 0 && (() => {
+                  if (!invoice.inspection_id) {
+                    return <p className="text-sm text-muted-foreground text-center py-4">Select an inspection to auto-fill or add items manually.</p>;
+                  }
+                  const insp = inspections.find(i => i.id === invoice.inspection_id);
+                  const prop = insp ? properties.find(p => p.id === insp.property_id) : null;
+                  const area = Number(insp?.area_sqm) || Number(prop?.area_sqm) || 0;
+                  const type = prop?.property_type || insp?.property_type;
+                  const knownType = type && Object.prototype.hasOwnProperty.call(RATE_PER_SQM, type);
+                  let reason = "";
+                  if (!prop) reason = "The linked inspection has no property attached.";
+                  else if (area <= 0) reason = "Set an Area (SQM) on the inspection or the property to auto-calculate.";
+                  else if (!knownType) reason = `No rate is configured for property type "${type}".`;
+                  return (
+                    <p className="text-sm text-amber-700 dark:text-amber-400 text-center py-4">
+                      Couldn’t auto-calculate. {reason}
+                    </p>
+                  );
+                })()}
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t">
                     <div className="col-span-1 hidden sm:block"></div>
