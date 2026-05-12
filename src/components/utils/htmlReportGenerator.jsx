@@ -167,6 +167,7 @@ class InspectionReportGenerator {
               affectedItems.push({
                 name: itemName,
                 status: status,
+                location: item.location || '',
                 comments: item.comments || '',
                 grade,
                 category
@@ -1555,13 +1556,18 @@ class InspectionReportGenerator {
                     <span class="area-summary">${summaryChip}</span>
                 </div>
 
-                <div class="area-body">
+                <div class="area-body">`;
+
+        const showLocation = (area.items || []).some(it => it.location && it.location.trim());
+
+        findingsContent += `
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 30%;">Item</th>
-                            <th style="width: 14%; text-align: center;">Grade</th>
-                            <th style="width: 56%;">Comments</th>
+                            <th style="width: ${showLocation ? '24%' : '30%'};">Item</th>
+                            ${showLocation ? '<th style="width: 18%;">Location</th>' : ''}
+                            <th style="width: ${showLocation ? '12%' : '14%'}; text-align: center;">Grade</th>
+                            <th style="width: ${showLocation ? '46%' : '56%'};">Comments</th>
                         </tr>
                     </thead>
                     <tbody>`;
@@ -1572,9 +1578,14 @@ class InspectionReportGenerator {
             ? `<span class="grade-badge grade-${grade.toLowerCase()}" title="${this.escapeHTML(this.gradeMeaning(grade))}">${this.escapeHTML(grade)}</span>`
             : `<span class="status-na">N/A</span>`;
 
+          const locationCell = showLocation
+            ? `<td>${item.location ? this.escapeHTML(item.location) : '<span class="status-na">—</span>'}</td>`
+            : '';
+
           findingsContent += `
                         <tr>
                             <td>${this.escapeHTML(item.name)}</td>
+                            ${locationCell}
                             <td style="text-align: center;">${gradeBadge}</td>
                             <td>${this.escapeHTML(item.comments || 'No comments')}</td>
                         </tr>`;
