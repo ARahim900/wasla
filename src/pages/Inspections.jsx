@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, ClipboardList, Calendar, User, Eye, Trash2, Loader2, ChevronDown, Circle, ArrowUpCircle, CheckCircle2, X } from "lucide-react";
+import { Plus, Search, ClipboardList, Calendar, User, Pencil, Trash2, Loader2, ChevronDown, Circle, ArrowUpCircle, CheckCircle2, X, Home } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -196,6 +196,12 @@ export default function Inspections() {
             {paginatedInspections.map((inspection) => {
               const client = clients.find(c => c.id === inspection.client_id);
               const property = properties.find(p => p.id === inspection.property_id);
+              const titleText = property?.address || inspection.client_name || 'Inspection';
+              const TitleIcon = property?.address ? Home : ClipboardList;
+              const typeLabel = inspection.inspection_type
+                ? `${inspection.inspection_type.replace(/_/g, ' ')} Inspection`
+                : null;
+              const showClientInMeta = !!property?.address && !!inspection.client_name;
 
               return (
                 <motion.div
@@ -209,12 +215,18 @@ export default function Inspections() {
                 <CardHeader className="p-4">
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                        <CardTitle className="text-foreground flex items-center gap-2 text-base font-semibold">
-                          <ClipboardList className="w-5 h-5 text-primary" />
-                          <span className="capitalize">{inspection.inspection_type?.replace(/_/g, ' ')} Inspection</span>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                        <CardTitle className="text-foreground flex items-center gap-2 text-base font-semibold capitalize truncate max-w-full">
+                          <TitleIcon className="w-5 h-5 text-primary shrink-0" />
+                          <span className="truncate">{titleText}</span>
                         </CardTitle>
-                        
+
+                        {typeLabel && (
+                          <Badge variant="secondary" className="capitalize text-xs font-normal">
+                            {typeLabel}
+                          </Badge>
+                        )}
+
                         {/* Enhanced Status Dropdown with Real-time Updates */}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -264,7 +276,7 @@ export default function Inspections() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2 ms-7">
-                        {inspection.client_name && (
+                        {showClientInMeta && (
                           <div className="flex items-center gap-1.5">
                             <User className="w-3 h-3" />
                             <span>{inspection.client_name}</span>
@@ -277,11 +289,6 @@ export default function Inspections() {
                           </div>
                         )}
                       </div>
-                      {property?.address && (
-                        <div className="text-xs text-muted-foreground mt-1 ms-7">
-                          Property: {property.address}
-                        </div>
-                      )}
                     </div>
                     
                     <div className="flex items-center gap-1 self-start sm:self-center flex-shrink-0">
@@ -298,9 +305,10 @@ export default function Inspections() {
                         variant="outline"
                         size="sm"
                         onClick={() => navigate(createPageUrl(`InspectionForm?id=${inspection.id}`))}
-                        aria-label="View inspection"
+                        aria-label="Edit inspection"
+                        title="Edit inspection"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Pencil className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
