@@ -5,9 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ArrowLeft, Save, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { Inspection, Property, Client } from "@/api/entities";
+import { formatDistanceToNow } from "date-fns";
+import { Inspection, Property, Client, ConflictError } from "@/api/entities";
 import AreaCard from "../components/inspections/AreaCard";
 import { createPageUrl } from "@/utils";
 import PDFExportButton from "../components/inspections/PDFExportButton";
@@ -50,6 +61,44 @@ const preparePayload = (ins) => {
 
 const AUTOSAVE_DELAY_MS = 2500;
 
+// Local draft safety net — written when an autosave fails or the tab closes
+// with unsaved edits, so a flaky connection never eats field work. All
+// localStorage access is best-effort (quota limits, private mode).
+const draftKeyFor = (id) => `wasla:inspection-draft:${id || "new"}`;
+
+const writeDraft = (id, payload) => {
+  try {
+    localStorage.setItem(
+      draftKeyFor(id),
+      JSON.stringify({ savedAt: new Date().toISOString(), payload })
+    );
+  } catch (err) {
+    console.warn("Could not write local draft:", err?.message);
+  }
+};
+
+const readDraft = (id) => {
+  try {
+    const raw = localStorage.getItem(draftKeyFor(id));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || !parsed.payload) return null;
+    if (!Number.isFinite(new Date(parsed.savedAt).getTime())) return null;
+    return parsed;
+  } catch (err) {
+    console.warn("Could not read local draft:", err?.message);
+    return null;
+  }
+};
+
+const clearDraft = (id) => {
+  try {
+    localStorage.removeItem(draftKeyFor(id));
+  } catch (err) {
+    console.warn("Could not clear local draft:", err?.message);
+  }
+};
+
 export default function InspectionForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -67,11 +116,21 @@ export default function InspectionForm() {
   // inspectors never lose progress to a dead battery or a closed tab.
   // 'idle' | 'pending' | 'saving' | 'saved' | 'error'
   const [autosave, setAutosave] = useState({ state: "idle", at: null });
+  // A concurrent edit elsewhere won the write race — autosave pauses until
+  // the user picks a version. conflictRef mirrors it for async callbacks.
+  const [conflict, setConflict] = useState(false);
+  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  // Recoverable local draft found on load: { id, savedAt, payload } | null.
+  const [draftPrompt, setDraftPrompt] = useState(null);
   const inspectionRef = useRef(null);
   const lastSavedJsonRef = useRef(null);
+  // The updated_at we last read from the server — our optimistic-concurrency
+  // token. Refreshed from every successful save's returned row.
+  const lastUpdatedAtRef = useRef(null);
   const autosaveTimerRef = useRef(null);
   const autosaveBusyRef = useRef(false);
   const submittingRef = useRef(false);
+  const conflictRef = useRef(false);
 
   useEffect(() => {
     inspectionRef.current = inspection;
@@ -80,6 +139,7 @@ export default function InspectionForm() {
   // Seed the autosave baseline so loading a form never counts as an edit.
   const initInspection = useCallback((data) => {
     lastSavedJsonRef.current = JSON.stringify(preparePayload(data));
+    lastUpdatedAtRef.current = data.updated_at || null;
     setAutosave({ state: "idle", at: null });
     setInspection(data);
   }, []);
@@ -142,6 +202,17 @@ export default function InspectionForm() {
           }
 
           initInspection(inspectionData);
+
+          // Offer to restore a local draft that never reached the server —
+          // only when it's newer than what the server has.
+          const draft = readDraft(inspectionId);
+          if (draft && (!inspectionData.updated_at ||
+              new Date(draft.savedAt) > new Date(inspectionData.updated_at))) {
+            setDraftPrompt({ id: inspectionId, savedAt: draft.savedAt, payload: draft.payload });
+          } else if (draft) {
+            // Server copy is newer — the stranded draft is stale, drop it.
+            clearDraft(inspectionId);
+          }
         } else {
           initInspection({
             client_id: "",
@@ -157,6 +228,13 @@ export default function InspectionForm() {
             status: "scheduled",
             areas: [{ id: crypto.randomUUID(), name: "General", items: [] }],
           });
+
+          // A 'new' draft means a brand-new form was lost before its first
+          // successful save — always offer it back.
+          const draft = readDraft(null);
+          if (draft) {
+            setDraftPrompt({ id: null, savedAt: draft.savedAt, payload: draft.payload });
+          }
         }
       } catch (err) {
         toast.error("Failed to load data. Please check your connection.");
@@ -176,6 +254,13 @@ export default function InspectionForm() {
             status: "scheduled",
             areas: [{ id: crypto.randomUUID(), name: "General", items: [] }],
           });
+
+          // Offline load of a new form — a stranded 'new' draft is exactly
+          // what this safety net exists for.
+          const draft = readDraft(null);
+          if (draft) {
+            setDraftPrompt({ id: null, savedAt: draft.savedAt, payload: draft.payload });
+          }
         }
       } finally {
         setIsLoading(false);
@@ -185,12 +270,26 @@ export default function InspectionForm() {
     loadData();
   }, [location.search, navigate, initInspection]);
 
+  // Pause autosave and make the user choose a version — never silently
+  // overwrite their colleague's work, never silently discard their own.
+  const enterConflict = useCallback(() => {
+    conflictRef.current = true;
+    setConflict(true);
+    setConflictDialogOpen(true);
+  }, []);
+
+  const clearConflict = useCallback(() => {
+    conflictRef.current = false;
+    setConflict(false);
+    setConflictDialogOpen(false);
+  }, []);
+
   // Background autosave engine. Persists raw form state (no validation, no
   // client/property resolution — those stay on the explicit Save). A brand-new
   // form is created in the DB on first meaningful input, then updated in place.
   const runAutosave = useCallback(async (snapshotJson) => {
     const current = inspectionRef.current;
-    if (!current || submittingRef.current) return;
+    if (!current || submittingRef.current || conflictRef.current) return;
     if (autosaveBusyRef.current) {
       // A save is still in flight (slow connection) — retry shortly rather
       // than dropping these changes on the floor.
@@ -210,10 +309,16 @@ export default function InspectionForm() {
     try {
       const payload = preparePayload(current);
       if (current.id) {
-        await Inspection.update(current.id, payload);
+        // Optimistic concurrency: only write over the revision we last read,
+        // so two tabs (or two users) can't silently clobber each other.
+        const saved = lastUpdatedAtRef.current
+          ? await Inspection.updateIfUnchanged(current.id, payload, lastUpdatedAtRef.current)
+          : await Inspection.update(current.id, payload);
+        if (saved?.updated_at) lastUpdatedAtRef.current = saved.updated_at;
       } else {
         const created = await Inspection.create(payload);
         if (created?.id) {
+          if (created.updated_at) lastUpdatedAtRef.current = created.updated_at;
           setInspection((prev) => (prev && !prev.id ? { ...prev, id: created.id } : prev));
           // Reflect the new id in the URL without remounting the form, so a
           // refresh resumes this draft instead of starting a duplicate.
@@ -224,25 +329,50 @@ export default function InspectionForm() {
           );
         }
       }
+      clearDraft(current.id || null);
       lastSavedJsonRef.current = snapshotJson;
       setAutosave({ state: "saved", at: new Date() });
     } catch (err) {
       console.error("Autosave failed:", err);
+      // Keep a local copy of whatever failed to reach the server.
+      const latest = inspectionRef.current;
+      if (latest) writeDraft(latest.id || null, preparePayload(latest));
+      if (err instanceof ConflictError) {
+        toast.error("This inspection was changed somewhere else (another tab or user).");
+        enterConflict();
+      }
       setAutosave({ state: "error", at: null });
     } finally {
       autosaveBusyRef.current = false;
     }
-  }, []);
+  }, [enterConflict]);
 
   useEffect(() => {
-    if (isLoading || !inspection || isSaving) return;
+    if (isLoading || !inspection || isSaving || conflict) return;
     const snapshotJson = JSON.stringify(preparePayload(inspection));
     if (snapshotJson === lastSavedJsonRef.current) return;
 
     setAutosave((prev) => (prev.state === "saving" ? prev : { state: "pending", at: null }));
     autosaveTimerRef.current = setTimeout(() => runAutosave(snapshotJson), AUTOSAVE_DELAY_MS);
     return () => clearTimeout(autosaveTimerRef.current);
-  }, [inspection, isLoading, isSaving, runAutosave]);
+  }, [inspection, isLoading, isSaving, conflict, runAutosave]);
+
+  // Warn before the tab closes with edits that haven't reached the server,
+  // and stash them locally so even a hard close is recoverable next visit.
+  const hasUnsavedChanges =
+    autosave.state === "pending" || autosave.state === "saving" || autosave.state === "error";
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const handleBeforeUnload = (e) => {
+      const current = inspectionRef.current;
+      if (current) writeDraft(current.id || null, preparePayload(current));
+      e.preventDefault();
+      e.returnValue = ""; // Chrome requires returnValue for the native prompt.
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const handleUpdateField = (field, value) => {
     setInspection((prev) => (prev ? { ...prev, [field]: value } : prev));
@@ -273,6 +403,72 @@ export default function InspectionForm() {
     if (!inspection) return;
     const newAreas = (inspection.areas || []).filter((a) => a.id !== areaId);
     handleUpdateField("areas", newAreas);
+  };
+
+  // Recovered-draft dialog: restoring merges the stranded payload into the
+  // form (autosave then persists it); either choice clears the stored draft.
+  const handleDraftRestore = () => {
+    if (!draftPrompt) return;
+    setInspection((prev) => (prev ? { ...prev, ...draftPrompt.payload } : prev));
+    clearDraft(draftPrompt.id);
+    setDraftPrompt(null);
+    toast.success("Unsaved changes restored — review and save.");
+  };
+
+  const handleDraftDiscard = () => {
+    if (!draftPrompt) return;
+    clearDraft(draftPrompt.id);
+    setDraftPrompt(null);
+  };
+
+  // Conflict: "Reload their version" — explicit, confirmed discard of local
+  // edits in favor of whatever was saved elsewhere.
+  const handleConflictReload = async () => {
+    const id = inspectionRef.current?.id;
+    if (!id) return;
+    const confirmed = window.confirm(
+      "Reload the version saved elsewhere? Your local edits will be discarded. This cannot be undone."
+    );
+    if (!confirmed) return;
+    try {
+      const fresh = (await Inspection.filter({ id }))?.[0];
+      if (!fresh) {
+        toast.error("Could not load the latest version. Please check your connection.");
+        return;
+      }
+      if (fresh.inspection_date) {
+        fresh.inspection_date = String(fresh.inspection_date).slice(0, 10);
+      }
+      if (!fresh.areas) fresh.areas = [];
+      clearDraft(id);
+      clearConflict();
+      initInspection(fresh);
+      toast.success("Loaded the latest saved version.");
+    } catch (err) {
+      console.error("Failed to reload inspection:", err);
+      toast.error("Could not load the latest version. Please check your connection.");
+    }
+  };
+
+  // Conflict: "Save mine anyway" — deliberate force-overwrite via plain
+  // update (no updated_at check), then resume normal autosave.
+  const handleConflictForce = async () => {
+    const current = inspectionRef.current;
+    if (!current?.id) return;
+    const toastId = toast.loading("Saving your version...");
+    try {
+      const payload = preparePayload(current);
+      const saved = await Inspection.update(current.id, payload);
+      if (saved?.updated_at) lastUpdatedAtRef.current = saved.updated_at;
+      lastSavedJsonRef.current = JSON.stringify(payload);
+      clearDraft(current.id);
+      clearConflict();
+      setAutosave({ state: "saved", at: new Date() });
+      toast.success("Your version was saved.", { id: toastId });
+    } catch (err) {
+      console.error("Force save failed:", err);
+      toast.error(err?.message || "Could not save your version.", { id: toastId });
+    }
   };
 
   // Find-or-create a Client by name. Re-fetches just before matching so a
@@ -352,6 +548,12 @@ export default function InspectionForm() {
     e.preventDefault();
     if (!inspection) return;
 
+    // An unresolved conflict must be settled before any further write.
+    if (conflictRef.current) {
+      setConflictDialogOpen(true);
+      return;
+    }
+
     if (!inspection.client_name?.trim()) {
       toast.error("Please enter the client name.");
       return;
@@ -418,15 +620,26 @@ export default function InspectionForm() {
 
       const payload = preparePayload(enriched);
       if (currentId) {
-        await Inspection.update(currentId, payload);
+        // Same optimistic-concurrency guard as autosave — a concurrent edit
+        // elsewhere surfaces as a conflict instead of being clobbered.
+        const saved = lastUpdatedAtRef.current
+          ? await Inspection.updateIfUnchanged(currentId, payload, lastUpdatedAtRef.current)
+          : await Inspection.update(currentId, payload);
+        if (saved?.updated_at) lastUpdatedAtRef.current = saved.updated_at;
       } else {
         await Inspection.create(payload);
       }
+      clearDraft(currentId);
       toast.success("Inspection saved successfully.", { id: toastId });
       navigate(createPageUrl("Inspections"));
     } catch (error) {
       console.error("Failed to save inspection:", error);
-      toast.error(error?.message || "Failed to save inspection.", { id: toastId });
+      if (error instanceof ConflictError) {
+        toast.error("This inspection was changed somewhere else (another tab or user).", { id: toastId });
+        enterConflict();
+      } else {
+        toast.error(error?.message || "Failed to save inspection.", { id: toastId });
+      }
       submittingRef.current = false;
     } finally {
       setIsSaving(false);
@@ -639,15 +852,26 @@ export default function InspectionForm() {
             Add Another Area
           </Button>
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto">
-            <span className="text-xs text-muted-foreground text-center sm:text-right" aria-live="polite">
-              {autosave.state === "pending" && "Unsaved changes…"}
-              {autosave.state === "saving" && "Auto-saving…"}
-              {autosave.state === "saved" && autosave.at &&
-                `Auto-saved ${autosave.at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
-              {autosave.state === "error" && (
-                <span className="text-status-danger-foreground">Auto-save failed — use Save</span>
-              )}
-            </span>
+            {conflict ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConflictDialogOpen(true)}
+                className="w-full sm:w-auto text-base sm:text-sm text-status-danger-foreground"
+              >
+                Changed elsewhere — resolve
+              </Button>
+            ) : (
+              <span className="text-xs text-muted-foreground text-center sm:text-right" aria-live="polite">
+                {autosave.state === "pending" && "Unsaved changes…"}
+                {autosave.state === "saving" && "Auto-saving…"}
+                {autosave.state === "saved" && autosave.at &&
+                  `Auto-saved ${autosave.at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+                {autosave.state === "error" && (
+                  <span className="text-status-danger-foreground">Auto-save failed — use Save</span>
+                )}
+              </span>
+            )}
             {inspection.id && (
               <PDFExportButton
                 inspection={inspection}
@@ -678,6 +902,58 @@ export default function InspectionForm() {
           </div>
         </div>
       </form>
+
+      {/* Conflict resolution — another tab or user changed this inspection.
+          Autosave stays paused until the user explicitly picks a version. */}
+      <AlertDialog open={conflictDialogOpen} onOpenChange={setConflictDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Inspection changed elsewhere</AlertDialogTitle>
+            <AlertDialogDescription className="text-base sm:text-sm">
+              This inspection was changed somewhere else (another tab or user).
+              Auto-save is paused so nothing gets overwritten. Choose which
+              version to keep — reloading discards your local edits.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-base sm:text-sm">Decide later</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConflictReload}
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/80 text-base sm:text-sm"
+            >
+              Reload their version
+            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConflictForce} className="text-base sm:text-sm">
+              Save mine anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Draft recovery — local edits that never reached the server survived
+          a failed save or a closed tab. */}
+      {draftPrompt && (
+        <AlertDialog open>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Recover unsaved changes?</AlertDialogTitle>
+              <AlertDialogDescription className="text-base sm:text-sm">
+                Unsaved changes from {formatDistanceToNow(new Date(draftPrompt.savedAt), { addSuffix: true })} were
+                kept on this device after a save didn&apos;t go through. Restore
+                them into the form, or discard to keep the last saved version.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleDraftDiscard} className="text-base sm:text-sm">
+                Discard
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={handleDraftRestore} className="text-base sm:text-sm">
+                Restore
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }

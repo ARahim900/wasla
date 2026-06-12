@@ -4,6 +4,18 @@ import { supabase } from '@/lib/supabase';
 const isDemoMode = !import.meta.env.VITE_SUPABASE_URL ||
   import.meta.env.VITE_SUPABASE_URL.includes('your-project');
 
+// Thrown when an optimistic-concurrency update loses the race: the row's
+// updated_at no longer matches what the caller last read. Callers can detect
+// it via `instanceof ConflictError` (or error.code === 'CONFLICT') and let
+// the user resolve it instead of silently clobbering someone else's write.
+export class ConflictError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'ConflictError';
+    this.code = 'CONFLICT';
+  }
+}
+
 // Demo data storage using localStorage
 const STORAGE_PREFIX = 'wasla_demo_';
 
@@ -174,6 +186,18 @@ function createDemoEntityHandler(tableName) {
       const data = getDemoData(tableName);
       const index = data.findIndex(item => item.id === id);
       if (index === -1) throw new Error('Not found');
+      data[index] = { ...data[index], ...updateData, updated_at: new Date().toISOString() };
+      setDemoData(tableName, data);
+      return data[index];
+    },
+
+    async updateIfUnchanged(id, updateData, expectedUpdatedAt) {
+      const data = getDemoData(tableName);
+      const index = data.findIndex(item => item.id === id);
+      if (index === -1) throw new Error('Not found');
+      if (data[index].updated_at !== expectedUpdatedAt) {
+        throw new ConflictError(`Conflict updating ${tableName} ${id}: record changed since it was last read`);
+      }
       data[index] = { ...data[index], ...updateData, updated_at: new Date().toISOString() };
       setDemoData(tableName, data);
       return data[index];
@@ -368,6 +392,30 @@ function createSupabaseEntityHandler(tableName) {
       }
 
       return data;
+    },
+
+    // Optimistic-concurrency update: only writes when the row's updated_at
+    // still matches what this client last read. Zero rows back means someone
+    // else changed the row first — surface a ConflictError so callers can
+    // let the user resolve it instead of last-writer-wins clobbering.
+    async updateIfUnchanged(id, updateData, expectedUpdatedAt) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .update({ ...updateData, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('updated_at', expectedUpdatedAt)
+        .select();
+
+      if (error) {
+        console.error(`Failed to update ${tableName}:`, error.message);
+        throw new Error(`Failed to update ${tableName}: ${error.message}`);
+      }
+
+      if (!data || data.length === 0) {
+        throw new ConflictError(`Conflict updating ${tableName} ${id}: record changed since it was last read`);
+      }
+
+      return data[0];
     },
 
     async delete(id) {
