@@ -66,6 +66,7 @@ export default function AreaCard({ area, onUpdate, onRemove }) {
       category,
       point,
       status: 'N/A',
+      grade: null,
       comments: '',
       location: '',
       photos: [],

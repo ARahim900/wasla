@@ -9,7 +9,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB (matches Supabase bucket limit)
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB Supabase bucket limit — checked AFTER compression
+const MAX_SOURCE_SIZE = 40 * 1024 * 1024; // refuse to decode anything beyond this
+const TARGET_SIZE = 1.2 * 1024 * 1024; // aim for ~1.2 MB so the bucket holds far more photos
+const QUALITY_STEPS = [0.8, 0.65, 0.5]; // step quality down until under target
 
 // Common phone/desktop screenshot resolutions
 const SCREENSHOT_DIMS = new Set([
@@ -45,12 +48,16 @@ const looksLikeScreenshot = (file) =>
     img.src = url;
   });
 
+const canvasToBlob = (canvas, quality) =>
+  new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+
 const compressImage = async (file) => {
   if (file.size < 500 * 1024) return file; // Skip if already small
 
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
+      URL.revokeObjectURL(img.src);
       const MAX_DIM = 2048;
       let { width, height } = img;
       if (width > MAX_DIM || height > MAX_DIM) {
@@ -63,16 +70,29 @@ const compressImage = async (file) => {
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob(
-        (blob) => {
-          const compressed = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
-          resolve(compressed.size < file.size ? compressed : file);
-        },
-        'image/jpeg',
-        0.8
-      );
+
+      // Step the JPEG quality down until the result fits the target size, so
+      // even huge originals end up small enough to store many photos per report.
+      let best = null;
+      for (const quality of QUALITY_STEPS) {
+        const blob = await canvasToBlob(canvas, quality);
+        if (!blob) break;
+        if (!best || blob.size < best.size) best = blob;
+        if (blob.size <= TARGET_SIZE) break;
+      }
+
+      if (!best) {
+        resolve(file); // Encoding failed — fall back to original
+        return;
+      }
+      const name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+      const compressed = new File([best], name, { type: 'image/jpeg', lastModified: Date.now() });
+      resolve(compressed.size < file.size ? compressed : file);
     };
-    img.onerror = () => resolve(file); // Fallback to original on error
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve(file); // Fallback to original on error
+    };
     img.src = URL.createObjectURL(file);
   });
 };
@@ -92,22 +112,25 @@ export default function PhotoUpload({ photos, onUpdate }) {
     let skippedType = 0;
     let suspiciousCount = 0;
 
-    // Filter into a queue first so the size/type counts are accurate before
-    // we start uploading. Then process in batches of 3 — sequential uploads
-    // on mobile take ~10s for 5 photos and freeze the UI; concurrency 3 keeps
-    // peak memory bounded but cuts wall time meaningfully.
+    // Filter into a queue first so the type counts are accurate before we
+    // start uploading. Size is checked AFTER compression — a 25 MB phone photo
+    // compresses to ~1 MB, so rejecting it up front threw away valid photos.
+    // Then process in batches of 3 — sequential uploads on mobile take ~10s
+    // for 5 photos and freeze the UI; concurrency 3 keeps peak memory bounded
+    // but cuts wall time meaningfully.
     const queue = [];
     for (const file of Array.from(files)) {
       if (!file.type.startsWith('image/')) { skippedType++; continue; }
-      if (file.size > MAX_FILE_SIZE) { skippedSize++; continue; }
+      if (file.size > MAX_SOURCE_SIZE) { skippedSize++; continue; }
       queue.push(file);
     }
 
     const processOne = async (originalFile) => {
       if (await looksLikeScreenshot(originalFile)) suspiciousCount++;
       const compressed = await compressImage(originalFile);
+      if (compressed.size > MAX_FILE_SIZE) return { tooLarge: true };
       const { file_url } = await UploadFile({ file: compressed, bucket: 'inspection-photos' });
-      return { url: file_url, name: compressed.name };
+      return { photo: { url: file_url, name: compressed.name } };
     };
 
     const CONCURRENCY = 3;
@@ -116,7 +139,8 @@ export default function PhotoUpload({ photos, onUpdate }) {
       const results = await Promise.allSettled(batch.map(processOne));
       results.forEach((r) => {
         if (r.status === 'fulfilled') {
-          uploadedPhotos.push(r.value);
+          if (r.value.tooLarge) skippedSize++;
+          else uploadedPhotos.push(r.value.photo);
         } else {
           failCount++;
           console.error('Error uploading file:', r.reason);
@@ -131,7 +155,7 @@ export default function PhotoUpload({ photos, onUpdate }) {
       toast.error(`${skippedType} file${skippedType > 1 ? 's' : ''} skipped: only image files are allowed.`);
     }
     if (skippedSize > 0) {
-      toast.error(`${skippedSize} file${skippedSize > 1 ? 's' : ''} skipped: max size is 10 MB.`);
+      toast.error(`${skippedSize} file${skippedSize > 1 ? 's' : ''} skipped: still over 10 MB after compression.`);
     }
     if (failCount > 0) {
       toast.error(`Failed to upload ${failCount} photo${failCount > 1 ? 's' : ''}. Please try again.`);

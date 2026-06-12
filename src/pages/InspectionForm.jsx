@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,41 @@ import { RATE_PER_SQM, calculateInspectionFee, formatPropertyType } from "@/lib/
 
 const norm = (s) => (s || "").trim().toLowerCase();
 
+const preparePayload = (ins) => {
+  // Drop server-managed columns and UI-only fields so we don't write
+  // unknown columns. client_phone lives on the clients table, not here.
+  const {
+    id: _id,
+    created_at: _ca,
+    updated_at: _ua,
+    user_id: _uid,
+    client_phone: _cp,
+    ...payload
+  } = ins;
+  void _id; void _ca; void _ua; void _uid; void _cp;
+  if (!payload.client_id) payload.client_id = null;
+  if (!payload.property_id) payload.property_id = null;
+  if (payload.area_sqm === "" || payload.area_sqm == null) {
+    payload.area_sqm = null;
+  } else {
+    const n = Number(payload.area_sqm);
+    payload.area_sqm = Number.isFinite(n) && n > 0 ? n : null;
+  }
+  payload.areas = (payload.areas || []).map((a) => ({
+    ...a,
+    id: String(a.id),
+    items: (a.items || []).map((it) => ({ ...it, id: String(it.id) })),
+  }));
+  // Pass the YYYY-MM-DD string through unchanged. Postgres DATE accepts it
+  // as-is, and we avoid the timezone shift caused by new Date(...).toISOString().
+  if (payload.inspection_date && !/^\d{4}-\d{2}-\d{2}$/.test(payload.inspection_date)) {
+    payload.inspection_date = String(payload.inspection_date).slice(0, 10) || null;
+  }
+  return payload;
+};
+
+const AUTOSAVE_DELAY_MS = 2500;
+
 export default function InspectionForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -27,6 +62,27 @@ export default function InspectionForm() {
   const [linkedProperty, setLinkedProperty] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Autosave — the long multi-stage form persists itself in the background so
+  // inspectors never lose progress to a dead battery or a closed tab.
+  // 'idle' | 'pending' | 'saving' | 'saved' | 'error'
+  const [autosave, setAutosave] = useState({ state: "idle", at: null });
+  const inspectionRef = useRef(null);
+  const lastSavedJsonRef = useRef(null);
+  const autosaveTimerRef = useRef(null);
+  const autosaveBusyRef = useRef(false);
+  const submittingRef = useRef(false);
+
+  useEffect(() => {
+    inspectionRef.current = inspection;
+  }, [inspection]);
+
+  // Seed the autosave baseline so loading a form never counts as an edit.
+  const initInspection = useCallback((data) => {
+    lastSavedJsonRef.current = JSON.stringify(preparePayload(data));
+    setAutosave({ state: "idle", at: null });
+    setInspection(data);
+  }, []);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -85,9 +141,9 @@ export default function InspectionForm() {
             inspectionData.area_sqm = linkedP.area_sqm;
           }
 
-          setInspection(inspectionData);
+          initInspection(inspectionData);
         } else {
-          setInspection({
+          initInspection({
             client_id: "",
             client_name: "",
             client_phone: "",
@@ -106,7 +162,7 @@ export default function InspectionForm() {
         toast.error("Failed to load data. Please check your connection.");
         console.error("Failed to load data:", err);
         if (!inspectionId) {
-          setInspection({
+          initInspection({
             client_id: "",
             client_name: "",
             client_phone: "",
@@ -127,7 +183,66 @@ export default function InspectionForm() {
     };
 
     loadData();
-  }, [location.search, navigate]);
+  }, [location.search, navigate, initInspection]);
+
+  // Background autosave engine. Persists raw form state (no validation, no
+  // client/property resolution — those stay on the explicit Save). A brand-new
+  // form is created in the DB on first meaningful input, then updated in place.
+  const runAutosave = useCallback(async (snapshotJson) => {
+    const current = inspectionRef.current;
+    if (!current || submittingRef.current) return;
+    if (autosaveBusyRef.current) {
+      // A save is still in flight (slow connection) — retry shortly rather
+      // than dropping these changes on the floor.
+      autosaveTimerRef.current = setTimeout(() => runAutosave(snapshotJson), AUTOSAVE_DELAY_MS);
+      return;
+    }
+
+    // Don't create empty rows from a form nobody has touched meaningfully.
+    const hasContent =
+      (current.client_name || "").trim() ||
+      (current.property_address || "").trim() ||
+      (current.areas || []).some((a) => (a.items || []).length > 0);
+    if (!current.id && !hasContent) return;
+
+    autosaveBusyRef.current = true;
+    setAutosave({ state: "saving", at: null });
+    try {
+      const payload = preparePayload(current);
+      if (current.id) {
+        await Inspection.update(current.id, payload);
+      } else {
+        const created = await Inspection.create(payload);
+        if (created?.id) {
+          setInspection((prev) => (prev && !prev.id ? { ...prev, id: created.id } : prev));
+          // Reflect the new id in the URL without remounting the form, so a
+          // refresh resumes this draft instead of starting a duplicate.
+          window.history.replaceState(
+            window.history.state,
+            "",
+            createPageUrl(`InspectionForm?id=${created.id}`)
+          );
+        }
+      }
+      lastSavedJsonRef.current = snapshotJson;
+      setAutosave({ state: "saved", at: new Date() });
+    } catch (err) {
+      console.error("Autosave failed:", err);
+      setAutosave({ state: "error", at: null });
+    } finally {
+      autosaveBusyRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLoading || !inspection || isSaving) return;
+    const snapshotJson = JSON.stringify(preparePayload(inspection));
+    if (snapshotJson === lastSavedJsonRef.current) return;
+
+    setAutosave((prev) => (prev.state === "saving" ? prev : { state: "pending", at: null }));
+    autosaveTimerRef.current = setTimeout(() => runAutosave(snapshotJson), AUTOSAVE_DELAY_MS);
+    return () => clearTimeout(autosaveTimerRef.current);
+  }, [inspection, isLoading, isSaving, runAutosave]);
 
   const handleUpdateField = (field, value) => {
     setInspection((prev) => (prev ? { ...prev, [field]: value } : prev));
@@ -233,39 +348,6 @@ export default function InspectionForm() {
     return created;
   };
 
-  const preparePayload = (ins) => {
-    // Drop server-managed columns and UI-only fields so we don't write
-    // unknown columns. client_phone lives on the clients table, not here.
-    const {
-      id: _id,
-      created_at: _ca,
-      updated_at: _ua,
-      user_id: _uid,
-      client_phone: _cp,
-      ...payload
-    } = ins;
-    void _id; void _ca; void _ua; void _uid; void _cp;
-    if (!payload.client_id) payload.client_id = null;
-    if (!payload.property_id) payload.property_id = null;
-    if (payload.area_sqm === "" || payload.area_sqm == null) {
-      payload.area_sqm = null;
-    } else {
-      const n = Number(payload.area_sqm);
-      payload.area_sqm = Number.isFinite(n) && n > 0 ? n : null;
-    }
-    payload.areas = (payload.areas || []).map((a) => ({
-      ...a,
-      id: String(a.id),
-      items: (a.items || []).map((it) => ({ ...it, id: String(it.id) })),
-    }));
-    // Pass the YYYY-MM-DD string through unchanged. Postgres DATE accepts it
-    // as-is, and we avoid the timezone shift caused by new Date(...).toISOString().
-    if (payload.inspection_date && !/^\d{4}-\d{2}-\d{2}$/.test(payload.inspection_date)) {
-      payload.inspection_date = String(payload.inspection_date).slice(0, 10) || null;
-    }
-    return payload;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!inspection) return;
@@ -301,8 +383,18 @@ export default function InspectionForm() {
     }
 
     setIsSaving(true);
+    submittingRef.current = true;
+    // Cancel any pending autosave and wait out an in-flight one so the manual
+    // save never races it into a duplicate row.
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    while (autosaveBusyRef.current) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    // An autosave may have created the row moments ago — use the freshest id.
+    const currentId = inspectionRef.current?.id || inspection.id || null;
+
     const toastId = toast.loading(
-      inspection.id ? "Updating inspection..." : "Saving inspection..."
+      currentId ? "Updating inspection..." : "Saving inspection..."
     );
     try {
       const resolvedClient = await resolveClient(
@@ -325,8 +417,8 @@ export default function InspectionForm() {
       };
 
       const payload = preparePayload(enriched);
-      if (inspection.id) {
-        await Inspection.update(inspection.id, payload);
+      if (currentId) {
+        await Inspection.update(currentId, payload);
       } else {
         await Inspection.create(payload);
       }
@@ -335,6 +427,7 @@ export default function InspectionForm() {
     } catch (error) {
       console.error("Failed to save inspection:", error);
       toast.error(error?.message || "Failed to save inspection.", { id: toastId });
+      submittingRef.current = false;
     } finally {
       setIsSaving(false);
     }
@@ -545,7 +638,16 @@ export default function InspectionForm() {
             <Plus className="mr-2 h-4 w-4" />
             Add Another Area
           </Button>
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto">
+            <span className="text-xs text-muted-foreground text-center sm:text-right" aria-live="polite">
+              {autosave.state === "pending" && "Unsaved changes…"}
+              {autosave.state === "saving" && "Auto-saving…"}
+              {autosave.state === "saved" && autosave.at &&
+                `Auto-saved ${autosave.at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+              {autosave.state === "error" && (
+                <span className="text-status-danger-foreground">Auto-save failed — use Save</span>
+              )}
+            </span>
             {inspection.id && (
               <PDFExportButton
                 inspection={inspection}
