@@ -9,9 +9,10 @@ import { toast } from "sonner";
 
 function buildReportData(inspection, client, property) {
   return {
+    id: inspection?.id,
     client_name: inspection?.client_name || client?.name || 'N/A',
     inspector_name: inspection?.inspector_name || 'Wasla Inspector',
-    inspection_date: inspection?.inspection_date || new Date().toISOString(),
+    inspection_date: inspection?.inspection_date || inspection?.created_date || inspection?.created_at || new Date().toISOString(),
     property_type: property?.property_type || inspection?.property_type || 'N/A',
     location: property?.address || inspection?.property_address || 'N/A',
     areas: Array.isArray(inspection?.areas) ? inspection.areas : [],
@@ -149,9 +150,16 @@ export default function InspectionReport() {
 
       <div className="bg-muted rounded-md overflow-hidden border border-border">
         {reportHTML ? (
+          // Sandboxed without allow-scripts: the report needs no JS in embed
+          // mode (pagination is pure CSS; the toolbar is stripped). allow-
+          // same-origin lets handlePrint call contentWindow.print(), and
+          // allow-modals lets print() itself run. allow-scripts is omitted on
+          // purpose — combined with allow-same-origin it would nullify the
+          // sandbox entirely.
           <iframe
             ref={iframeRef}
             title="Inspection Report"
+            sandbox="allow-same-origin allow-modals"
             srcDoc={reportHTML}
             className="w-full block bg-white"
             style={{ height: 'calc(100svh - 160px)', minHeight: '600px', border: 0 }}
