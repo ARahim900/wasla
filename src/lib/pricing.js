@@ -5,8 +5,8 @@
 export const RATE_PER_SQM = {
   villa: 1.0,
   apartment: 0.7,
-  office: 2.0,
-  building: 2.0,
+  office: 1.0,
+  building: 1.0,
 };
 
 export const formatPropertyType = (t) =>
