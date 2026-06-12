@@ -7,6 +7,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import VisualEditAgent from '@/lib/VisualEditAgent'
 import NavigationTracker from '@/lib/NavigationTracker'
 import AppLoader from '@/lib/AppLoader';
+import ErrorBoundary from '@/lib/ErrorBoundary';
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
@@ -114,20 +115,50 @@ const AuthenticatedApp = () => {
 };
 
 
+// A production build with missing/placeholder Supabase env vars must fail
+// loudly instead of silently booting the auth-less demo app against fake data.
+const isProdMisconfigured = import.meta.env.PROD && (
+  !import.meta.env.VITE_SUPABASE_URL ||
+  !import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  import.meta.env.VITE_SUPABASE_URL.includes('your-project')
+);
+
+const ConfigurationError = () => (
+  <div className="fixed inset-0 flex items-center justify-center p-4 bg-background">
+    <div className="text-center max-w-md">
+      <p className="text-red-600 font-medium mb-2">Configuration Error</p>
+      <p className="text-muted-foreground text-base md:text-sm">
+        This deployment is missing its database configuration
+        (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY). Please contact the
+        administrator.
+      </p>
+    </div>
+  </div>
+);
+
 function App() {
 
+  if (isProdMisconfigured) {
+    return <ConfigurationError />;
+  }
+
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClientInstance}>
-        <Router>
-          <NavigationTracker />
-          <AuthenticatedApp />
-        </Router>
-        <Toaster />
-        <SonnerToaster />
-        <VisualEditAgent />
-      </QueryClientProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <QueryClientProvider client={queryClientInstance}>
+          <Router>
+            {/* Base44 sandbox tooling: dev-only. In production these exposed an
+                origin-unchecked postMessage surface and leaked URLs to any
+                parent frame. */}
+            {import.meta.env.DEV && <NavigationTracker />}
+            <AuthenticatedApp />
+          </Router>
+          <Toaster />
+          <SonnerToaster />
+          {import.meta.env.DEV && <VisualEditAgent />}
+        </QueryClientProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
 

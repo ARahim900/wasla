@@ -28,24 +28,31 @@ export default function Invoices() {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      try {
-        const [invoiceResult, clientResult, inspectionResult, propertyResult] = await Promise.all([
-          Invoice.list().catch(() => []),
-          Client.list().catch(() => []),
-          Inspection.list().catch(() => []),
-          Property.list().catch(() => []),
-        ]);
+      // allSettled + per-entity toasts: a failed load must not masquerade as an
+      // empty workspace ("No invoices found") with no indication of the outage.
+      const results = await Promise.allSettled([
+        Invoice.list(),
+        Client.list(),
+        Inspection.list(),
+        Property.list(),
+      ]);
+      const [invoiceResult, clientResult, inspectionResult, propertyResult] = results;
 
-        setInvoices(Array.isArray(invoiceResult) ? invoiceResult : []);
-        setClients(Array.isArray(clientResult) ? clientResult : []);
-        setInspections(Array.isArray(inspectionResult) ? inspectionResult : []);
-        setProperties(Array.isArray(propertyResult) ? propertyResult : []);
-      } catch (error) {
-        console.error("Failed to load invoice data:", error);
-        toast.error(`Failed to load invoice data: ${error.message}`);
-      } finally {
-        setIsLoading(false);
-      }
+      const apply = (result, setter, label) => {
+        if (result.status === "fulfilled") {
+          setter(Array.isArray(result.value) ? result.value : []);
+        } else {
+          console.error(`Failed to load ${label}:`, result.reason);
+          toast.error(`Could not load ${label}. Check your connection and try again.`);
+        }
+      };
+
+      apply(invoiceResult, setInvoices, "invoices");
+      apply(clientResult, setClients, "clients");
+      apply(inspectionResult, setInspections, "inspections");
+      apply(propertyResult, setProperties, "properties");
+
+      setIsLoading(false);
     };
 
     loadData();
@@ -80,9 +87,14 @@ export default function Invoices() {
     });
   }, [invoices, searchTerm, statusFilter, clientsMap]);
 
+  // Computed over ALL invoices (not the filtered view) so the headline
+  // numbers don't silently change meaning while a search/filter is active.
+  // Drafts and cancelled invoices are not money: revenue counts billed
+  // invoices (sent/paid/overdue), outstanding counts billed-but-unpaid.
   const totals = useMemo(() => {
-    return filteredInvoices.reduce((acc, inv) => {
+    return invoices.reduce((acc, inv) => {
         const total = inv.total || 0;
+        if (inv.status === 'draft' || inv.status === 'cancelled') return acc;
         acc.total += total;
         if (inv.status === 'paid') {
             acc.paid += total;
@@ -91,7 +103,7 @@ export default function Invoices() {
         }
         return acc;
     }, { total: 0, paid: 0, outstanding: 0 });
-  }, [filteredInvoices]);
+  }, [invoices]);
 
   return (
     <div className="space-y-6 lg:space-y-8">
