@@ -6,15 +6,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
+import { GRADE_OPTIONS, normalizeGrade, statusFromGrade, inferGradeFromItem } from "@/lib/grading";
 
 function ItemRow({ item, onUpdate, onRemove }) {
   const handleUpdate = (field, value) => {
     onUpdate({ ...item, [field]: value });
   };
 
-  const statusClasses = {
-    'Pass': 'bg-status-success-bg text-status-success-foreground border-status-success/30',
-    'Fail': 'bg-status-danger-bg text-status-danger-foreground border-status-danger/30',
+  // Selecting a condition grade writes both the explicit grade and the legacy
+  // status (Pass/Fail/N/A) so older data consumers keep working.
+  const handleGradeChange = (value) => {
+    if (value === 'N/A') {
+      onUpdate({ ...item, grade: null, status: 'N/A' });
+    } else {
+      onUpdate({ ...item, grade: value, status: statusFromGrade(value) });
+    }
+  };
+
+  // Legacy items have only Pass/Fail — show the same grade the report would
+  // infer for them so form and printed report agree.
+  const displayGrade = normalizeGrade(item.grade) || inferGradeFromItem(item) || 'N/A';
+
+  const gradeClasses = {
+    'A': 'bg-status-success-bg text-status-success-foreground border-status-success/30',
+    'B': 'bg-status-success-bg text-status-success-foreground border-status-success/30',
+    'C': 'bg-status-warning-bg text-status-warning-foreground border-status-warning/30',
+    'D': 'bg-status-danger-bg text-status-danger-foreground border-status-danger/30',
+    'E': 'bg-status-danger-bg text-status-danger-foreground border-status-danger/30',
     'N/A': 'bg-muted text-muted-foreground border-border',
   };
 
@@ -32,38 +50,40 @@ function ItemRow({ item, onUpdate, onRemove }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Status</label>
-          <Select value={item.status} onValueChange={(value) => handleUpdate('status', value)}>
-            <SelectTrigger className={`w-full ${statusClasses[item.status]}`}>
-              <SelectValue placeholder="Select status" />
+          <label className="block text-sm font-medium text-foreground mb-1">Condition Grade</label>
+          <Select value={displayGrade} onValueChange={handleGradeChange}>
+            <SelectTrigger className={`w-full ${gradeClasses[displayGrade]}`}>
+              <SelectValue placeholder="Select condition" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Pass">Pass</SelectItem>
-              <SelectItem value="Fail">Fail</SelectItem>
-              <SelectItem value="N/A">N/A</SelectItem>
+              {GRADE_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
         <div>
           <label className="block text-sm font-medium text-foreground mb-1">Location</label>
-          <Input 
-            value={item.location || ''} 
-            onChange={e => handleUpdate('location', e.target.value)} 
-            placeholder="e.g., Master Bedroom Ceiling" 
+          <Input
+            value={item.location || ''}
+            onChange={e => handleUpdate('location', e.target.value)}
+            placeholder="e.g., Master Bedroom Ceiling"
           />
         </div>
       </div>
-      
+
       <div>
         <label className="block text-sm font-medium text-foreground mb-1">Comments</label>
-        <Textarea 
-          value={item.comments || ''} 
-          onChange={e => handleUpdate('comments', e.target.value)} 
-          placeholder="Add comments..." 
+        <Textarea
+          value={item.comments || ''}
+          onChange={e => handleUpdate('comments', e.target.value)}
+          placeholder="Add comments..."
           rows={3}
         />
       </div>
-      
+
       <div>
         <label className="block text-sm font-medium text-foreground mb-1">Photos</label>
         <PhotoUpload

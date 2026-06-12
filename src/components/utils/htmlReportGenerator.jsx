@@ -115,9 +115,12 @@ class InspectionReportGenerator {
       throw new Error('Invalid inspection data');
     }
 
-    // Count total items and passes for grade calculation
-    let totalItems = 0;
-    let passCount = 0;
+    // Severity-weighted scoring for the overall grade. A critical (E) defect
+    // drags the score far more than a cosmetic (C) one — a plain pass rate
+    // treated them identically.
+    const GRADE_SCORE = { A: 100, B: 85, C: 60, D: 30, E: 0 };
+    let gradedCount = 0;
+    let gradePoints = 0;
 
     const processed = {
       reference: `WSL-${Date.now().toString().slice(-6)}`,
@@ -148,16 +151,23 @@ class InspectionReportGenerator {
               ? normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1)
               : 'N/A';
             
-            totalItems++;
-            if (status === 'Pass') passCount++;
+            const itemName = item.point || item.category || 'Inspection Point';
+            // Prefer the inspector's explicit condition grade; fall back to
+            // keyword inference for legacy items saved before grading existed.
+            const explicitGrade = typeof item.grade === 'string' && /^[A-E]$/.test(item.grade.trim().toUpperCase())
+              ? item.grade.trim().toUpperCase()
+              : null;
+            const grade = explicitGrade || this.inferGrade({ status, comments: item.comments });
+            const category = this.categoryFor(itemName);
 
-            const hasIssue = status === 'Fail';
+            if (grade) {
+              gradedCount++;
+              gradePoints += GRADE_SCORE[grade] ?? 0;
+            }
+
+            const hasIssue = status === 'Fail' || (grade && grade !== 'A');
             const hasComments = status === 'Pass' && item.comments && item.comments !== 'No additional comments';
             const hasPhotos = item.photos && item.photos.length > 0;
-
-            const itemName = item.point || item.category || 'Inspection Point';
-            const grade = this.inferGrade({ status, comments: item.comments });
-            const category = this.categoryFor(itemName);
             if (grade) {
               if (!categoryGrades[category]) categoryGrades[category] = [];
               categoryGrades[category].push(grade);
@@ -198,14 +208,14 @@ class InspectionReportGenerator {
       });
     }
 
-    // Calculate overall grade based on pass rate
-    if (totalItems > 0) {
-      const passRate = (passCount / totalItems) * 100;
-      if (passRate >= 95) processed.grade = 'AAA';
-      else if (passRate >= 85) processed.grade = 'AA';
-      else if (passRate >= 75) processed.grade = 'A';
-      else if (passRate >= 60) processed.grade = 'B';
-      else if (passRate >= 45) processed.grade = 'C';
+    // Overall grade from the severity-weighted average condition score
+    if (gradedCount > 0) {
+      const score = gradePoints / gradedCount;
+      if (score >= 95) processed.grade = 'AAA';
+      else if (score >= 85) processed.grade = 'AA';
+      else if (score >= 75) processed.grade = 'A';
+      else if (score >= 60) processed.grade = 'B';
+      else if (score >= 45) processed.grade = 'C';
       else processed.grade = 'D';
     }
 

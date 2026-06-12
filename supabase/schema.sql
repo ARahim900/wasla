@@ -95,10 +95,14 @@ CREATE TABLE IF NOT EXISTS clients (
 -- Enable RLS on clients
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 
--- Policies for clients (users can only access their own clients)
+-- Policies for clients
+-- Open shared workspace (matches migrations/2026_05_12_open_shared_workspace.sql,
+-- applied to production): all authenticated users get full CRUD on shared
+-- business data. INSERT still stamps the creator's user_id.
 DROP POLICY IF EXISTS "Users can view their own clients" ON clients;
 DROP POLICY IF EXISTS "All authenticated can view clients" ON clients;
-CREATE POLICY "All authenticated can view clients"
+DROP POLICY IF EXISTS "Authenticated can view clients" ON clients;
+CREATE POLICY "Authenticated can view clients"
   ON clients FOR SELECT
   TO authenticated
   USING (true);
@@ -109,14 +113,19 @@ CREATE POLICY "Users can insert their own clients"
   WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update their own clients" ON clients;
-CREATE POLICY "Users can update their own clients"
+DROP POLICY IF EXISTS "Authenticated can update clients" ON clients;
+CREATE POLICY "Authenticated can update clients"
   ON clients FOR UPDATE
-  USING (auth.uid() = user_id);
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Users can delete their own clients" ON clients;
-CREATE POLICY "Users can delete their own clients"
+DROP POLICY IF EXISTS "Authenticated can delete clients" ON clients;
+CREATE POLICY "Authenticated can delete clients"
   ON clients FOR DELETE
-  USING (auth.uid() = user_id);
+  TO authenticated
+  USING (true);
 
 -- ============================================================
 -- 3. PROPERTIES TABLE
@@ -142,9 +151,13 @@ CREATE TABLE IF NOT EXISTS properties (
 ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
 
 -- Policies for properties
+-- Open shared workspace (matches migrations/2026_05_12_open_shared_workspace.sql,
+-- applied to production): all authenticated users get full CRUD on shared
+-- business data. INSERT still stamps the creator's user_id.
 DROP POLICY IF EXISTS "Users can view their own properties" ON properties;
 DROP POLICY IF EXISTS "All authenticated can view properties" ON properties;
-CREATE POLICY "All authenticated can view properties"
+DROP POLICY IF EXISTS "Authenticated can view properties" ON properties;
+CREATE POLICY "Authenticated can view properties"
   ON properties FOR SELECT
   TO authenticated
   USING (true);
@@ -155,14 +168,19 @@ CREATE POLICY "Users can insert their own properties"
   WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update their own properties" ON properties;
-CREATE POLICY "Users can update their own properties"
+DROP POLICY IF EXISTS "Authenticated can update properties" ON properties;
+CREATE POLICY "Authenticated can update properties"
   ON properties FOR UPDATE
-  USING (auth.uid() = user_id);
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Users can delete their own properties" ON properties;
-CREATE POLICY "Users can delete their own properties"
+DROP POLICY IF EXISTS "Authenticated can delete properties" ON properties;
+CREATE POLICY "Authenticated can delete properties"
   ON properties FOR DELETE
-  USING (auth.uid() = user_id);
+  TO authenticated
+  USING (true);
 
 -- ============================================================
 -- 4. INSPECTIONS TABLE
@@ -194,9 +212,13 @@ CREATE TABLE IF NOT EXISTS inspections (
 ALTER TABLE inspections ENABLE ROW LEVEL SECURITY;
 
 -- Policies for inspections
+-- Open shared workspace (matches migrations/2026_05_12_open_shared_workspace.sql,
+-- applied to production): all authenticated users get full CRUD on shared
+-- business data. INSERT still stamps the creator's user_id.
 DROP POLICY IF EXISTS "Users can view their own inspections" ON inspections;
 DROP POLICY IF EXISTS "All authenticated can view inspections" ON inspections;
-CREATE POLICY "All authenticated can view inspections"
+DROP POLICY IF EXISTS "Authenticated can view inspections" ON inspections;
+CREATE POLICY "Authenticated can view inspections"
   ON inspections FOR SELECT
   TO authenticated
   USING (true);
@@ -207,14 +229,19 @@ CREATE POLICY "Users can insert their own inspections"
   WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update their own inspections" ON inspections;
-CREATE POLICY "Users can update their own inspections"
+DROP POLICY IF EXISTS "Authenticated can update inspections" ON inspections;
+CREATE POLICY "Authenticated can update inspections"
   ON inspections FOR UPDATE
-  USING (auth.uid() = user_id);
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Users can delete their own inspections" ON inspections;
-CREATE POLICY "Users can delete their own inspections"
+DROP POLICY IF EXISTS "Authenticated can delete inspections" ON inspections;
+CREATE POLICY "Authenticated can delete inspections"
   ON inspections FOR DELETE
-  USING (auth.uid() = user_id);
+  TO authenticated
+  USING (true);
 
 -- ============================================================
 -- 5. INVOICES TABLE
@@ -245,9 +272,13 @@ CREATE TABLE IF NOT EXISTS invoices (
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 
 -- Policies for invoices
+-- Open shared workspace (matches migrations/2026_05_12_open_shared_workspace.sql,
+-- applied to production): all authenticated users get full CRUD on shared
+-- business data. INSERT still stamps the creator's user_id.
 DROP POLICY IF EXISTS "Users can view their own invoices" ON invoices;
 DROP POLICY IF EXISTS "All authenticated can view invoices" ON invoices;
-CREATE POLICY "All authenticated can view invoices"
+DROP POLICY IF EXISTS "Authenticated can view invoices" ON invoices;
+CREATE POLICY "Authenticated can view invoices"
   ON invoices FOR SELECT
   TO authenticated
   USING (true);
@@ -258,14 +289,19 @@ CREATE POLICY "Users can insert their own invoices"
   WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update their own invoices" ON invoices;
-CREATE POLICY "Users can update their own invoices"
+DROP POLICY IF EXISTS "Authenticated can update invoices" ON invoices;
+CREATE POLICY "Authenticated can update invoices"
   ON invoices FOR UPDATE
-  USING (auth.uid() = user_id);
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Users can delete their own invoices" ON invoices;
-CREATE POLICY "Users can delete their own invoices"
+DROP POLICY IF EXISTS "Authenticated can delete invoices" ON invoices;
+CREATE POLICY "Authenticated can delete invoices"
   ON invoices FOR DELETE
-  USING (auth.uid() = user_id);
+  TO authenticated
+  USING (true);
 
 -- ============================================================
 -- 6. INDEXES FOR PERFORMANCE
