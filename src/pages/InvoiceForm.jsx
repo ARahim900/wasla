@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Invoice, Client, Inspection, Property } from "@/api/entities"; // Added Property
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Save } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
 import { format } from 'date-fns';
@@ -24,6 +25,12 @@ export default function InvoiceForm() {
   const [properties, setProperties] = useState([]); // Added properties state
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLocked, setIsLocked] = useState(false); // paid invoices are read-only until explicitly unlocked
+  const [pendingStatus, setPendingStatus] = useState(null); // status change awaiting unlock confirmation
+  // Tracks whether the user actively changed the inspection selection this
+  // session — auto-populate must never fire just because an existing invoice
+  // loaded and the inspections/properties lists arrived.
+  const userChangedInspectionRef = useRef(false);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -47,6 +54,7 @@ export default function InvoiceForm() {
           const invoiceData = existing?.[0];
           if (invoiceData) {
             setInvoice(invoiceData);
+            setIsLocked(invoiceData.status === "paid");
           } else {
             toast.error("Invoice not found");
             navigate(createPageUrl("Invoices"));
@@ -81,12 +89,15 @@ export default function InvoiceForm() {
     loadData();
   }, [location.search, navigate]);
 
-  // Auto-populate line items + client from the linked inspection, and
-  // recalc totals when the tax rate changes. The deps list is *not* the
-  // whole `invoice` object — that caused a feedback loop because each
-  // setInvoice call produced a new reference and re-ran the effect.
+  // Auto-populate line items + client from the linked inspection. The deps
+  // list is *not* the whole `invoice` object — that caused a feedback loop
+  // because each setInvoice call produced a new reference and re-ran the effect.
   useEffect(() => {
     if (!invoice || !inspections.length) return;
+    // Only auto-populate for a new invoice or after the user actively changes
+    // the inspection selection. An existing invoice must display its stored
+    // line items exactly as persisted — never rebuilt from current rates.
+    if (invoice.id && !userChangedInspectionRef.current) return;
 
     const selectedInspection = invoice.inspection_id
       ? inspections.find(i => i.id === invoice.inspection_id)
@@ -97,7 +108,6 @@ export default function InvoiceForm() {
 
     let newClientId = invoice.client_id;
     let newLineItems = invoice.items || [];
-    let newSubtotal = Number(invoice.subtotal) || 0;
     let didAutoPopulate = false;
 
     if (selectedInspection) {
@@ -119,25 +129,18 @@ export default function InvoiceForm() {
           rate: pricePerSqm,
           amount: subtotal,
         }];
-        newSubtotal = subtotal;
         didAutoPopulate = true;
       } else {
         newLineItems = [];
-        newSubtotal = 0;
       }
     } else {
-      // No inspection linked — leave any user-entered items alone unless
-      // they came from a previous auto-fill (subtotal>0 but no inspection).
-      if (newLineItems.length > 0 && newSubtotal > 0 && !invoice.id) {
-        // For a brand-new invoice that lost its inspection link, clear.
+      // No inspection linked — leave any user-entered items alone on an
+      // existing invoice. For a brand-new invoice that lost its inspection
+      // link, clear the previously auto-filled rows.
+      if (newLineItems.length > 0 && !invoice.id) {
         newLineItems = [];
-        newSubtotal = 0;
       }
     }
-
-    const taxRate = (Number(invoice.tax_rate) || 0) / 100;
-    const newTaxAmount = newSubtotal * taxRate;
-    const newTotal = newSubtotal + newTaxAmount;
 
     // Compare via stable scalars — id-based for items — so we don't spin on
     // floating-point round-trip differences.
@@ -147,11 +150,8 @@ export default function InvoiceForm() {
 
     const clientChanged = invoice.client_id !== newClientId;
     const lineItemsChanged = itemsKey(invoice.items) !== itemsKey(newLineItems);
-    const subtotalChanged = Math.abs((Number(invoice.subtotal) || 0) - newSubtotal) > 1e-6;
-    const taxAmountChanged = Math.abs((Number(invoice.tax_amount) || 0) - newTaxAmount) > 1e-6;
-    const totalChanged = Math.abs((Number(invoice.total) || 0) - newTotal) > 1e-6;
 
-    if (!clientChanged && !lineItemsChanged && !subtotalChanged && !taxAmountChanged && !totalChanged) {
+    if (!clientChanged && !lineItemsChanged) {
       return;
     }
 
@@ -159,9 +159,6 @@ export default function InvoiceForm() {
       ...prev,
       client_id: newClientId,
       items: newLineItems,
-      subtotal: newSubtotal,
-      tax_amount: newTaxAmount,
-      total: newTotal,
     }));
 
     if (didAutoPopulate && lineItemsChanged) {
@@ -169,13 +166,42 @@ export default function InvoiceForm() {
     }
     // Depend on the specific scalars that should drive recompute, not the
     // whole `invoice` object — that's what caused the loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invoice?.inspection_id, invoice?.tax_rate, inspections, properties]);
+  }, [invoice?.inspection_id, inspections, properties]);
+
+  // Recompute totals live from the items array (subtotal = Σ quantity × rate,
+  // tax = subtotal × tax_rate, total = subtotal + tax). Epsilon-compare before
+  // writing so floating-point round-trips don't cause a render loop. Skipped
+  // while locked so a paid invoice's stored totals are never touched.
+  useEffect(() => {
+    if (!invoice || isLocked) return;
+
+    const newSubtotal = (invoice.items || []).reduce(
+      (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0),
+      0
+    );
+    const newTaxAmount = newSubtotal * ((Number(invoice.tax_rate) || 0) / 100);
+    const newTotal = newSubtotal + newTaxAmount;
+
+    const subtotalChanged = Math.abs((Number(invoice.subtotal) || 0) - newSubtotal) > 1e-6;
+    const taxAmountChanged = Math.abs((Number(invoice.tax_amount) || 0) - newTaxAmount) > 1e-6;
+    const totalChanged = Math.abs((Number(invoice.total) || 0) - newTotal) > 1e-6;
+
+    if (!subtotalChanged && !taxAmountChanged && !totalChanged) {
+      return;
+    }
+
+    setInvoice(prev => ({
+      ...prev,
+      subtotal: newSubtotal,
+      tax_amount: newTaxAmount,
+      total: newTotal,
+    }));
+  }, [invoice?.items, invoice?.tax_rate, isLocked]);
 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!invoice) return;
+    if (!invoice || isLocked) return;
 
     if (!invoice.client_id) {
       toast.error("Please select a client.");
@@ -183,6 +209,13 @@ export default function InvoiceForm() {
     }
     if (invoice.items.length === 0) {
         toast.error("Please add at least one line item to the invoice.");
+        return;
+    }
+    const hasBillableItem = (invoice.items || []).some(
+      item => (Number(item.quantity) || 0) * (Number(item.rate) || 0) > 0
+    );
+    if (!hasBillableItem) {
+        toast.error("Please add at least one line item with an amount greater than zero.");
         return;
     }
     if (invoice.total <= 0) {
@@ -193,10 +226,17 @@ export default function InvoiceForm() {
     setIsSaving(true);
     try {
       // Normalize empty UUID strings to null — Postgres rejects "" as uuid.
+      // Coerce item numbers back from input strings before persisting.
       const payload = {
         ...invoice,
         inspection_id: invoice.inspection_id || null,
         client_id: invoice.client_id || null,
+        items: (invoice.items || []).map(item => ({
+          ...item,
+          quantity: Number(item.quantity) || 0,
+          rate: Number(item.rate) || 0,
+          amount: (Number(item.quantity) || 0) * (Number(item.rate) || 0),
+        })),
       };
       if (invoice.id) {
         await Invoice.update(invoice.id, payload);
@@ -215,6 +255,47 @@ export default function InvoiceForm() {
 
   const handleFieldChange = (field, value) => {
     setInvoice(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleItemChange = (index, field, value) => {
+    setInvoice(prev => {
+      const items = [...(prev.items || [])];
+      const item = { ...items[index], [field]: value };
+      item.amount = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
+      items[index] = item;
+      return { ...prev, items };
+    });
+  };
+
+  const handleAddItem = () => {
+    setInvoice(prev => ({
+      ...prev,
+      items: [...(prev.items || []), { description: "", quantity: 1, rate: 0, amount: 0 }],
+    }));
+  };
+
+  const handleRemoveItem = (index) => {
+    setInvoice(prev => ({
+      ...prev,
+      items: (prev.items || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleStatusChange = (value) => {
+    // Moving a paid invoice off "paid" unlocks editing — confirm first.
+    if (isLocked && value !== "paid") {
+      setPendingStatus(value);
+      return;
+    }
+    handleFieldChange("status", value);
+  };
+
+  const handleConfirmUnlock = () => {
+    if (pendingStatus) {
+      setInvoice(prev => ({ ...prev, status: pendingStatus }));
+      setIsLocked(false);
+    }
+    setPendingStatus(null);
   };
 
   if (isLoading) {
@@ -240,19 +321,25 @@ export default function InvoiceForm() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {isLocked && (
+              <div className="rounded-md border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                This invoice is paid and locked. Change its status to unlock and edit it.
+              </div>
+            )}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="invoice_number">Invoice Number</Label>
-                <Input 
+                <Input
                   id="invoice_number"
-                  value={invoice.invoice_number} 
+                  value={invoice.invoice_number}
                   onChange={(e) => handleFieldChange("invoice_number", e.target.value)}
                   required
+                  disabled={isLocked}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="inspection_id">Link to Inspection (Optional)</Label>
-                <Select value={invoice.inspection_id || "none"} onValueChange={(value) => handleFieldChange("inspection_id", value === "none" ? "" : value)}>
+                <Select value={invoice.inspection_id || "none"} disabled={isLocked} onValueChange={(value) => { userChangedInspectionRef.current = true; handleFieldChange("inspection_id", value === "none" ? "" : value); }}>
                   <SelectTrigger id="inspection_id">
                     <SelectValue placeholder="Select inspection" />
                   </SelectTrigger>
@@ -268,7 +355,7 @@ export default function InvoiceForm() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="client_id">Client</Label>
-                <Select value={invoice.client_id} onValueChange={(value) => handleFieldChange("client_id", value)}>
+                <Select value={invoice.client_id} disabled={isLocked} onValueChange={(value) => handleFieldChange("client_id", value)}>
                   <SelectTrigger id="client_id">
                     <SelectValue placeholder="Select client" />
                   </SelectTrigger>
@@ -287,6 +374,7 @@ export default function InvoiceForm() {
                   value={invoice.issue_date?.split('T')[0]} // Ensure date-only format
                   onChange={(e) => handleFieldChange("issue_date", e.target.value)}
                   required
+                  disabled={isLocked}
                 />
               </div>
               <div className="space-y-2">
@@ -297,11 +385,12 @@ export default function InvoiceForm() {
                   value={invoice.due_date?.split('T')[0]} // Ensure date-only format
                   onChange={(e) => handleFieldChange("due_date", e.target.value)}
                   required
+                  disabled={isLocked}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select value={invoice.status} onValueChange={(value) => handleFieldChange("status", value)}>
+                <Select value={invoice.status} onValueChange={handleStatusChange}>
                   <SelectTrigger id="status">
                     <SelectValue />
                   </SelectTrigger>
@@ -320,21 +409,52 @@ export default function InvoiceForm() {
                 {invoice.items?.map((item, index) => (
                     <div key={index} className="flex flex-wrap items-end gap-4">
                         <div className="flex-grow space-y-1 min-w-[150px]">
-                            <Label className="text-sm">Description</Label>
-                            <Input value={item.description} disabled />
+                            <Label htmlFor={`item_description_${index}`} className="text-sm">Description</Label>
+                            <Input
+                                id={`item_description_${index}`}
+                                value={item.description}
+                                onChange={(e) => handleItemChange(index, "description", e.target.value)}
+                                disabled={isLocked}
+                            />
                         </div>
                         <div className="space-y-1 w-24">
-                            <Label className="text-sm">Area (m²)</Label>
-                            <Input type="number" value={item.quantity} disabled />
+                            <Label htmlFor={`item_quantity_${index}`} className="text-sm">Quantity</Label>
+                            <Input
+                                id={`item_quantity_${index}`}
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={item.quantity}
+                                onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
+                                disabled={isLocked}
+                            />
                         </div>
-                        <div className="space-y-1 w-24">
-                            <Label className="text-sm">Rate (OMR)</Label>
-                            <Input type="number" value={item.rate} disabled />
+                        <div className="space-y-1 w-28">
+                            <Label htmlFor={`item_rate_${index}`} className="text-sm">Unit Price (OMR)</Label>
+                            <Input
+                                id={`item_rate_${index}`}
+                                type="number"
+                                min="0"
+                                step="0.001"
+                                value={item.rate}
+                                onChange={(e) => handleItemChange(index, "rate", e.target.value)}
+                                disabled={isLocked}
+                            />
                         </div>
                         <div className="space-y-1 w-32">
                             <Label className="text-sm">Amount (OMR)</Label>
-                            <Input type="number" value={item.amount?.toFixed(3)} disabled />
+                            <Input type="number" value={(Number(item.amount) || 0).toFixed(3)} disabled />
                         </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveItem(index)}
+                            disabled={isLocked}
+                            aria-label={`Remove item ${index + 1}`}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
                     </div>
                 ))}
                 {invoice.items?.length === 0 && (() => {
@@ -352,10 +472,14 @@ export default function InvoiceForm() {
                   else if (!knownType) reason = `No rate is configured for property type "${type}".`;
                   return (
                     <p className="text-sm text-amber-700 dark:text-amber-400 text-center py-4">
-                      Couldn’t auto-calculate. {reason}
+                      Couldn’t auto-calculate. {reason} You can also add items manually.
                     </p>
                   );
                 })()}
+
+                <Button type="button" variant="outline" onClick={handleAddItem} disabled={isLocked} className="w-full sm:w-auto">
+                    <Plus className="mr-2 h-4 w-4" /> Add item
+                </Button>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t">
                     <div className="col-span-1 hidden sm:block"></div>
@@ -365,28 +489,30 @@ export default function InvoiceForm() {
                         <p className="font-bold">Total:</p>
                     </div>
                     <div className="col-span-1 space-y-2">
-                        <p>{invoice.subtotal?.toFixed(3) || '0.000'} OMR</p>
-                        <p>{invoice.tax_amount?.toFixed(3) || '0.000'} OMR</p>
-                        <p className="font-bold">{invoice.total?.toFixed(3) || '0.000'} OMR</p>
+                        <p>{(Number(invoice.subtotal) || 0).toFixed(3)} OMR</p>
+                        <p>{(Number(invoice.tax_amount) || 0).toFixed(3)} OMR</p>
+                        <p className="font-bold">{(Number(invoice.total) || 0).toFixed(3)} OMR</p>
                     </div>
                 </div>
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
-              <Textarea 
+              <Textarea
                 id="notes"
-                value={invoice.notes || ""} 
+                value={invoice.notes || ""}
                 onChange={(e) => handleFieldChange("notes", e.target.value)}
                 rows={3}
+                disabled={isLocked}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="payment_terms">Payment Terms</Label>
-              <Input 
+              <Input
                 id="payment_terms"
-                value={invoice.payment_terms || ""} 
+                value={invoice.payment_terms || ""}
                 onChange={(e) => handleFieldChange("payment_terms", e.target.value)}
+                disabled={isLocked}
               />
             </div>
 
@@ -394,14 +520,30 @@ export default function InvoiceForm() {
               <Button type="button" variant="outline" onClick={() => navigate(createPageUrl("Invoices"))} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
-                <Save className="mr-2 h-4 w-4" />
-                {isSaving ? "Saving..." : "Save Invoice"}
-              </Button>
+              {!isLocked && (
+                <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
+                  <Save className="mr-2 h-4 w-4" />
+                  {isSaving ? "Saving..." : "Save Invoice"}
+                </Button>
+              )}
             </div>
           </form>
         </CardContent>
       </Card>
+
+      {/* Unlock Confirmation */}
+      <AlertDialog open={!!pendingStatus} onOpenChange={() => setPendingStatus(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unlock Paid Invoice</AlertDialogTitle>
+            <AlertDialogDescription>This invoice is marked as paid. Changing its status will unlock it for editing. Are you sure you want to continue?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmUnlock}>Change Status</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -26,28 +26,28 @@ export default function Clients() {
 
   const loadData = async () => {
     setIsLoading(true);
-    try {
-      const [clientData, propertyData] = await Promise.all([
-        Client.list().catch((err) => {
-          console.error("Error loading clients:", err);
-          return [];
-        }),
-        Property.list().catch((err) => {
-          console.error("Error loading properties:", err);
-          return [];
-        })
-      ]);
+    // allSettled + per-entity toasts: a failed load must not masquerade as an
+    // empty workspace ("No clients found") with no indication of the outage.
+    const [clientResult, propertyResult] = await Promise.allSettled([
+      Client.list(),
+      Property.list(),
+    ]);
 
-      setClients(clientData || []);
-      setProperties(propertyData || []);
-    } catch (error) {
-      console.error("Error loading client data:", error);
-      toast.error("Could not load client information.");
-      setClients([]);
-      setProperties([]);
-    } finally {
-      setIsLoading(false);
+    if (clientResult.status === "fulfilled") {
+      setClients(clientResult.value || []);
+    } else {
+      console.error("Error loading clients:", clientResult.reason);
+      toast.error("Could not load clients. Check your connection and try again.");
     }
+
+    if (propertyResult.status === "fulfilled") {
+      setProperties(propertyResult.value || []);
+    } else {
+      console.error("Error loading properties:", propertyResult.reason);
+      toast.error("Could not load properties. Check your connection and try again.");
+    }
+
+    setIsLoading(false);
   };
 
   useEffect(() => {

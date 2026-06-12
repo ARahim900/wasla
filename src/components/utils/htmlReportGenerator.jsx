@@ -30,6 +30,15 @@ class InspectionReportGenerator {
       .replace(/'/g, "&#39;");
   }
 
+  // Deterministic report reference — the same inspection always prints the
+  // same reference. Derived from the inspection id; falls back to a
+  // time-based reference only when no id is available (unsaved data).
+  referenceFor(id) {
+    const clean = String(id || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    if (clean) return `WSL-${clean.slice(-6)}`;
+    return `WSL-${Date.now().toString().slice(-6)}`;
+  }
+
   // Build the HTML string only — does not open any window. Use this for in-app rendering (iframe).
   async buildHTML(inspectionData, options = {}) {
     if (!inspectionData || typeof inspectionData !== 'object') {
@@ -121,15 +130,19 @@ class InspectionReportGenerator {
     const GRADE_SCORE = { A: 100, B: 85, C: 60, D: 30, E: 0 };
     let gradedCount = 0;
     let gradePoints = 0;
+    let hasCritical = false; // any E item
+    let hasMajor = false;    // any D item
 
     const processed = {
-      reference: `WSL-${Date.now().toString().slice(-6)}`,
-      date: this.formatDate(new Date().toISOString()),
+      reference: this.referenceFor(data.id),
+      // Report date is the inspection date, not the print date.
+      date: this.formatDate(data.inspection_date || data.created_date || data.created_at || new Date().toISOString()),
       client: data.client_name || 'Client',
       propertyType: this.formatPropertyType(data.property_type || ''),
       location: data.location || 'Property Location',
       inspector: data.inspector_name || 'Inspector',
       grade: '',
+      gradeFlag: null,
       affectedAreas: [],
       recommendations: [],
       categorySummary: []
@@ -163,6 +176,8 @@ class InspectionReportGenerator {
             if (grade) {
               gradedCount++;
               gradePoints += GRADE_SCORE[grade] ?? 0;
+              if (grade === 'E') hasCritical = true;
+              else if (grade === 'D') hasMajor = true;
             }
 
             const hasIssue = status === 'Fail' || (grade && grade !== 'A');
@@ -217,6 +232,18 @@ class InspectionReportGenerator {
       else if (score >= 60) processed.grade = 'B';
       else if (score >= 45) processed.grade = 'C';
       else processed.grade = 'D';
+
+      // The volume-diluted mean must not hide severe defects: any E item caps
+      // the overall grade at C; any D item (with no E) caps it at B. The mean
+      // result is kept when it is already at or below the cap.
+      const overallRank = { D: 0, C: 1, B: 2, A: 3, AA: 4, AAA: 5 };
+      const cap = hasCritical ? 'C' : hasMajor ? 'B' : null;
+      if (cap && overallRank[processed.grade] > overallRank[cap]) {
+        processed.grade = cap;
+        processed.gradeFlag = hasCritical
+          ? { en: 'Critical defect(s) identified — see findings', ar: 'تم رصد عيوب حرجة — يُرجى مراجعة نتائج الفحص' }
+          : { en: 'Major defect(s) identified — see findings', ar: 'تم رصد عيوب جوهرية — يُرجى مراجعة نتائج الفحص' };
+      }
     }
 
     // Build executive summary rows from category aggregates
@@ -1361,7 +1388,16 @@ class InspectionReportGenerator {
   }
 
   renderOverviewPage(data) {
-    const gradeColor = data.grade === 'D' ? '#dc2626' : data.grade === 'C' ? '#f59e0b' : '#059669';
+    // Match the grade-badge palette: only A-band grades render brand green.
+    const gradeColor = data.grade === 'D' ? '#dc2626'
+      : data.grade === 'C' ? '#f59e0b'
+      : data.grade === 'B' ? '#65a30d'
+      : '#059669';
+    const gradeFlagBanner = data.gradeFlag ? `
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 8px 14px; margin-bottom: 14px; background: #fef2f2; border: 1px solid #fecaca; border-left: 3px solid #dc2626; border-radius: 8px; color: #991b1b; font-weight: 600; font-size: 8.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <span>${this.escapeHTML(data.gradeFlag.en)}</span>
+                <span class="font-cairo" dir="rtl" style="text-align: right;">${this.escapeHTML(data.gradeFlag.ar)}</span>
+            </div>` : '';
     const metaRow = (label, value) => {
       const v = value == null ? '' : String(value).trim();
       if (!v || v.toLowerCase() === 'n/a') return '';
@@ -1372,7 +1408,7 @@ class InspectionReportGenerator {
         <div class="content">
             <div class="cover-header">
                 <div class="cover-header-logo">
-                    <img src="${this.config.company.logo}" alt="Wasla Logo" onerror="this.style.display='none'">
+                    <img src="${this.escapeHTML(this.config.company.logo)}" alt="Wasla Logo" onerror="this.style.display='none'">
                 </div>
                 <div class="cover-header-title">
                     <h1>Property Inspection Report</h1>
@@ -1387,7 +1423,7 @@ class InspectionReportGenerator {
                     ${data.grade ? `<p><strong>Grade:</strong> <span style="font-weight: 700; color: ${gradeColor};">${this.escapeHTML(data.grade)}</span></p>` : ''}
                 </div>
             </div>
-
+${gradeFlagBanner}
             ${this.renderExecutiveSummary(data)}
 
             <div class="overview-box">
@@ -1457,7 +1493,7 @@ class InspectionReportGenerator {
     <div class="page">
         <div class="content">
             <div class="header-logo">
-                <img src="${this.config.company.logo}" alt="Wasla Logo" onerror="this.style.display='none'">
+                <img src="${this.escapeHTML(this.config.company.logo)}" alt="Wasla Logo" onerror="this.style.display='none'">
             </div>
 
             <div class="two-column">
@@ -1612,9 +1648,9 @@ class InspectionReportGenerator {
             findingsContent += `
                     <div class="photo-item">
                         <div class="photo-frame">
-                            <img src="${photo.url}"
+                            <img src="${this.escapeHTML(photo.url)}"
                                  alt="${this.escapeHTML(itemName)}"
-                                 onerror="this.src='${this.config.company.placeholderImage}'">
+                                 onerror="this.src='${this.escapeHTML(this.config.company.placeholderImage)}'">
                         </div>
                         <div class="photo-caption">
                             <span class="caption-label">${this.escapeHTML(itemName)}</span>
@@ -1667,7 +1703,7 @@ class InspectionReportGenerator {
         <div class="page findings-page">
             <div class="content">
                 <div class="header-logo no-break">
-                    <img src="${this.config.company.logo}" alt="Wasla Logo" onerror="this.style.display='none'">
+                    <img src="${this.escapeHTML(this.config.company.logo)}" alt="Wasla Logo" onerror="this.style.display='none'">
                 </div>
                 <h1 style="font-size: 14pt; font-weight: 700; text-align: center; margin-bottom: 14px; color: var(--brand-primary); letter-spacing: 0.3px;">Inspection Findings</h1>
                 ${findingsContent}
