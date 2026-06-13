@@ -124,14 +124,9 @@ class InspectionReportGenerator {
       throw new Error('Invalid inspection data');
     }
 
-    // Severity-weighted scoring for the overall grade. A critical (E) defect
-    // drags the score far more than a cosmetic (C) one — a plain pass rate
-    // treated them identically.
-    const GRADE_SCORE = { A: 100, B: 85, C: 60, D: 30, E: 0 };
-    let gradedCount = 0;
-    let gradePoints = 0;
-    let hasCritical = false; // any E item
-    let hasMajor = false;    // any D item
+    let passCount = 0;
+    let failCount = 0;
+    let naCount = 0;
 
     const processed = {
       reference: this.referenceFor(data.id),
@@ -141,15 +136,16 @@ class InspectionReportGenerator {
       propertyType: this.formatPropertyType(data.property_type || ''),
       location: data.location || 'Property Location',
       inspector: data.inspector_name || 'Inspector',
-      grade: '',
-      gradeFlag: null,
+      result: 'N/A',
+      resultFlag: null,
+      counts: { pass: 0, fail: 0, na: 0, total: 0 },
       affectedAreas: [],
       recommendations: [],
       categorySummary: []
     };
 
-    // Aggregate grades per category for the executive summary
-    const categoryGrades = {};
+    // Aggregate item statuses per category for the executive summary
+    const categoryStatuses = {};
 
     if (data.areas && Array.isArray(data.areas)) {
       data.areas.forEach(area => {
@@ -158,43 +154,30 @@ class InspectionReportGenerator {
 
         if (area.items && Array.isArray(area.items)) {
           area.items.forEach(item => {
-            // Normalize status to prevent styling misses
-            const normalizedStatus = (item.status || '').trim().toLowerCase();
-            const status = ['pass', 'fail', 'n/a'].includes(normalizedStatus) 
-              ? normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1)
-              : 'N/A';
-            
+            const status = this.statusFor(item);
             const itemName = item.point || item.category || 'Inspection Point';
-            // Prefer the inspector's explicit condition grade; fall back to
-            // keyword inference for legacy items saved before grading existed.
-            const explicitGrade = typeof item.grade === 'string' && /^[A-E]$/.test(item.grade.trim().toUpperCase())
-              ? item.grade.trim().toUpperCase()
-              : null;
-            const grade = explicitGrade || this.inferGrade({ status, comments: item.comments });
             const category = this.categoryFor(itemName);
 
-            if (grade) {
-              gradedCount++;
-              gradePoints += GRADE_SCORE[grade] ?? 0;
-              if (grade === 'E') hasCritical = true;
-              else if (grade === 'D') hasMajor = true;
+            if (status === 'Pass') passCount++;
+            else if (status === 'Fail') failCount++;
+            else naCount++;
+
+            // N/A items aren't a result — leave them out of the category roll-up.
+            if (status !== 'N/A') {
+              if (!categoryStatuses[category]) categoryStatuses[category] = [];
+              categoryStatuses[category].push(status);
             }
 
-            const hasIssue = status === 'Fail' || (grade && grade !== 'A');
+            const hasIssue = status === 'Fail';
             const hasComments = status === 'Pass' && item.comments && item.comments !== 'No additional comments';
             const hasPhotos = item.photos && item.photos.length > 0;
-            if (grade) {
-              if (!categoryGrades[category]) categoryGrades[category] = [];
-              categoryGrades[category].push(grade);
-            }
 
             if (hasIssue || hasComments || hasPhotos) {
               affectedItems.push({
                 name: itemName,
-                status: status,
+                status,
                 location: item.location || '',
                 comments: item.comments || '',
-                grade,
                 category
               });
 
@@ -223,41 +206,41 @@ class InspectionReportGenerator {
       });
     }
 
-    // Overall grade from the severity-weighted average condition score
-    if (gradedCount > 0) {
-      const score = gradePoints / gradedCount;
-      if (score >= 95) processed.grade = 'AAA';
-      else if (score >= 85) processed.grade = 'AA';
-      else if (score >= 75) processed.grade = 'A';
-      else if (score >= 60) processed.grade = 'B';
-      else if (score >= 45) processed.grade = 'C';
-      else processed.grade = 'D';
+    processed.counts = {
+      pass: passCount,
+      fail: failCount,
+      na: naCount,
+      total: passCount + failCount + naCount
+    };
 
-      // The volume-diluted mean must not hide severe defects: any E item caps
-      // the overall grade at C; any D item (with no E) caps it at B. The mean
-      // result is kept when it is already at or below the cap.
-      const overallRank = { D: 0, C: 1, B: 2, A: 3, AA: 4, AAA: 5 };
-      const cap = hasCritical ? 'C' : hasMajor ? 'B' : null;
-      if (cap && overallRank[processed.grade] > overallRank[cap]) {
-        processed.grade = cap;
-        processed.gradeFlag = hasCritical
-          ? { en: 'Critical defect(s) identified — see findings', ar: 'تم رصد عيوب حرجة — يُرجى مراجعة نتائج الفحص' }
-          : { en: 'Major defect(s) identified — see findings', ar: 'تم رصد عيوب جوهرية — يُرجى مراجعة نتائج الفحص' };
-      }
+    // Overall result: any failure fails the report; otherwise it passes if
+    // anything was actually checked; otherwise nothing was inspected.
+    if (failCount > 0) {
+      processed.result = 'Fail';
+      processed.resultFlag = {
+        en: `${failCount} item${failCount === 1 ? '' : 's'} failed inspection — see findings`,
+        ar: failCount === 1
+          ? 'بند واحد لم يجتز الفحص — يُرجى مراجعة النتائج'
+          : `${failCount} بنود لم تجتز الفحص — يُرجى مراجعة النتائج`
+      };
+    } else if (passCount > 0) {
+      processed.result = 'Pass';
+    } else {
+      processed.result = 'N/A';
     }
 
     // Build executive summary rows from category aggregates
     const categoryOrder = ['Structure', 'MEP', 'Safety', 'Finishes', 'Exterior', 'General'];
     processed.categorySummary = categoryOrder
-      .filter(cat => categoryGrades[cat] && categoryGrades[cat].length > 0)
+      .filter(cat => categoryStatuses[cat] && categoryStatuses[cat].length > 0)
       .map(cat => {
-        const grade = this.worstGrade(categoryGrades[cat]) || 'A';
+        const statuses = categoryStatuses[cat];
+        const fails = statuses.filter(s => s === 'Fail').length;
         return {
           category: cat,
-          grade,
-          meaning: this.gradeMeaning(grade),
-          risk: this.riskFromGrade(grade),
-          itemCount: categoryGrades[cat].length
+          result: fails > 0 ? 'Fail' : 'Pass',
+          failCount: fails,
+          itemCount: statuses.length
         };
       });
 
@@ -272,6 +255,44 @@ class InspectionReportGenerator {
     }
 
     return processed;
+  }
+
+  // Strict Pass / Fail / N/A for an item. Explicit status wins; a legacy A–E
+  // grade (from inspections saved before the switch) maps onto a status; the
+  // default is N/A.
+  statusFor(item) {
+    const explicit = this.normalizeStatus(item && item.status);
+    if (explicit) return explicit;
+    const grade = item && typeof item.grade === 'string' ? item.grade.trim().toUpperCase() : '';
+    if (grade === 'A' || grade === 'B') return 'Pass';
+    if (grade === 'C' || grade === 'D' || grade === 'E') return 'Fail';
+    return 'N/A';
+  }
+
+  normalizeStatus(status) {
+    if (typeof status !== 'string') return null;
+    const s = status.trim().toLowerCase();
+    if (s === 'pass') return 'Pass';
+    if (s === 'fail') return 'Fail';
+    if (s === 'n/a' || s === 'na') return 'N/A';
+    return null;
+  }
+
+  // Dominant status for a group: a single Fail fails the group; otherwise Pass
+  // if anything passed; otherwise N/A.
+  worstStatus(statuses) {
+    let hasPass = false;
+    for (const s of statuses) {
+      if (s === 'Fail') return 'Fail';
+      if (s === 'Pass') hasPass = true;
+    }
+    return hasPass ? 'Pass' : 'N/A';
+  }
+
+  statusClass(status) {
+    if (status === 'Pass') return 'status-pass';
+    if (status === 'Fail') return 'status-fail';
+    return 'status-na';
   }
 
   // Convert string or partial object recommendations into a uniform structured row.
@@ -291,13 +312,11 @@ class InspectionReportGenerator {
       };
     }
     const priority = rec.priority || this.inferPriority(rec.action || rec.issue || '');
-    const itemCtx = { name: rec.issue, grade: rec.grade };
     return {
       issue: rec.issue || 'General',
       priority,
-      action: rec.action || this.actionFor(itemCtx),
-      timeline: rec.timeline || this.timelineFor(priority, itemCtx),
-      cost: rec.cost || this.costBandFor(rec.grade)
+      action: rec.action || this.actionFor({ name: rec.issue }),
+      timeline: rec.timeline || this.timelineFor(priority)
     };
   }
 
@@ -308,85 +327,20 @@ class InspectionReportGenerator {
     return 'Low';
   }
 
-  timelineFor(priority, item) {
-    if (item) {
-      const name = String(item.name || '').toLowerCase();
-      const grade = item.grade;
-      if (/safety|gas|fire|electric shock|exposed wir|leak/.test(name) || grade === 'E') return 'Immediate';
-      if (grade === 'D') return 'Within 30 days';
-      if (grade === 'C') return 'Within 90 days';
-      if (grade === 'B') return 'Annual maintenance';
-    }
+  timelineFor(priority) {
     if (priority === 'High') return 'Within 30 days';
     if (priority === 'Medium') return 'Within 60 days';
     return 'Within 90 days';
   }
 
-  costBandFor(grade) {
-    if (grade === 'C') return 'Low';
-    if (grade === 'D') return 'Medium';
-    if (grade === 'E') return 'High';
-    return '—';
-  }
-
   actionFor(item) {
     const name = String(item?.name || '').trim();
-    const grade = item?.grade;
     if (!name) return '';
     const lower = name.toLowerCase();
-    let text;
-    if (grade === 'D' || grade === 'E') {
-      text = /crack|leak|structural|foundation|beam|column/.test(lower)
-        ? `Investigate ${name}`
-        : `Repair/replace ${lower}`;
-    } else if (grade === 'C') {
-      text = `Service ${lower}`;
-    } else if (grade === 'B') {
-      text = `Monitor ${lower}`;
-    } else {
-      text = `Review ${lower}`;
-    }
+    const text = /crack|leak|structural|foundation|beam|column/.test(lower)
+      ? `Investigate ${name}`
+      : `Repair/replace ${lower}`;
     return text.length > 80 ? text.slice(0, 77) + '...' : text;
-  }
-
-  // Severity grading: A (Good), B (Minor), C (Moderate), D (Major), E (Critical)
-  inferGrade(item) {
-    const status = (item.status || '').toLowerCase();
-    const comment = (item.comments || '').toLowerCase();
-
-    if (status === 'pass') {
-      return comment && comment !== 'no comments' && comment !== 'no additional comments' ? 'B' : 'A';
-    }
-    if (status === 'n/a' || status === 'na') return null;
-
-    // Fail — grade by severity keywords
-    if (/safety|hazard|fire|gas|electric shock|exposed wir|short circuit|structural|collapse|severe|critical|urgent/.test(comment)) return 'E';
-    if (/leak|mold|crack|broken|water damage|pest|infestation|major|not working|failed/.test(comment)) return 'D';
-    if (/minor|small|hairline|cosmetic|stain|discolor|scratch|chip/.test(comment)) return 'C';
-    return 'D';
-  }
-
-  gradeMeaning(grade) {
-    return ({ A: 'Good', B: 'Minor', C: 'Moderate', D: 'Major', E: 'Critical' })[grade] || grade;
-  }
-
-  riskFromGrade(grade) {
-    if (grade === 'E' || grade === 'D') return 'High';
-    if (grade === 'C') return 'Medium';
-    return 'Low';
-  }
-
-  // Worst grade rank — A=1, E=5 — used to pick the dominant grade per category
-  gradeRank(grade) {
-    return ({ A: 1, B: 2, C: 3, D: 4, E: 5 })[grade] || 0;
-  }
-
-  worstGrade(grades) {
-    let worst = null;
-    grades.forEach(g => {
-      if (g && (!worst || this.gradeRank(g) > this.gradeRank(worst))) worst = g;
-    });
-    return worst;
   }
 
   // Category bucketing — groups items into business categories for the executive summary
@@ -1008,42 +962,6 @@ class InspectionReportGenerator {
             color: #166534;
         }
 
-        /* Severity grade badges A-E */
-        .grade-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 22px;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 8pt;
-            font-weight: 800;
-            letter-spacing: 0.5px;
-            border: 1px solid transparent;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-        .grade-a { background: #dcfce7; color: #166534; border-color: #86efac; }
-        .grade-b { background: #ecfccb; color: #3f6212; border-color: #bef264; }
-        .grade-c { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
-        .grade-d { background: #fde68a; color: #92400e; border: 1.5px solid #b45309; }
-        .grade-e { background: #fecaca; color: #991b1b; border: 1.5px solid #991b1b; }
-
-        .risk-pill {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 7pt;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-        .risk-low { background: #dcfce7; color: #166534; }
-        .risk-medium { background: #fef3c7; color: #92400e; }
-        .risk-high { background: #fee2e2; color: #991b1b; }
-
         /* Executive Summary */
         .executive-summary {
             margin-bottom: 14px;
@@ -1089,17 +1007,6 @@ class InspectionReportGenerator {
         .summary-table tbody tr:last-child td {
             border-bottom: none;
         }
-
-        .grade-legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 6px;
-            font-size: 6.8pt;
-            color: var(--brand-grey-500);
-        }
-
-        .grade-legend span { white-space: nowrap; }
 
         @media print {
             html, body {
@@ -1330,33 +1237,27 @@ class InspectionReportGenerator {
     const rows = data.categorySummary.map(row => `
       <tr>
         <td><strong>${this.escapeHTML(row.category)}</strong> <span style="color: var(--brand-grey-500); font-size: 7.5pt;">(${row.itemCount} ${row.itemCount === 1 ? 'item' : 'items'})</span></td>
-        <td><span class="grade-badge grade-${row.grade.toLowerCase()}">${this.escapeHTML(row.grade)}</span> <span style="color: var(--brand-grey-700); font-size: 7.5pt;">${this.escapeHTML(row.meaning)}</span></td>
-        <td><span class="risk-pill risk-${row.risk.toLowerCase()}">${this.escapeHTML(row.risk)}</span></td>
+        <td><span class="${this.statusClass(row.result)}">${this.escapeHTML(row.result)}</span></td>
+        <td>${row.failCount > 0
+          ? `<span style="color: var(--brand-grey-700); font-size: 7.5pt;">${row.failCount} failed</span>`
+          : `<span style="color: var(--brand-grey-500); font-size: 7.5pt;">No issues</span>`}</td>
       </tr>
     `).join('');
 
-    let totalFindings = 0;
-    let highCount = 0;
-    let criticalCount = 0;
-    const areaNames = [];
-    (data.affectedAreas || []).forEach(area => {
-      if (area.name && !areaNames.includes(area.name)) areaNames.push(area.name);
-      (area.items || []).forEach(item => {
-        totalFindings++;
-        if (item.grade === 'D') highCount++;
-        if (item.grade === 'E') criticalCount++;
-      });
-    });
-
+    const counts = data.counts || { total: 0, fail: 0, na: 0 };
     const num = (n) => `<span style="color: var(--brand-accent); font-weight: 700;">${n}</span>`;
     const headlineParts = [];
-    if (totalFindings > 0) headlineParts.push(`${num(totalFindings)} ${totalFindings === 1 ? 'finding' : 'findings'}`);
-    if (highCount > 0) headlineParts.push(`${num(highCount)} high priority`);
-    if (criticalCount > 0) headlineParts.push(`${num(criticalCount)} critical`);
+    if (counts.total > 0) headlineParts.push(`${num(counts.total)} item${counts.total === 1 ? '' : 's'} inspected`);
+    if (counts.fail > 0) headlineParts.push(`${num(counts.fail)} failed`);
+    if (counts.na > 0) headlineParts.push(`${num(counts.na)} N/A`);
     const headline = headlineParts.length
       ? `<div style="font-size: 9pt; color: var(--brand-grey-700); margin: 0 0 8px 0; letter-spacing: 0.2px;">${headlineParts.join(' • ')}</div>`
       : '';
 
+    const areaNames = [];
+    (data.affectedAreas || []).forEach(area => {
+      if (area.name && !areaNames.includes(area.name)) areaNames.push(area.name);
+    });
     const areasLine = areaNames.length
       ? `<div style="font-size: 8pt; color: var(--brand-grey-500); margin-top: 6px;">Areas inspected: ${this.escapeHTML(areaNames.join(', '))}</div>`
       : '';
@@ -1368,35 +1269,26 @@ class InspectionReportGenerator {
         <table class="summary-table">
           <thead>
             <tr>
-              <th style="width: 42%;">Category</th>
-              <th style="width: 32%;">Grade</th>
-              <th style="width: 26%;">Risk</th>
+              <th style="width: 46%;">Category</th>
+              <th style="width: 27%;">Result</th>
+              <th style="width: 27%;">Findings</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
         ${areasLine}
-        <div class="grade-legend">
-          <span><span class="grade-badge grade-a">A</span>&nbsp;Good</span>
-          <span><span class="grade-badge grade-b">B</span>&nbsp;Minor</span>
-          <span><span class="grade-badge grade-c">C</span>&nbsp;Moderate</span>
-          <span><span class="grade-badge grade-d">D</span>&nbsp;Major</span>
-          <span><span class="grade-badge grade-e">E</span>&nbsp;Critical</span>
-        </div>
       </div>
     `;
   }
 
   renderOverviewPage(data) {
-    // Match the grade-badge palette: only A-band grades render brand green.
-    const gradeColor = data.grade === 'D' ? '#dc2626'
-      : data.grade === 'C' ? '#f59e0b'
-      : data.grade === 'B' ? '#65a30d'
-      : '#059669';
-    const gradeFlagBanner = data.gradeFlag ? `
+    const resultColor = data.result === 'Fail' ? '#dc2626'
+      : data.result === 'Pass' ? '#059669'
+      : '#6b7280';
+    const resultFlagBanner = data.resultFlag ? `
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 8px 14px; margin-bottom: 14px; background: #fef2f2; border: 1px solid #fecaca; border-left: 3px solid #dc2626; border-radius: 8px; color: #991b1b; font-weight: 600; font-size: 8.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-                <span>${this.escapeHTML(data.gradeFlag.en)}</span>
-                <span class="font-cairo" dir="rtl" style="text-align: right;">${this.escapeHTML(data.gradeFlag.ar)}</span>
+                <span>${this.escapeHTML(data.resultFlag.en)}</span>
+                <span class="font-cairo" dir="rtl" style="text-align: right;">${this.escapeHTML(data.resultFlag.ar)}</span>
             </div>` : '';
     const metaRow = (label, value) => {
       const v = value == null ? '' : String(value).trim();
@@ -1420,10 +1312,10 @@ class InspectionReportGenerator {
                     ${metaRow('Inspector', data.inspector)}
                     ${metaRow('Property', data.propertyType)}
                     ${metaRow('Location', data.location)}
-                    ${data.grade ? `<p><strong>Grade:</strong> <span style="font-weight: 700; color: ${gradeColor};">${this.escapeHTML(data.grade)}</span></p>` : ''}
+                    ${data.result ? `<p><strong>Result:</strong> <span style="font-weight: 700; color: ${resultColor};">${this.escapeHTML(data.result)}</span></p>` : ''}
                 </div>
             </div>
-${gradeFlagBanner}
+${resultFlagBanner}
             ${this.renderExecutiveSummary(data)}
 
             <div class="overview-box">
@@ -1585,10 +1477,8 @@ ${gradeFlagBanner}
     if (data.affectedAreas && data.affectedAreas.length > 0) {
       data.affectedAreas.forEach((area, areaIndex) => {
         const itemCount = (area.items || []).length;
-        const worst = this.worstGrade((area.items || []).map(i => i.grade));
-        const summaryChip = worst
-          ? `<span class="grade-badge grade-${worst.toLowerCase()}" title="${this.escapeHTML(this.gradeMeaning(worst))}">${this.escapeHTML(worst)}</span><span>${this.escapeHTML(this.gradeMeaning(worst))}</span>`
-          : `<span class="grade-badge grade-a">A</span><span>Good</span>`;
+        const worst = this.worstStatus((area.items || []).map(i => i.status));
+        const summaryChip = `<span class="${this.statusClass(worst)}">${this.escapeHTML(worst)}</span>`;
         const areaNumber = String(areaIndex + 1).padStart(2, '0');
 
         findingsContent += `
@@ -1612,17 +1502,15 @@ ${gradeFlagBanner}
                         <tr>
                             <th style="width: ${showLocation ? '24%' : '30%'};">Item</th>
                             ${showLocation ? '<th style="width: 18%;">Location</th>' : ''}
-                            <th style="width: ${showLocation ? '12%' : '14%'}; text-align: center;">Grade</th>
+                            <th style="width: ${showLocation ? '12%' : '14%'}; text-align: center;">Condition</th>
                             <th style="width: ${showLocation ? '46%' : '56%'};">Comments</th>
                         </tr>
                     </thead>
                     <tbody>`;
 
         area.items.forEach(item => {
-          const grade = item.grade;
-          const gradeBadge = grade
-            ? `<span class="grade-badge grade-${grade.toLowerCase()}" title="${this.escapeHTML(this.gradeMeaning(grade))}">${this.escapeHTML(grade)}</span>`
-            : `<span class="status-na">N/A</span>`;
+          const status = item.status || 'N/A';
+          const statusBadge = `<span class="${this.statusClass(status)}">${this.escapeHTML(status)}</span>`;
 
           const locationCell = showLocation
             ? `<td>${item.location ? this.escapeHTML(item.location) : '<span class="status-na">—</span>'}</td>`
@@ -1632,7 +1520,7 @@ ${gradeFlagBanner}
                         <tr>
                             <td>${this.escapeHTML(item.name)}</td>
                             ${locationCell}
-                            <td style="text-align: center;">${gradeBadge}</td>
+                            <td style="text-align: center;">${statusBadge}</td>
                             <td>${this.escapeHTML(item.comments || 'No comments')}</td>
                         </tr>`;
         });
@@ -1671,11 +1559,10 @@ ${gradeFlagBanner}
                 <table class="recommendations-table">
                     <thead>
                         <tr>
-                            <th style="width: 26%;">Issue</th>
-                            <th style="width: 12%;">Priority</th>
-                            <th style="width: 32%;">Action</th>
-                            <th style="width: 16%;">Timeline</th>
-                            <th style="width: 14%;">Cost</th>
+                            <th style="width: 30%;">Issue</th>
+                            <th style="width: 14%;">Priority</th>
+                            <th style="width: 38%;">Action</th>
+                            <th style="width: 18%;">Timeline</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1690,7 +1577,6 @@ ${gradeFlagBanner}
                             <td><span class="priority-badge ${priorityClass}">${this.escapeHTML(priority)}</span></td>
                             <td>${this.escapeHTML(rec.action || '')}</td>
                             <td>${this.escapeHTML(rec.timeline || '')}</td>
-                            <td>${this.escapeHTML(rec.cost || '')}</td>
                         </tr>`;
                         }).join('')}
                     </tbody>
@@ -1741,19 +1627,14 @@ ${gradeFlagBanner}
   generateDefaultRecommendations(affectedAreas) {
     const recommendations = [];
     affectedAreas.forEach(area => {
-      const failedItems = area.items.filter(item => item.status.toLowerCase() === 'fail');
+      const failedItems = area.items.filter(item => item.status === 'Fail');
       failedItems.forEach(item => {
-        const action = this.actionFor(item);
-        const priority = this.riskFromGrade(item.grade) === 'High' ? 'High'
-                       : this.riskFromGrade(item.grade) === 'Medium' ? 'Medium'
-                       : this.inferPriority(`${item.name} ${item.comments || ''}`);
+        const priority = this.inferPriority(`${item.name} ${item.comments || ''}`);
         recommendations.push({
           issue: `${area.name} — ${item.name}`,
-          grade: item.grade,
           priority,
-          action,
-          timeline: this.timelineFor(priority, item),
-          cost: this.costBandFor(item.grade)
+          action: this.actionFor(item),
+          timeline: this.timelineFor(priority)
         });
       });
     });
@@ -1763,15 +1644,13 @@ ${gradeFlagBanner}
         issue: 'Routine maintenance',
         priority: 'Low',
         action: 'Continue regular maintenance schedule',
-        timeline: 'Ongoing',
-        cost: '—'
+        timeline: 'Ongoing'
       });
       recommendations.push({
         issue: 'Next inspection',
         priority: 'Low',
         action: 'Schedule next inspection per maintenance calendar',
-        timeline: '12 months',
-        cost: '—'
+        timeline: '12 months'
       });
     }
 

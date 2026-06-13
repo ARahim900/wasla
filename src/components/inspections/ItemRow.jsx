@@ -6,33 +6,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
-import { GRADE_OPTIONS, normalizeGrade, statusFromGrade, inferGradeFromItem } from "@/lib/grading";
+import { STATUS_OPTIONS, statusFromItem } from "@/lib/grading";
 
 function ItemRow({ item, onUpdate, onRemove }) {
   const handleUpdate = (field, value) => {
     onUpdate({ ...item, [field]: value });
   };
 
-  // Selecting a condition grade writes both the explicit grade and the legacy
-  // status (Pass/Fail/N/A) so older data consumers keep working.
-  const handleGradeChange = (value) => {
-    if (value === 'N/A') {
-      onUpdate({ ...item, grade: null, status: 'N/A' });
-    } else {
-      onUpdate({ ...item, grade: value, status: statusFromGrade(value) });
-    }
+  // Set the condition status directly. Clear any legacy A–E grade so the
+  // report never re-derives a stale condition from it.
+  const handleStatusChange = (value) => {
+    onUpdate({ ...item, status: value, grade: null });
   };
 
-  // Legacy items have only Pass/Fail — show the same grade the report would
-  // infer for them so form and printed report agree.
-  const displayGrade = normalizeGrade(item.grade) || inferGradeFromItem(item) || 'N/A';
+  // Explicit status wins; legacy graded items fall back to a derived status so
+  // the form and the printed report always agree.
+  const displayStatus = statusFromItem(item);
 
-  const gradeClasses = {
-    'A': 'bg-status-success-bg text-status-success-foreground border-status-success/30',
-    'B': 'bg-status-success-bg text-status-success-foreground border-status-success/30',
-    'C': 'bg-status-warning-bg text-status-warning-foreground border-status-warning/30',
-    'D': 'bg-status-danger-bg text-status-danger-foreground border-status-danger/30',
-    'E': 'bg-status-danger-bg text-status-danger-foreground border-status-danger/30',
+  const statusClasses = {
+    'Pass': 'bg-status-success-bg text-status-success-foreground border-status-success/30',
+    'Fail': 'bg-status-danger-bg text-status-danger-foreground border-status-danger/30',
     'N/A': 'bg-muted text-muted-foreground border-border',
   };
 
@@ -50,13 +43,13 @@ function ItemRow({ item, onUpdate, onRemove }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Condition Grade</label>
-          <Select value={displayGrade} onValueChange={handleGradeChange}>
-            <SelectTrigger className={`w-full ${gradeClasses[displayGrade]}`}>
+          <label className="block text-sm font-medium text-foreground mb-1">Condition</label>
+          <Select value={displayStatus} onValueChange={handleStatusChange}>
+            <SelectTrigger className={`w-full ${statusClasses[displayStatus]}`}>
               <SelectValue placeholder="Select condition" />
             </SelectTrigger>
             <SelectContent>
-              {GRADE_OPTIONS.map((opt) => (
+              {STATUS_OPTIONS.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
                   {opt.label}
                 </SelectItem>
