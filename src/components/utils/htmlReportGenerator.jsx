@@ -365,7 +365,7 @@ class InspectionReportGenerator {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=794, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Property Inspection Report - ${this.escapeHTML(data.client)}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -391,8 +391,13 @@ class InspectionReportGenerator {
             --brand-grey-900: #111827;
         }
 
+        /* Screen: fit the viewport (phones included) so the preview never
+           overflows. Print re-pins this to a fixed 210mm A4 page below, and
+           the narrow-screen overrides live near the end of this sheet (after
+           the base rules) so they actually win the cascade. */
         html, body {
-            width: 210mm;
+            width: 100%;
+            max-width: 210mm;
             margin-left: auto;
             margin-right: auto;
         }
@@ -1068,6 +1073,42 @@ class InspectionReportGenerator {
 
         .summary-table tbody tr:last-child td {
             border-bottom: none;
+        }
+
+        /* ---- Narrow screens (phones/tablets) ----
+           Placed after all base rules so these overrides win the cascade.
+           Screen-only: print keeps the full fixed A4 layout below. Makes the
+           on-screen preview fit any device width with no horizontal scroll. */
+        @media screen and (max-width: 820px) {
+            .report-container,
+            .page {
+                max-width: 100%;
+            }
+            .page {
+                padding: 16px 14px;
+            }
+            /* The faint 400px watermark is centered and bleeds past a phone's
+               width; scale it down so it never forces horizontal scroll. */
+            .page::before {
+                width: min(60vw, 400px);
+                height: min(60vw, 400px);
+            }
+            /* Stack the cover header (logo / title / info) so its fixed
+               200px info column can't push the page wider than the phone. */
+            .cover-header {
+                grid-template-columns: 1fr;
+            }
+            .cover-header-info {
+                min-width: 0;
+                border-left: 0;
+                padding-left: 0;
+                border-top: 1px solid var(--brand-grey-200);
+                padding-top: 8px;
+            }
+            /* Signature blocks stack instead of sitting side by side. */
+            .signature-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media print {
