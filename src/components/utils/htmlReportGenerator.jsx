@@ -150,7 +150,6 @@ class InspectionReportGenerator {
     if (data.areas && Array.isArray(data.areas)) {
       data.areas.forEach(area => {
         const affectedItems = [];
-        const areaPhotos = [];
 
         if (area.items && Array.isArray(area.items)) {
           area.items.forEach(item => {
@@ -173,25 +172,30 @@ class InspectionReportGenerator {
             const hasPhotos = item.photos && item.photos.length > 0;
 
             if (hasIssue || hasComments || hasPhotos) {
+              // Keep each item's photos attached to the item itself so the
+              // report can render photo evidence directly beneath the finding
+              // it documents, instead of pooling every photo at area level.
+              const itemPhotos = [];
+              if (item.photos && Array.isArray(item.photos)) {
+                item.photos.forEach(photo => {
+                  if (photo.url) {
+                    itemPhotos.push({
+                      url: photo.url,
+                      itemName,
+                      description: photo.description || ''
+                    });
+                  }
+                });
+              }
+
               affectedItems.push({
                 name: itemName,
                 status,
                 location: item.location || '',
                 comments: item.comments || '',
-                category
+                category,
+                photos: itemPhotos
               });
-
-              if (item.photos && Array.isArray(item.photos)) {
-                item.photos.forEach(photo => {
-                  if (photo.url) {
-                    areaPhotos.push({
-                      url: photo.url,
-                      itemName: item.point || item.category || 'Inspection point',
-                      description: photo.description || item.comments || 'Inspection photo'
-                    });
-                  }
-                });
-              }
             }
           });
         }
@@ -199,8 +203,7 @@ class InspectionReportGenerator {
         if (affectedItems.length > 0) {
           processed.affectedAreas.push({
             name: area.name || 'Inspection Area',
-            items: affectedItems,
-            photos: areaPhotos
+            items: affectedItems
           });
         }
       });
@@ -879,6 +882,65 @@ class InspectionReportGenerator {
             letter-spacing: 0.4px;
         }
 
+        .photo-caption .caption-text {
+            display: block;
+            color: var(--brand-grey-600);
+            font-weight: 400;
+            font-size: 6.8pt;
+            line-height: 1.35;
+        }
+
+        /* Per-finding block: keeps a finding's comment and its photos together
+           as one unit instead of separating comments from a pooled photo grid. */
+        .finding-item {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--brand-grey-200);
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .finding-item:last-child {
+            border-bottom: none;
+            padding-bottom: 2px;
+        }
+
+        .finding-head {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .finding-name {
+            font-size: 9pt;
+            font-weight: 700;
+            color: var(--brand-grey-900);
+            line-height: 1.2;
+        }
+
+        .finding-loc {
+            font-size: 7pt;
+            color: var(--brand-grey-500);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+
+        .finding-status {
+            white-space: nowrap;
+        }
+
+        .finding-comment {
+            font-size: 8pt;
+            color: var(--brand-grey-700);
+            line-height: 1.45;
+        }
+
+        .finding-photos {
+            margin-top: 8px;
+        }
+
         h3 {
             font-size: 8.5pt;
             font-weight: 700;
@@ -1494,59 +1556,49 @@ ${resultFlagBanner}
 
                 <div class="area-body">`;
 
-        const showLocation = (area.items || []).some(it => it.location && it.location.trim());
-
-        findingsContent += `
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: ${showLocation ? '24%' : '30%'};">Item</th>
-                            ${showLocation ? '<th style="width: 18%;">Location</th>' : ''}
-                            <th style="width: ${showLocation ? '12%' : '14%'}; text-align: center;">Condition</th>
-                            <th style="width: ${showLocation ? '46%' : '56%'};">Comments</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
-
+        // One self-contained block per finding: name + condition + location,
+        // the inspector's comment, then THAT finding's photos directly beneath
+        // — so photo evidence stays tied to the comment it documents.
         area.items.forEach(item => {
           const status = item.status || 'N/A';
           const statusBadge = `<span class="${this.statusClass(status)}">${this.escapeHTML(status)}</span>`;
 
-          const locationCell = showLocation
-            ? `<td>${item.location ? this.escapeHTML(item.location) : '<span class="status-na">—</span>'}</td>`
+          const locationChip = item.location && item.location.trim()
+            ? `<span class="finding-loc">Location: ${this.escapeHTML(item.location)}</span>`
             : '';
 
-          findingsContent += `
-                        <tr>
-                            <td>${this.escapeHTML(item.name)}</td>
-                            ${locationCell}
-                            <td style="text-align: center;">${statusBadge}</td>
-                            <td>${this.escapeHTML(item.comments || 'No comments')}</td>
-                        </tr>`;
-        });
-
-        findingsContent += `
-                    </tbody>
-                </table>`;
-
-        if (area.photos && area.photos.length > 0) {
-          findingsContent += `<div class="photo-grid">`;
-          area.photos.forEach(photo => {
-            const itemName = photo.itemName || 'Inspection point';
-            findingsContent += `
+          let photosHtml = '';
+          if (item.photos && item.photos.length > 0) {
+            photosHtml += `<div class="photo-grid finding-photos">`;
+            item.photos.forEach(photo => {
+              const caption = photo.description && photo.description.trim()
+                ? `<span class="caption-text">${this.escapeHTML(photo.description)}</span>`
+                : `<span class="caption-label">${this.escapeHTML(photo.itemName || item.name)}</span>`;
+              photosHtml += `
                     <div class="photo-item">
                         <div class="photo-frame">
                             <img src="${this.escapeHTML(photo.url)}"
-                                 alt="${this.escapeHTML(itemName)}"
+                                 alt="${this.escapeHTML(item.name)}"
                                  onerror="this.src='${this.escapeHTML(this.config.company.placeholderImage)}'">
                         </div>
-                        <div class="photo-caption">
-                            <span class="caption-label">${this.escapeHTML(itemName)}</span>
-                        </div>
+                        <div class="photo-caption">${caption}</div>
                     </div>`;
-          });
-          findingsContent += `</div>`;
-        }
+            });
+            photosHtml += `</div>`;
+          }
+
+          findingsContent += `
+                <div class="finding-item">
+                    <div class="finding-head">
+                        <span class="finding-name">${this.escapeHTML(item.name)}</span>
+                        ${locationChip}
+                        <span class="finding-status">${statusBadge}</span>
+                    </div>
+                    <div class="finding-comment">${this.escapeHTML(item.comments || 'No additional comments')}</div>
+                    ${photosHtml}
+                </div>`;
+        });
+
         findingsContent += `</div></div>`;
       });
     }
