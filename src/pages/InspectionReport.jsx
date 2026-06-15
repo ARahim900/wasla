@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Inspection, Property, Client } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Loader2 } from "lucide-react";
 import { createPageUrl } from "@/utils";
-import { buildInspectionReportHTML } from "@/components/utils/htmlReportGenerator";
+import { buildInspectionReportHTML, buildPrintableReportHTML } from "@/components/utils/htmlReportGenerator";
 import { toast } from "sonner";
 
 function buildReportData(inspection, client, property) {
@@ -22,12 +22,13 @@ function buildReportData(inspection, client, property) {
 
 export default function InspectionReport() {
   const navigate = useNavigate();
-  const iframeRef = useRef(null);
   const [inspection, setInspection] = useState(null);
   const [property, setProperty] = useState(null);
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reportHTML, setReportHTML] = useState("");
+  // Standalone, printable document opened in a new tab when the user prints.
+  const [printHTML, setPrintHTML] = useState("");
   const [building, setBuilding] = useState(false);
   // Distinguishes "no id in URL" (bad link) from "id given but not found"
   // (record deleted). The empty-state below renders different copy for each.
@@ -79,9 +80,18 @@ export default function InspectionReport() {
     if (!inspection) return;
     let cancelled = false;
     setBuilding(true);
-    buildInspectionReportHTML(buildReportData(inspection, client, property))
-      .then((html) => {
-        if (!cancelled) setReportHTML(html);
+    const data = buildReportData(inspection, client, property);
+    // Build both the embedded preview (sandboxed iframe) and the standalone
+    // printable document (opened in a new tab for reliable mobile printing).
+    Promise.all([
+      buildInspectionReportHTML(data),
+      buildPrintableReportHTML(data)
+    ])
+      .then(([embedHTML, standaloneHTML]) => {
+        if (!cancelled) {
+          setReportHTML(embedHTML);
+          setPrintHTML(standaloneHTML);
+        }
       })
       .catch((err) => {
         console.error('Failed to build report HTML:', err);
@@ -94,18 +104,23 @@ export default function InspectionReport() {
   }, [inspection, client, property]);
 
   const handlePrint = () => {
-    const iframe = iframeRef.current;
-    if (!iframe || !iframe.contentWindow) {
-      toast.error('Report is still loading. Please try again.');
+    if (!printHTML) {
+      toast.error('Report is still preparing. Please try again in a moment.');
       return;
     }
-    try {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    } catch (err) {
-      console.error('Print failed:', err);
-      toast.error('Unable to print. Try your browser print menu.');
+    // Open the standalone report in a new tab and print from there. The tab is
+    // opened synchronously inside the click handler so mobile pop-up blockers
+    // permit it. Printing a top-level document works reliably everywhere —
+    // including iOS Safari and Chrome Android — unlike iframe.contentWindow
+    // .print(), which silently fails on most mobile browsers.
+    const win = window.open('', '_blank');
+    if (!win) {
+      toast.error('Please allow pop-ups for this site, then tap Print again.');
+      return;
     }
+    win.document.open();
+    win.document.write(printHTML);
+    win.document.close();
   };
 
   if (loading) {
@@ -142,7 +157,7 @@ export default function InspectionReport() {
         <Button variant="outline" onClick={() => navigate(createPageUrl("Inspections"))}>
           <ArrowLeft className="w-4 h-4 mr-2" />Back to Inspections
         </Button>
-        <Button onClick={handlePrint} disabled={building || !reportHTML}>
+        <Button onClick={handlePrint} disabled={building || !printHTML}>
           <Printer className="w-4 h-4 mr-2" />
           {building ? 'Preparing…' : 'Print / Save PDF'}
         </Button>
@@ -157,7 +172,6 @@ export default function InspectionReport() {
           // purpose — combined with allow-same-origin it would nullify the
           // sandbox entirely.
           <iframe
-            ref={iframeRef}
             title="Inspection Report"
             sandbox="allow-same-origin allow-modals"
             srcDoc={reportHTML}

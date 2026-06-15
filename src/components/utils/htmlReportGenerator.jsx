@@ -1761,4 +1761,13 @@ export async function buildInspectionReportHTML(inspectionData, options = {}) {
   return await generator.buildHTML(inspectionData, { ...options, embedMode: true });
 }
 
+// Standalone, full-page report document (NOT embedded/sandboxed): includes the
+// print toolbar and a top-level window.print() handler. Used for the "Print /
+// Save PDF" flow, which opens this in a new tab — printing a top-level document
+// works reliably on mobile, unlike iframe.contentWindow.print().
+export async function buildPrintableReportHTML(inspectionData, options = {}) {
+  const generator = new InspectionReportGenerator();
+  return await generator.buildHTML(inspectionData, { ...options, embedMode: false });
+}
+
 export { InspectionReportGenerator };
