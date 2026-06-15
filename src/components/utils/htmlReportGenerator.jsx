@@ -595,8 +595,8 @@ class InspectionReportGenerator {
             background: var(--brand-grey-100);
             border: 1px solid var(--brand-grey-200);
             border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
@@ -606,7 +606,7 @@ class InspectionReportGenerator {
             font-size: 11pt;
             font-weight: 700;
             color: var(--brand-primary);
-            margin-bottom: 10px;
+            margin-bottom: 6px;
             border-bottom: 2px solid var(--brand-accent);
             padding-bottom: 5px;
             letter-spacing: 0.3px;
@@ -616,7 +616,7 @@ class InspectionReportGenerator {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 0;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .two-column > .column {
@@ -634,11 +634,11 @@ class InspectionReportGenerator {
 
         .column {
             font-size: 7.8pt;
-            line-height: 1.45;
+            line-height: 1.4;
         }
 
         .column p {
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
 
         .column strong {
@@ -1447,7 +1447,7 @@ ${resultFlagBanner}
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 8px;">
+            <div class="two-column" style="margin-top: 5px;">
                 <div class="column">
                     <h3>No property is perfect.</h3>
                     <p>Every building has imperfections or items that are ready for maintenance. It's the inspector's task to discover and report these so you can make informed decisions. This report should not be used as a tool to demean property, but rather as a way to illuminate the realities of the property.</p>
@@ -1458,7 +1458,7 @@ ${resultFlagBanner}
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 8px;">
+            <div class="two-column" style="margin-top: 5px;">
                 <div class="column">
                     <h3>This report is not an appraisal.</h3>
                     <p>When an appraiser determines worth, only the most obvious conditions of a property are taken into account to establish a safe loan amount. In effect, the appraiser is representing the interests of the lender. Home inspectors focus more on the interests of the prospective buyer; and, although inspectors must be careful not to make any statements relating to property value, their findings can help buyers more completely understand the true costs of ownership.</p>
@@ -1469,7 +1469,7 @@ ${resultFlagBanner}
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 8px;">
+            <div class="two-column" style="margin-top: 5px;">
                 <div class="column">
                     <h3>Maintenance costs are normal.</h3>
                     <p>Homeowners should plan to spend around 1% of the total value of a property in maintenance costs, annually. (Annual costs of rental property maintenance are often 2%, or more.) If considerably less than this percentage has been invested during several years preceding an inspection, the property will usually show the obvious signs of neglect; and the new property owners may be required to invest significant time and money to address accumulated maintenance needs.</p>
@@ -1506,7 +1506,7 @@ ${resultFlagBanner}
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 8px;">
+            <div class="two-column" style="margin-top: 5px;">
                 <div class="column">
                     <h3 style="font-size: 10pt; font-weight: 700; color: #4b5563; margin-bottom: 6px;">CONFIDENTIALITY OF THE REPORT:</h3>
                     <p>The inspection report is to be prepared for the Client for the purpose of informing of the major deficiencies in the condition of the subject property and is solely and exclusively for Client's own information and may not be relied upon by any other person. Client may distribute copies of the inspection report to the seller and the real estate agents directly involved in this transaction, but Client and Inspector do not in any way intend to benefit said seller or the real estate agents directly or indirectly through this Agreement or the inspection report. In the event that the inspection report has been prepared for the SELLER of the subject property, an authorized representative of ${this.escapeHTML(this.config.company.name)} will return to the property, for a fee, to meet with the BUYER for a consultation to provide a better understanding of the reported conditions and answer.</p>
