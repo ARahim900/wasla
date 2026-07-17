@@ -19,6 +19,7 @@ import { ArrowLeft, Save, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { Inspection, Property, Client, ConflictError } from "@/api/entities";
+import { DeleteFile } from "@/api/integrations";
 import AreaCard from "../components/inspections/AreaCard";
 import { createPageUrl } from "@/utils";
 import PDFExportButton from "../components/inspections/PDFExportButton";
@@ -60,6 +61,37 @@ const preparePayload = (ins) => {
 };
 
 const AUTOSAVE_DELAY_MS = 2500;
+
+// Every photo URL referenced anywhere in an inspection payload (per-item photos
+// plus the top-level photos array).
+const collectPhotoUrls = (payload) => {
+  const urls = new Set();
+  (payload?.areas || []).forEach((a) =>
+    (a.items || []).forEach((it) =>
+      (it.photos || []).forEach((p) => { if (p?.url) urls.add(p.url); })
+    )
+  );
+  (payload?.photos || []).forEach((p) => { if (p?.url) urls.add(p.url); });
+  return urls;
+};
+
+// After a successful save, delete storage files that the previous saved version
+// referenced but the new one no longer does. Deferring deletion until the
+// removal is persisted means a failed save never orphans a still-referenced
+// file (and never leaves the report pointing at a deleted one). Best-effort.
+const reconcileRemovedPhotos = (prevJson, nextPayload) => {
+  if (!prevJson) return;
+  let prevUrls;
+  try {
+    prevUrls = collectPhotoUrls(JSON.parse(prevJson));
+  } catch {
+    return;
+  }
+  const nextUrls = collectPhotoUrls(nextPayload);
+  prevUrls.forEach((url) => {
+    if (!nextUrls.has(url)) DeleteFile({ url }).catch(() => {});
+  });
+};
 
 // Local draft safety net — written when an autosave fails or the tab closes
 // with unsaved edits, so a flaky connection never eats field work. All
@@ -306,6 +338,7 @@ export default function InspectionForm() {
 
     autosaveBusyRef.current = true;
     setAutosave({ state: "saving", at: null });
+    const prevSavedJson = lastSavedJsonRef.current;
     try {
       const payload = preparePayload(current);
       if (current.id) {
@@ -330,6 +363,7 @@ export default function InspectionForm() {
         }
       }
       clearDraft(current.id || null);
+      reconcileRemovedPhotos(prevSavedJson, payload);
       lastSavedJsonRef.current = snapshotJson;
       setAutosave({ state: "saved", at: new Date() });
     } catch (err) {
@@ -598,6 +632,7 @@ export default function InspectionForm() {
     const toastId = toast.loading(
       currentId ? "Updating inspection..." : "Saving inspection..."
     );
+    const prevSavedJson = lastSavedJsonRef.current;
     try {
       const resolvedClient = await resolveClient(
         inspection.client_name,
@@ -630,6 +665,8 @@ export default function InspectionForm() {
         await Inspection.create(payload);
       }
       clearDraft(currentId);
+      reconcileRemovedPhotos(prevSavedJson, payload);
+      lastSavedJsonRef.current = JSON.stringify(payload);
       toast.success("Inspection saved successfully.", { id: toastId });
       navigate(createPageUrl("Inspections"));
     } catch (error) {

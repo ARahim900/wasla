@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadFile, DeleteFile } from '@/api/integrations';
+import { UploadFile } from '@/api/integrations';
 import { UploadCloud, X, Loader2, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -51,10 +51,15 @@ const looksLikeScreenshot = (file) =>
 const canvasToBlob = (canvas, quality) =>
   new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
 
+// Thrown when the browser can't decode the source image (most often an iPhone
+// HEIC/HEIF on a browser without HEIC support). Surfaced with a helpful message
+// instead of uploading the raw file, which the bucket would reject anyway.
+class UndecodableImageError extends Error {}
+
 const compressImage = async (file) => {
   if (file.size < 500 * 1024) return file; // Skip if already small
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = async () => {
       URL.revokeObjectURL(img.src);
@@ -69,6 +74,10 @@ const compressImage = async (file) => {
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
+      // Fill white first: JPEG has no alpha channel, so a transparent PNG would
+      // otherwise flatten onto black. White matches paper/report backgrounds.
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
 
       // Step the JPEG quality down until the result fits the target size, so
@@ -91,7 +100,7 @@ const compressImage = async (file) => {
     };
     img.onerror = () => {
       URL.revokeObjectURL(img.src);
-      resolve(file); // Fallback to original on error
+      reject(new UndecodableImageError(file.name));
     };
     img.src = URL.createObjectURL(file);
   });
@@ -111,6 +120,7 @@ export default function PhotoUpload({ photos, onUpdate }) {
     let skippedSize = 0;
     let skippedType = 0;
     let suspiciousCount = 0;
+    let unsupportedCount = 0;
 
     // Filter into a queue first so the type counts are accurate before we
     // start uploading. Size is checked AFTER compression — a 25 MB phone photo
@@ -127,10 +137,18 @@ export default function PhotoUpload({ photos, onUpdate }) {
 
     const processOne = async (originalFile) => {
       if (await looksLikeScreenshot(originalFile)) suspiciousCount++;
-      const compressed = await compressImage(originalFile);
+      let compressed;
+      try {
+        compressed = await compressImage(originalFile);
+      } catch (err) {
+        if (err instanceof UndecodableImageError) return { unsupported: true };
+        throw err;
+      }
       if (compressed.size > MAX_FILE_SIZE) return { tooLarge: true };
-      const { file_url } = await UploadFile({ file: compressed, bucket: 'inspection-photos' });
-      return { photo: { url: file_url, name: compressed.name } };
+      // Keep the storage path alongside the public URL so later deletion
+      // doesn't depend on parsing it back out of the URL.
+      const { file_url, file_path } = await UploadFile({ file: compressed, bucket: 'inspection-photos' });
+      return { photo: { url: file_url, name: compressed.name, path: file_path } };
     };
 
     const CONCURRENCY = 3;
@@ -140,6 +158,7 @@ export default function PhotoUpload({ photos, onUpdate }) {
       results.forEach((r) => {
         if (r.status === 'fulfilled') {
           if (r.value.tooLarge) skippedSize++;
+          else if (r.value.unsupported) unsupportedCount++;
           else uploadedPhotos.push(r.value.photo);
         } else {
           failCount++;
@@ -156,6 +175,11 @@ export default function PhotoUpload({ photos, onUpdate }) {
     }
     if (skippedSize > 0) {
       toast.error(`${skippedSize} file${skippedSize > 1 ? 's' : ''} skipped: still over 10 MB after compression.`);
+    }
+    if (unsupportedCount > 0) {
+      toast.error(
+        `${unsupportedCount} file${unsupportedCount > 1 ? 's' : ''} couldn't be processed. If these are iPhone photos (HEIC), set your camera to "Most Compatible" (JPEG) or convert them first.`
+      );
     }
     if (failCount > 0) {
       toast.error(`Failed to upload ${failCount} photo${failCount > 1 ? 's' : ''}. Please try again.`);
@@ -175,13 +199,12 @@ export default function PhotoUpload({ photos, onUpdate }) {
   };
 
   const handleRemove = (index) => {
-    const removed = photos[index];
     const newPhotos = photos.filter((_, i) => i !== index);
+    // Only drop it from the form here. The storage file is deleted after the
+    // removal is actually persisted (InspectionForm reconciles on successful
+    // save), so a failed/abandoned save can never leave the report pointing at
+    // a file that's already gone.
     onUpdate(newPhotos);
-    // Delete file from storage in background
-    if (removed?.url) {
-      DeleteFile({ url: removed.url }).catch(() => {});
-    }
   };
 
   const handleUploadFromDevice = () => {
