@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import TeamAccessCard from "@/components/settings/TeamAccessCard";
 import { toast } from "sonner";
 import {
   User as UserIcon,
@@ -660,6 +661,9 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Team Access (registration allowlist) */}
+          <TeamAccessCard />
 
           {/* Account Actions Card */}
           <Card className="border-destructive/20">

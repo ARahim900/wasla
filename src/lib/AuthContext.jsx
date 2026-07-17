@@ -232,6 +232,16 @@ export const AuthProvider = ({ children }) => {
     });
 
     if (error) {
+      // The registration allowlist is enforced by a BEFORE INSERT trigger on
+      // auth.users. Supabase surfaces a trigger rejection as a generic
+      // "Database error saving new user" — translate it into a clear message
+      // instead of a scary internal error.
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('database error') || msg.includes('allowlist') || msg.includes('not_allowlisted')) {
+        throw new Error(
+          "This email isn't authorized to register. Ask a team member to add you under Settings > Team Access."
+        );
+      }
       throw error;
     }
 
