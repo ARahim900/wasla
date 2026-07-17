@@ -1,6 +1,5 @@
 import './App.css'
 import { Suspense } from "react";
-import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -153,7 +152,6 @@ function App() {
             {import.meta.env.DEV && <NavigationTracker />}
             <AuthenticatedApp />
           </Router>
-          <Toaster />
           <SonnerToaster />
           {import.meta.env.DEV && <VisualEditAgent />}
         </QueryClientProvider>
