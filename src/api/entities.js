@@ -169,6 +169,15 @@ function createDemoEntityHandler(tableName) {
       return data.find(item => item.id === id) || null;
     },
 
+    async count(queryObj = {}) {
+      const data = getDemoData(tableName);
+      return data.filter(item =>
+        Object.entries(queryObj).every(([key, value]) =>
+          value === undefined || value === null || item[key] === value
+        )
+      ).length;
+    },
+
     async create(newData) {
       const data = getDemoData(tableName);
       const item = {
@@ -234,16 +243,18 @@ function createDemoEntityHandler(tableName) {
   };
 }
 
-// Helper to get current user ID
+// Helper to get current user ID. Uses the locally-cached session (no network
+// round-trip) — enough to stamp user_id on inserts. The access token is still
+// verified server-side by RLS, so a stale/forged local id cannot escalate.
 async function getCurrentUserId() {
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getSession();
 
   if (error) {
-    console.error('Failed to get current user:', error.message);
+    console.error('Failed to get current session:', error.message);
     throw new Error(`Authentication error: ${error.message}`);
   }
 
-  return data?.user?.id || null;
+  return data?.session?.user?.id || null;
 }
 
 // Supabase entity handler (production)
@@ -339,6 +350,30 @@ function createSupabaseEntityHandler(tableName) {
       }
 
       return data || [];
+    },
+
+    // Row count matching optional equality filters, computed server-side with
+    // head:true so no row data is transferred. Lets the dashboard show totals
+    // without downloading whole tables.
+    async count(queryObj = {}) {
+      let query = supabase
+        .from(tableName)
+        .select('*', { count: 'exact', head: true });
+
+      Object.entries(queryObj).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          query = query.eq(key, value);
+        }
+      });
+
+      const { count, error } = await query;
+
+      if (error) {
+        console.error(`Failed to count ${tableName}:`, error.message);
+        throw new Error(`Failed to count ${tableName}: ${error.message}`);
+      }
+
+      return count || 0;
     },
 
     async get(id) {

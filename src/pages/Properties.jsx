@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Property, Client } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,51 +8,45 @@ import { Plus, Search, Home, User, Edit2, Trash2, Eye } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import PropertyForm from "../components/forms/PropertyForm";
 import PropertyDetailView from "../components/properties/PropertyDetailView";
+import Pagination from "../components/ui/Pagination";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
+const ITEMS_PER_PAGE = 9;
+
 export default function Properties() {
-  const [properties, setProperties] = useState([]);
-  const [clients, setClients] = useState([]);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [editingProperty, setEditingProperty] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingProperty, setDeletingProperty] = useState(null);
 
-  const loadData = async () => {
-    setIsLoading(true);
-    // allSettled + per-entity toasts: a failed load must not masquerade as an
-    // empty workspace ("No properties found") with no indication of the outage.
-    const [propertyResult, clientResult] = await Promise.allSettled([
-      Property.list(),
-      Client.list(),
-    ]);
+  const {
+    data: properties = [],
+    isLoading,
+    isError: propsError,
+  } = useQuery({
+    queryKey: ["properties", "list"],
+    queryFn: () => Property.list("-created_at"),
+  });
 
-    if (propertyResult.status === "fulfilled") {
-      setProperties(Array.isArray(propertyResult.value) ? propertyResult.value : []);
-    } else {
-      console.error("Property.list() failed:", propertyResult.reason);
-      toast.error("Could not load properties. Check your connection and try again.");
-    }
+  // Only id + name needed to resolve the property's client label.
+  const { data: clients = [], isError: clientsError } = useQuery({
+    queryKey: ["clients", "lookup"],
+    queryFn: () => Client.list(null, null, null, ["id", "name"]),
+  });
 
-    if (clientResult.status === "fulfilled") {
-      setClients(Array.isArray(clientResult.value) ? clientResult.value : []);
-    } else {
-      console.error("Client.list() failed:", clientResult.reason);
-      toast.error("Could not load clients. Check your connection and try again.");
-    }
-
-    setIsLoading(false);
-  };
-  
   useEffect(() => {
-    loadData();
-  }, []);
+    if (propsError) toast.error("Could not load properties. Check your connection and try again.");
+    if (clientsError) toast.error("Could not load clients. Check your connection and try again.");
+  }, [propsError, clientsError]);
+
+  const refreshProperties = () => queryClient.invalidateQueries({ queryKey: ["properties"] });
 
   const clientsMap = useMemo(() => new Map(clients.map(c => [c.id, c.name])), [clients]);
 
@@ -65,6 +60,16 @@ export default function Properties() {
       return address.includes(needle) || clientName.includes(needle) || type.includes(needle);
     });
   }, [properties, searchTerm, clientsMap]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProperties.length / ITEMS_PER_PAGE));
+  const paginatedProperties = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredProperties.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredProperties, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   const handleAddNew = () => {
     setEditingProperty(null);
@@ -109,7 +114,7 @@ export default function Properties() {
         await Property.create(propertyData);
         toast.success("Property created successfully.");
       }
-      await loadData();
+      refreshProperties();
 
       // Refresh detail view if it's open for the same property.
       if (selectedProperty && editedId === selectedProperty.id) {
@@ -135,8 +140,8 @@ export default function Properties() {
       if (selectedProperty?.id === deletingProperty.id) {
         closeDetail();
       }
-      
-      await loadData();
+
+      refreshProperties();
     } catch (error) {
       console.error("Error deleting property:", error);
       toast.error(`Failed to delete property: ${error.message}`);
@@ -160,7 +165,7 @@ export default function Properties() {
 
       <div className="relative w-full sm:max-w-md">
         <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Search by address or client..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="ps-10" />
+        <Input placeholder="Search by address or client..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="ps-10" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -179,8 +184,8 @@ export default function Properties() {
         ) : (
           <AnimatePresence>
             {filteredProperties.length > 0 ? (
-              filteredProperties.map((property) => (
-                <motion.div key={property.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              paginatedProperties.map((property) => (
+                <motion.div key={property.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
                   <Card className="h-full transition-colors overflow-hidden">
                     <CardHeader className="p-4 pb-3 flex flex-row justify-between items-start space-y-0">
                       <div className="flex-1 min-w-0">
@@ -222,6 +227,10 @@ export default function Properties() {
           </AnimatePresence>
         )}
       </div>
+
+      {!isLoading && totalPages > 1 && (
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+      )}
 
       {/* Detail View Dialog */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>

@@ -16,21 +16,20 @@ const prettyStatus = (status) =>
 
 const colorFor = (status) => chartStatusColors[status] || chartStatusColors.other;
 
-export default function InspectionChart({ inspections, isLoading }) {
+// `statusCounts` is a plain { status: count } map (computed server-side by the
+// Dashboard) so this never needs the full inspections table to draw the donut.
+export default function InspectionChart({ statusCounts, isLoading }) {
   const segments = React.useMemo(() => {
-    if (!inspections?.length) return [];
-    const counts = inspections.reduce((acc, i) => {
-      const key = i.status || "other";
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
-    return Object.entries(counts).map(([status, value]) => ({
-      status,
-      value,
-      name: prettyStatus(status),
-      color: colorFor(status),
-    }));
-  }, [inspections]);
+    const counts = statusCounts || {};
+    return Object.entries(counts)
+      .filter(([, value]) => value > 0)
+      .map(([status, value]) => ({
+        status,
+        value,
+        name: prettyStatus(status),
+        color: colorFor(status),
+      }));
+  }, [statusCounts]);
 
   const total = segments.reduce((sum, s) => sum + s.value, 0);
 

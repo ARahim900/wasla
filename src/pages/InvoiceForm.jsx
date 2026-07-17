@@ -38,11 +38,15 @@ export default function InvoiceForm() {
     
     const loadData = async () => {
       try {
-        // Fetch properties along with clients and inspections
+        // Slim field selection — the dropdowns and auto-populate use only these
+        // metadata columns, never the heavy inspection areas/photos JSONB.
         const [clientData, inspectionData, propertyData] = await Promise.all([
-          Client.list("-created_at"),
-          Inspection.list("-created_at"),
-          Property.list()
+          Client.list("-created_at", null, null, ["id", "name"]),
+          Inspection.list("-created_at", null, null, [
+            "id", "client_id", "property_id", "client_name", "inspection_type",
+            "inspection_date", "area_sqm", "property_type", "property_address",
+          ]),
+          Property.list(null, null, null, ["id", "address", "property_type", "client_id"]),
         ]);
         
         setClients(clientData || []);

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Inspection, Property, Client } from "@/api/entities";
 import { DeleteFile } from "@/api/integrations";
 import { Button } from "@/components/ui/button";
@@ -20,54 +21,59 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const ITEMS_PER_PAGE = 5;
 
+// List view never renders the areas/photos JSONB, so we leave those heavy
+// columns on the server. The report ("View Report") re-fetches the full row by
+// id, and delete fetches it on demand for photo cleanup.
+const LIST_FIELDS = [
+  "id", "client_id", "property_id", "client_name", "inspector_name",
+  "inspection_type", "property_type", "property_address", "status",
+  "inspection_date", "created_at",
+];
+
 export default function Inspections() {
   const navigate = useNavigate();
-  const [inspections, setInspections] = useState([]);
-  const [properties, setProperties] = useState([]);
-  const [clients, setClients] = useState([]);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const loadData = async () => {
-    setIsLoading(true);
-    try {
-      const [inspectionData, propertyData, clientData] = await Promise.all([
-        Inspection.list().catch(() => []),
-        Property.list().catch(() => []),
-        Client.list().catch(() => [])
-      ]);
+  const {
+    data: inspections = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["inspections", "list"],
+    queryFn: () => Inspection.list("-created_at", null, null, LIST_FIELDS),
+  });
 
-      const safeInspections = Array.isArray(inspectionData) ? inspectionData : [];
-      setInspections(
-        [...safeInspections].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      );
-      setProperties(Array.isArray(propertyData) ? propertyData : []);
-      setClients(Array.isArray(clientData) ? clientData : []);
-
-    } catch (error) {
-      console.error("Error loading data:", error);
-      toast.error("Failed to load inspection data.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Small lookup tables for the card title / report fallback — slim columns only.
+  const { data: properties = [] } = useQuery({
+    queryKey: ["properties", "lookup"],
+    queryFn: () => Property.list(null, null, null, ["id", "address"]),
+  });
+  const { data: clients = [] } = useQuery({
+    queryKey: ["clients", "lookup"],
+    queryFn: () => Client.list(null, null, null, ["id", "name"]),
+  });
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isError) toast.error("Failed to load inspection data.");
+  }, [isError]);
 
   const handleStatusChange = async (inspection, newStatus) => {
-    const previousInspections = inspections;
+    const key = ["inspections", "list"];
+    const previous = queryClient.getQueryData(key);
     // Optimistic update
-    setInspections(prev => prev.map(i => i.id === inspection.id ? { ...i, status: newStatus } : i));
+    queryClient.setQueryData(key, (old = []) =>
+      old.map(i => (i.id === inspection.id ? { ...i, status: newStatus } : i))
+    );
     try {
       await Inspection.update(inspection.id, { status: newStatus });
       toast.success(`Inspection status updated to ${newStatus.replace('_', ' ')}`);
+      queryClient.invalidateQueries({ queryKey: ["inspections"] });
     } catch (error) {
       // Rollback on failure
-      setInspections(previousInspections);
+      queryClient.setQueryData(key, previous);
       console.error("Error updating inspection status:", error);
       toast.error("Failed to update inspection status");
     }
@@ -77,10 +83,10 @@ export default function Inspections() {
     if (!confirm("Are you sure you want to delete this inspection?")) return;
 
     try {
-      // Clean up photos from storage before deleting the record. Await the
-      // results so we can warn the user if any orphaned files remain — silent
-      // failures here lead to growing storage costs over time.
-      const inspection = inspections.find(i => i.id === inspectionId);
+      // The list row is slim (no photos), so fetch the full record to clean up
+      // its storage files before deleting. Await the results so we can warn if
+      // any orphaned files remain — silent failures grow storage cost over time.
+      const inspection = await Inspection.get(inspectionId).catch(() => null);
       let photoFailures = 0;
       if (inspection) {
         const photoUrls = [];
@@ -103,7 +109,7 @@ export default function Inspections() {
       } else {
         toast.success("Inspection deleted successfully");
       }
-      await loadData();
+      queryClient.invalidateQueries({ queryKey: ["inspections"] });
     } catch (error) {
       console.error("Error deleting inspection:", error);
       toast.error(error?.message || "Failed to delete inspection");

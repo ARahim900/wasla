@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Invoice, Client, Inspection, Property } from "@/api/entities";
+import { useQuery } from "@tanstack/react-query";
+import { Invoice, Client } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,50 +14,37 @@ import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
 import { getInvoiceStatusColor } from "@/lib/status";
 import MetricCard from "../components/dashboard/MetricCard";
+import Pagination from "../components/ui/Pagination";
 
 const STATUS_OPTIONS = ["all", "draft", "sent", "paid", "overdue", "cancelled"];
+const ITEMS_PER_PAGE = 8;
+// The list/metrics never touch the items JSONB, so it stays on the server.
+const INVOICE_FIELDS = ["id", "invoice_number", "client_id", "status", "total", "due_date", "issue_date"];
 
 export default function Invoices() {
   const navigate = useNavigate();
-  const [invoices, setInvoices] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [inspections, setInspections] = useState([]);
-  const [properties, setProperties] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const {
+    data: invoices = [],
+    isLoading,
+    isError: invoicesError,
+  } = useQuery({
+    queryKey: ["invoices", "list"],
+    queryFn: () => Invoice.list("-issue_date", null, null, INVOICE_FIELDS),
+  });
+
+  const { data: clients = [], isError: clientsError } = useQuery({
+    queryKey: ["clients", "lookup"],
+    queryFn: () => Client.list(null, null, null, ["id", "name"]),
+  });
+
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      // allSettled + per-entity toasts: a failed load must not masquerade as an
-      // empty workspace ("No invoices found") with no indication of the outage.
-      const results = await Promise.allSettled([
-        Invoice.list(),
-        Client.list(),
-        Inspection.list(),
-        Property.list(),
-      ]);
-      const [invoiceResult, clientResult, inspectionResult, propertyResult] = results;
-
-      const apply = (result, setter, label) => {
-        if (result.status === "fulfilled") {
-          setter(Array.isArray(result.value) ? result.value : []);
-        } else {
-          console.error(`Failed to load ${label}:`, result.reason);
-          toast.error(`Could not load ${label}. Check your connection and try again.`);
-        }
-      };
-
-      apply(invoiceResult, setInvoices, "invoices");
-      apply(clientResult, setClients, "clients");
-      apply(inspectionResult, setInspections, "inspections");
-      apply(propertyResult, setProperties, "properties");
-
-      setIsLoading(false);
-    };
-
-    loadData();
-  }, []);
+    if (invoicesError) toast.error("Could not load invoices. Check your connection and try again.");
+    if (clientsError) toast.error("Could not load clients. Check your connection and try again.");
+  }, [invoicesError, clientsError]);
 
   const clientsMap = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients]);
 
@@ -86,6 +74,16 @@ export default function Invoices() {
       return matchesSearch && matchesStatus;
     });
   }, [invoices, searchTerm, statusFilter, clientsMap]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE));
+  const paginatedInvoices = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredInvoices.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredInvoices, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   // Computed over ALL invoices (not the filtered view) so the headline
   // numbers don't silently change meaning while a search/filter is active.
@@ -147,11 +145,11 @@ export default function Invoices() {
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1 w-full sm:max-w-sm">
           <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search by client or invoice #" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="ps-10" />
+          <Input placeholder="Search by client or invoice #" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="ps-10" />
         </div>
         <div className="flex gap-2 overflow-x-auto pb-2">
           {STATUS_OPTIONS.map((status) => (
-            <Button key={status} variant={statusFilter === status ? "default" : "outline"} size="sm" onClick={() => setStatusFilter(status)} className="whitespace-nowrap capitalize">
+            <Button key={status} variant={statusFilter === status ? "default" : "outline"} size="sm" onClick={() => { setStatusFilter(status); setCurrentPage(1); }} className="whitespace-nowrap capitalize">
               {status}
             </Button>
           ))}
@@ -164,13 +162,13 @@ export default function Invoices() {
         ) : (
           <AnimatePresence>
             {filteredInvoices.length > 0 ? (
-              filteredInvoices.map((invoice) => {
+              paginatedInvoices.map((invoice) => {
                 const client = clientsMap.get(invoice.client_id);
                 const isOverdue = computeIsOverdue(invoice);
                 const status = isOverdue ? 'overdue' : invoice.status;
 
                 return (
-                  <motion.div key={invoice.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}>
+                  <motion.div key={invoice.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}>
                     <Card className="transition-colors overflow-hidden">
                       <CardHeader className="p-4">
                         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
@@ -210,6 +208,10 @@ export default function Invoices() {
           </AnimatePresence>
         )}
       </div>
+
+      {!isLoading && totalPages > 1 && (
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+      )}
     </div>
   );
 }

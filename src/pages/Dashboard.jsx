@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Inspection, Client, Invoice } from "@/api/entities";
 import { ClipboardList, Users, FileText, DollarSign } from "lucide-react";
 import { motion } from "framer-motion";
@@ -14,43 +15,57 @@ import { format, getYear } from "date-fns";
 import { getInspectionStatusColor } from "@/lib/status";
 import { toast } from "sonner";
 
+const INSPECTION_STATUSES = ["scheduled", "in_progress", "completed", "cancelled"];
+// Metrics need only these invoice columns — never the items JSONB.
+const INVOICE_METRIC_FIELDS = ["id", "status", "issue_date", "total", "due_date"];
+const RECENT_FIELDS = ["id", "inspection_type", "status", "inspection_date", "created_at"];
+
 export default function Dashboard() {
-  const [inspections, setInspections] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [invoices, setInvoices] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Per-status counts computed server-side (head-only) — the donut and the
+  // total no longer require downloading the whole inspections table.
+  const statusQuery = useQuery({
+    queryKey: ["dashboard", "inspectionStatusCounts"],
+    queryFn: async () => {
+      const entries = await Promise.all(
+        INSPECTION_STATUSES.map(async (status) => [status, await Inspection.count({ status })])
+      );
+      return Object.fromEntries(entries);
+    },
+  });
+
+  const clientsCountQuery = useQuery({
+    queryKey: ["dashboard", "clientsCount"],
+    queryFn: () => Client.count(),
+  });
+
+  // Slim invoice rows (no items JSONB) for revenue + overdue math.
+  const invoicesQuery = useQuery({
+    queryKey: ["dashboard", "invoiceMetrics"],
+    queryFn: () => Invoice.list(null, null, null, INVOICE_METRIC_FIELDS),
+  });
+
+  const recentQuery = useQuery({
+    queryKey: ["dashboard", "recentInspections"],
+    queryFn: () => Inspection.list("-created_at", 5, 0, RECENT_FIELDS),
+  });
+
+  const isLoading =
+    statusQuery.isLoading || clientsCountQuery.isLoading || invoicesQuery.isLoading || recentQuery.isLoading;
 
   useEffect(() => {
-    let cancelled = false;
-    const loadData = async () => {
-      // allSettled so a single failing entity doesn't blank out the whole dashboard.
-      const [insRes, cliRes, invRes] = await Promise.allSettled([
-        Inspection.list(),
-        Client.list(),
-        Invoice.list(),
-      ]);
-      if (cancelled) return;
+    const failed = [
+      statusQuery.isError && "inspections",
+      clientsCountQuery.isError && "clients",
+      invoicesQuery.isError && "invoices",
+    ].filter(Boolean);
+    if (failed.length) {
+      toast.error(`Could not load ${failed.join(", ")}. Please refresh.`);
+    }
+  }, [statusQuery.isError, clientsCountQuery.isError, invoicesQuery.isError]);
 
-      setInspections(insRes.status === 'fulfilled' ? (insRes.value || []) : []);
-      setClients(cliRes.status === 'fulfilled' ? (cliRes.value || []) : []);
-      setInvoices(invRes.status === 'fulfilled' ? (invRes.value || []) : []);
-
-      const failed = [
-        insRes.status === 'rejected' && 'inspections',
-        cliRes.status === 'rejected' && 'clients',
-        invRes.status === 'rejected' && 'invoices',
-      ].filter(Boolean);
-
-      if (failed.length) {
-        console.error('Dashboard load errors:', { insRes, cliRes, invRes });
-        toast.error(`Could not load ${failed.join(', ')}. Please refresh.`);
-      }
-
-      setIsLoading(false);
-    };
-    loadData();
-    return () => { cancelled = true; };
-  }, []);
+  const statusCounts = statusQuery.data || {};
+  const invoices = useMemo(() => invoicesQuery.data || [], [invoicesQuery.data]);
+  const recentInspections = recentQuery.data || [];
 
   const metrics = useMemo(() => {
     const currentYear = getYear(new Date());
@@ -66,15 +81,15 @@ export default function Dashboard() {
       return due < new Date();
     }).length;
 
+    const totalInspections = Object.values(statusCounts).reduce((sum, n) => sum + (n || 0), 0);
+
     return {
-      totalInspections: inspections.length,
+      totalInspections,
       totalRevenue,
-      activeClients: clients.length,
+      activeClients: clientsCountQuery.data || 0,
       overdueInvoices
     };
-  }, [inspections, clients, invoices]);
-
-  const recentInspections = useMemo(() => inspections.slice(0, 5), [inspections]);
+  }, [statusCounts, clientsCountQuery.data, invoices]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -117,7 +132,7 @@ export default function Dashboard() {
 
       <motion.div variants={itemVariants} className="grid lg:grid-cols-3 gap-6 lg:gap-8">
         <div className="lg:col-span-2">
-          <InspectionChart inspections={inspections} isLoading={isLoading} />
+          <InspectionChart statusCounts={statusCounts} isLoading={isLoading} />
         </div>
         
         <div>

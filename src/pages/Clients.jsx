@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Client, Property } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,58 +9,54 @@ import { Plus, Search, Users, Mail, Phone, MapPin, Eye, Trash2 } from "lucide-re
 import { motion, AnimatePresence } from "framer-motion";
 import ClientForm from "../components/forms/ClientForm";
 import ClientDetailView from "../components/clients/ClientDetailView";
+import Pagination from "../components/ui/Pagination";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
+const ITEMS_PER_PAGE = 8;
+
 export default function Clients() {
-  const [clients, setClients] = useState([]);
-  const [properties, setProperties] = useState([]);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
   const [editingClient, setEditingClient] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingClient, setDeletingClient] = useState(null);
 
-  const loadData = async () => {
-    setIsLoading(true);
-    // allSettled + per-entity toasts: a failed load must not masquerade as an
-    // empty workspace ("No clients found") with no indication of the outage.
-    const [clientResult, propertyResult] = await Promise.allSettled([
-      Client.list(),
-      Property.list(),
-    ]);
+  // React Query caches these across navigations (no refetch storm on every
+  // visit) and dedupes the shared 'clients'/'properties' keys with other pages.
+  const {
+    data: clients = [],
+    isLoading,
+    isError: clientsError,
+  } = useQuery({
+    queryKey: ["clients", "list"],
+    queryFn: () => Client.list("name"),
+  });
 
-    if (clientResult.status === "fulfilled") {
-      setClients(clientResult.value || []);
-    } else {
-      console.error("Error loading clients:", clientResult.reason);
-      toast.error("Could not load clients. Check your connection and try again.");
-    }
-
-    if (propertyResult.status === "fulfilled") {
-      setProperties(propertyResult.value || []);
-    } else {
-      console.error("Error loading properties:", propertyResult.reason);
-      toast.error("Could not load properties. Check your connection and try again.");
-    }
-
-    setIsLoading(false);
-  };
+  // Only client_id is needed to tally properties-per-client.
+  const { data: properties = [], isError: propsError } = useQuery({
+    queryKey: ["properties", "clientCounts"],
+    queryFn: () => Property.list(null, null, null, ["id", "client_id"]),
+  });
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (clientsError) toast.error("Could not load clients. Check your connection and try again.");
+    if (propsError) toast.error("Could not load properties. Check your connection and try again.");
+  }, [clientsError, propsError]);
 
+  // Single pass over properties (O(n)) instead of a per-client filter (O(n·m)).
   const propertyCounts = useMemo(() => {
-    return clients.reduce((acc, client) => {
-      acc[client.id] = properties.filter((prop) => prop.client_id === client.id).length;
-      return acc;
-    }, {});
-  }, [clients, properties]);
+    const counts = {};
+    for (const prop of properties) {
+      if (prop.client_id) counts[prop.client_id] = (counts[prop.client_id] || 0) + 1;
+    }
+    return counts;
+  }, [properties]);
 
   const filteredClients = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
@@ -71,6 +68,19 @@ export default function Clients() {
       (client.phone ?? "").toLowerCase().includes(needle)
     );
   }, [clients, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredClients.length / ITEMS_PER_PAGE));
+  const paginatedClients = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredClients.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredClients, currentPage]);
+
+  // Keep the current page in range as the filtered set shrinks (search/delete).
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const refreshClients = () => queryClient.invalidateQueries({ queryKey: ["clients"] });
 
   const handleAddNew = () => {
     setEditingClient(null);
@@ -113,9 +123,9 @@ export default function Clients() {
         await Client.create(clientData);
         toast.success("Client created successfully.");
       }
-      await loadData();
+      refreshClients();
       closeForm();
-      
+
       // Refresh detail view if it's open
       if (selectedClient && editingClient?.id === selectedClient.id) {
         const updated = await Client.filter({ id: selectedClient.id });
@@ -139,8 +149,8 @@ export default function Clients() {
       if (selectedClient?.id === deletingClient.id) {
         closeDetail();
       }
-      
-      await loadData();
+
+      refreshClients();
     } catch (error) {
       console.error("Error deleting client:", error);
       toast.error("Failed to delete client.");
@@ -164,7 +174,7 @@ export default function Clients() {
 
       <div className="relative w-full sm:max-w-sm">
         <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Search clients..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="ps-10" />
+        <Input placeholder="Search clients..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="ps-10" />
       </div>
 
       <div className="grid gap-4 md:gap-6">
@@ -173,8 +183,8 @@ export default function Clients() {
         ) : (
           <AnimatePresence>
             {filteredClients.length > 0 ? (
-              filteredClients.map((client) => (
-                <motion.div key={client.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}>
+              paginatedClients.map((client) => (
+                <motion.div key={client.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}>
                   <Card className="transition-colors overflow-hidden rounded-xl">
                     <CardHeader className="p-4 flex flex-col sm:flex-row justify-between items-start gap-4">
                       <div className="flex-1 min-w-0">
@@ -235,6 +245,10 @@ export default function Clients() {
           </AnimatePresence>
         )}
       </div>
+
+      {!isLoading && totalPages > 1 && (
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+      )}
 
       {/* Detail View Dialog */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
