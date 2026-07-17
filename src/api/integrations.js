@@ -73,19 +73,22 @@ export async function UploadFile({ file, bucket = 'uploads' }) {
 // actually count orphaned files — previously all errors were swallowed, so the
 // "N photos could not be removed" warning could never fire and storage filled
 // silently. No-ops (demo mode, empty/base64/foreign URL) resolve without error.
-export async function DeleteFile({ bucket = 'inspection-photos', url }) {
-  if (isDemoMode || !url) return;
+export async function DeleteFile({ bucket = 'inspection-photos', url, path }) {
+  if (isDemoMode) return;
 
-  // Skip base64 data URLs
-  if (url.startsWith('data:')) return;
+  // Prefer the stored storage path (recorded at upload time); fall back to
+  // parsing it out of the public URL for legacy photos saved before paths
+  // were kept. This makes deletion resilient to any change in URL structure.
+  let filePath = path;
+  if (!filePath) {
+    if (!url || url.startsWith('data:')) return;
+    // URL format: https://<project>.supabase.co/storage/v1/object/public/<bucket>/<path>
+    const bucketPrefix = `/storage/v1/object/public/${bucket}/`;
+    const idx = url.indexOf(bucketPrefix);
+    if (idx === -1) return;
+    filePath = decodeURIComponent(url.substring(idx + bucketPrefix.length));
+  }
 
-  // Extract file path from the public URL
-  // URL format: https://<project>.supabase.co/storage/v1/object/public/<bucket>/<path>
-  const bucketPrefix = `/storage/v1/object/public/${bucket}/`;
-  const idx = url.indexOf(bucketPrefix);
-  if (idx === -1) return;
-
-  const filePath = decodeURIComponent(url.substring(idx + bucketPrefix.length));
   const { error } = await supabase.storage.from(bucket).remove([filePath]);
   if (error) {
     console.error('Delete file failed:', error.message);

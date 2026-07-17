@@ -62,35 +62,39 @@ const preparePayload = (ins) => {
 
 const AUTOSAVE_DELAY_MS = 2500;
 
-// Every photo URL referenced anywhere in an inspection payload (per-item photos
-// plus the top-level photos array).
-const collectPhotoUrls = (payload) => {
-  const urls = new Set();
-  (payload?.areas || []).forEach((a) =>
-    (a.items || []).forEach((it) =>
-      (it.photos || []).forEach((p) => { if (p?.url) urls.add(p.url); })
-    )
-  );
-  (payload?.photos || []).forEach((p) => { if (p?.url) urls.add(p.url); });
-  return urls;
+// Every photo referenced anywhere in an inspection payload (per-item photos plus
+// the top-level photos array), as a url -> storage path map. `path` may be
+// undefined for legacy photos saved before paths were kept.
+const collectPhotoRefs = (payload) => {
+  const refs = new Map();
+  const add = (p) => { if (p?.url) refs.set(p.url, p.path); };
+  (payload?.areas || []).forEach((a) => (a.items || []).forEach((it) => (it.photos || []).forEach(add)));
+  (payload?.photos || []).forEach(add);
+  return refs;
 };
 
 // After a successful save, delete storage files that the previous saved version
 // referenced but the new one no longer does. Deferring deletion until the
 // removal is persisted means a failed save never orphans a still-referenced
-// file (and never leaves the report pointing at a deleted one). Best-effort.
-const reconcileRemovedPhotos = (prevJson, nextPayload) => {
+// file (and never leaves the report pointing at a deleted one). Deletion
+// failures are surfaced (not swallowed) so growing orphan cost is visible.
+const reconcileRemovedPhotos = async (prevJson, nextPayload) => {
   if (!prevJson) return;
-  let prevUrls;
+  let prevRefs;
   try {
-    prevUrls = collectPhotoUrls(JSON.parse(prevJson));
+    prevRefs = collectPhotoRefs(JSON.parse(prevJson));
   } catch {
     return;
   }
-  const nextUrls = collectPhotoUrls(nextPayload);
-  prevUrls.forEach((url) => {
-    if (!nextUrls.has(url)) DeleteFile({ url }).catch(() => {});
-  });
+  const nextRefs = collectPhotoRefs(nextPayload);
+  const removed = [...prevRefs.entries()].filter(([url]) => !nextRefs.has(url));
+  if (removed.length === 0) return;
+
+  const results = await Promise.allSettled(removed.map(([url, path]) => DeleteFile({ url, path })));
+  const failCount = results.filter((r) => r.status === "rejected").length;
+  if (failCount > 0) {
+    toast.error(`Couldn't remove ${failCount} old photo${failCount > 1 ? "s" : ""} from storage.`);
+  }
 };
 
 // Local draft safety net — written when an autosave fails or the tab closes
@@ -363,8 +367,12 @@ export default function InspectionForm() {
         }
       }
       clearDraft(current.id || null);
+      // Background cleanup of files removed in this save (fire-and-forget).
       reconcileRemovedPhotos(prevSavedJson, payload);
-      lastSavedJsonRef.current = snapshotJson;
+      // Baseline must be exactly what was persisted (payload), not the snapshot
+      // captured when the debounce started — edits during the 2.5s window would
+      // otherwise leave a stale baseline and trigger a redundant autosave.
+      lastSavedJsonRef.current = JSON.stringify(payload);
       setAutosave({ state: "saved", at: new Date() });
     } catch (err) {
       console.error("Autosave failed:", err);

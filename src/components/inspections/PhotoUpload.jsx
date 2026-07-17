@@ -229,7 +229,7 @@ export default function PhotoUpload({ photos, onUpdate }) {
             <button
               type="button"
               onClick={() => handleRemove(index)}
-              className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full h-8 w-8 flex items-center justify-center text-xs opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10 hover:bg-destructive/90"
+              className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full h-11 w-11 sm:h-8 sm:w-8 flex items-center justify-center text-xs opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10 hover:bg-destructive/90"
               aria-label="Remove photo"
             >
               <X className="w-4 h-4" />

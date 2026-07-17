@@ -72,8 +72,10 @@ export default function Inspections() {
       toast.success(`Inspection status updated to ${newStatus.replace('_', ' ')}`);
       queryClient.invalidateQueries({ queryKey: ["inspections"] });
     } catch (error) {
-      // Rollback on failure
+      // Rollback the optimistic patch, then refetch so the authoritative server
+      // state replaces our snapshot (which may have missed a concurrent update).
       queryClient.setQueryData(key, previous);
+      queryClient.invalidateQueries({ queryKey: ["inspections"] });
       console.error("Error updating inspection status:", error);
       toast.error("Failed to update inspection status");
     }
@@ -84,21 +86,21 @@ export default function Inspections() {
 
     try {
       // The list row is slim (no photos), so fetch the full record to clean up
-      // its storage files before deleting. Await the results so we can warn if
-      // any orphaned files remain — silent failures grow storage cost over time.
-      const inspection = await Inspection.get(inspectionId).catch(() => null);
+      // its storage files before deleting. Let a failed load abort the whole
+      // operation (via the outer catch) rather than deleting the row and
+      // silently orphaning every photo.
+      const inspection = await Inspection.get(inspectionId);
       let photoFailures = 0;
       if (inspection) {
-        const photoUrls = [];
+        const photoRefs = [];
+        const pushRef = (p) => { if (p?.url) photoRefs.push({ url: p.url, path: p.path }); };
         (inspection.areas || []).forEach(area => {
-          (area.items || []).forEach(item => {
-            (item.photos || []).forEach(p => { if (p.url) photoUrls.push(p.url); });
-          });
+          (area.items || []).forEach(item => (item.photos || []).forEach(pushRef));
         });
-        (inspection.photos || []).forEach(p => { if (p.url) photoUrls.push(p.url); });
+        (inspection.photos || []).forEach(pushRef);
 
-        if (photoUrls.length > 0) {
-          const results = await Promise.allSettled(photoUrls.map(url => DeleteFile({ url })));
+        if (photoRefs.length > 0) {
+          const results = await Promise.allSettled(photoRefs.map(ref => DeleteFile(ref)));
           photoFailures = results.filter(r => r.status === 'rejected').length;
         }
       }
@@ -142,7 +144,13 @@ export default function Inspections() {
     return filteredInspections.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredInspections, currentPage]);
 
-  const totalPages = Math.ceil(filteredInspections.length / ITEMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filteredInspections.length / ITEMS_PER_PAGE));
+
+  // Keep the page in range as the list shrinks (delete / filter), so deleting
+  // the last row on the final page doesn't strand the user on an empty page.
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   return (
     <div className="space-y-6">

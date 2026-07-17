@@ -5,7 +5,8 @@
 
 > **Update — remediation applied (branch `claude/web-app-performance-audit-t8e88f`).**
 > Following the audit, the recommended fixes were implemented and verified
-> (build + ESLint + typecheck green; headless render smoke-test across all
+> (build succeeds, ESLint 0 errors, `tsc` completes — note the typecheck is
+> shallow, see M-09; plus a headless render smoke-test across all
 > routes with zero page errors). Status is tracked per finding below with
 > **[FIXED]**, **[FIXED — needs migration]**, or **[OPEN]** tags. One item
 > requires you to run a SQL migration in the Supabase dashboard
@@ -23,7 +24,7 @@ The application is **functionally healthy in production**:
 
 - `waslapro.vercel.app` serves HTTP 200 with correct security headers; the production deployment is current with `main` (commit `807463e`, deployed 12 June 2026).
 - **Zero serverless runtime errors** in the last 7 days (Vercel error clusters, checked live).
-- The daily keep-alive cron works: a live invocation on 17 July 2026 (16:35 UTC) returned `"Database pinged successfully"`, confirming the production Supabase database is up and responding.
+- The keep-alive endpoint is healthy: a live/manual invocation of `/api/keep-alive` on 17 July 2026 (16:35 UTC) returned `"Database pinged successfully"`, confirming the endpoint and the production Supabase database are up and responding. (This proves reachability, not that the scheduled 00:00 UTC cron itself fired — that would need cron-execution logs.)
 - Local build, ESLint, and typecheck gates all pass cleanly (with caveats — see M-09).
 - The photo upload pipeline is well designed at the client level: images are compressed before upload (max 2048 px, stepped JPEG quality targeting ~1.2 MB), validated after compression, uploaded with collision-safe per-user paths, and stored as URLs (never base64) in the database.
 - Most items from the two previous audits (`PRODUCTION_READINESS_AUDIT.md`, `QA_AUDIT.md`) are confirmed **fixed** in the current code (autosave concurrency, report XSS/iframe sandboxing, env fail-fast, error surfacing, invoice integrity, and more).
@@ -91,7 +92,7 @@ Severity scale: **Critical** = exploitable/major business risk now · **High** =
 ### 3.1 Critical
 
 **C-01 — Open self-service sign-up + shared-workspace RLS = full CRUD on all business data for anyone who registers**
-*Where:* `supabase/schema.sql:102–128, 157–183, 218–244, 278–304` (policies `TO authenticated USING (true)` for SELECT/UPDATE/DELETE on `clients`, `properties`, `inspections`, `invoices`); migration `2026_05_12_open_shared_workspace.sql` (confirmed applied to production per its commit message); public Sign-Up tab in `src/pages/Login.jsx`; `signUp()` in `src/lib/AuthContext.jsx:219–254`; the gating component `src/components/UserNotRegisteredError.jsx` exists but is **never imported**.
+*Where:* `supabase/schema.sql:102–128, 157–183, 218–244, 278–304` (policies `TO authenticated USING (true)` for SELECT/UPDATE/DELETE on `clients`, `properties`, `inspections`, `invoices`); migration `2026_05_12_open_shared_workspace.sql` (present in the repo; its commit message states it was applied to production, but production DB state was not independently verified this session — treat as repository evidence); public Sign-Up tab in `src/pages/Login.jsx`; `signUp()` in `src/lib/AuthContext.jsx:219–254`; the gating component `src/components/UserNotRegisteredError.jsx` exists but is **never imported**.
 *Problem:* The shared-workspace model (all team members see all data) is intentional, but nothing restricts **who can become a team member**. There is no allowlist, no admin approval, no email-domain check — in code, anyone on the internet can create an account and immediately read, modify, or permanently delete every client's PII (names, phones, emails, home addresses), all inspections, and all invoices. `UPDATE … WITH CHECK (true)` even permits reassigning rows' `user_id`.
 *Assumption to verify:* whether "Allow new users to sign up" or email confirmation is disabled in the Supabase Auth dashboard (not visible from code). Even if email confirmation is on, it only requires a working mailbox — not authorisation.
 *Recommended direction (needs your approval):* short-term, disable public sign-ups in Supabase Auth (Dashboard → Authentication → Sign In/Up) and create team accounts manually — zero code change; longer-term, an `allowed_users` table or profile-role check baked into the RLS policies.
@@ -178,7 +179,7 @@ Route-level code splitting with lazy pages and sensible vendor chunking; a genui
 | Site `waslapro.vercel.app` | HTTP 200, HSTS + CSP frame-ancestors + nosniff + referrer-policy present |
 | Production deployment | `dpl_Gx35cgo…`, commit `807463e` = current `main` (12 Jun 2026) — **production is up to date** |
 | Vercel serverless runtime errors (7 days) | **None** |
-| Keep-alive cron (`vercel.json`, daily 00:00 UTC) | Live invocation returned `{"status":"success","message":"Database pinged successfully"}` → **production database up** |
+| Keep-alive endpoint (`vercel.json` schedules it daily 00:00 UTC) | Live/manual invocation returned `{"status":"success","message":"Database pinged successfully"}` → **endpoint + database reachable** (not proof the scheduled cron fired) |
 | Un-deployed work | Draft PR #15 (mobile print/A4) — see H-04 |
 
 ### 4.2 Image storage integrity — are uploads stored correctly?
@@ -249,7 +250,7 @@ For continuous visibility, linking the `waslapro@outlook.com` Supabase account t
 
 ## 5. Recommendations
 
-**No changes have been made.** Everything below awaits your explicit approval.
+**No changes were made during the original read-only audit.** (Remediation was implemented afterward on this branch — see the status banner and the §1b table; the recommendations below record what was originally proposed.)
 
 ### 5.1 Urgent (close these first)
 

@@ -36,6 +36,13 @@ export default function Dashboard() {
     },
   });
 
+  // Unfiltered total — the KPI must count every inspection, including any with
+  // a legacy/unexpected status that isn't one of the four charted buckets.
+  const totalInspectionsQuery = useQuery({
+    queryKey: ["dashboard", "inspectionsTotal"],
+    queryFn: () => Inspection.count(),
+  });
+
   const clientsCountQuery = useQuery({
     queryKey: ["dashboard", "clientsCount"],
     queryFn: () => Client.count(),
@@ -53,18 +60,20 @@ export default function Dashboard() {
   });
 
   const isLoading =
-    statusQuery.isLoading || clientsCountQuery.isLoading || invoicesQuery.isLoading || recentQuery.isLoading;
+    statusQuery.isLoading || totalInspectionsQuery.isLoading || clientsCountQuery.isLoading ||
+    invoicesQuery.isLoading || recentQuery.isLoading;
 
   useEffect(() => {
     const failed = [
-      statusQuery.isError && "inspections",
+      (statusQuery.isError || totalInspectionsQuery.isError) && "inspections",
       clientsCountQuery.isError && "clients",
       invoicesQuery.isError && "invoices",
+      recentQuery.isError && "recent inspections",
     ].filter(Boolean);
     if (failed.length) {
       toast.error(`Could not load ${failed.join(", ")}. Please refresh.`);
     }
-  }, [statusQuery.isError, clientsCountQuery.isError, invoicesQuery.isError]);
+  }, [statusQuery.isError, totalInspectionsQuery.isError, clientsCountQuery.isError, invoicesQuery.isError, recentQuery.isError]);
 
   const statusCounts = statusQuery.data || EMPTY_COUNTS;
   const invoices = useMemo(() => invoicesQuery.data || [], [invoicesQuery.data]);
@@ -84,15 +93,13 @@ export default function Dashboard() {
       return due < new Date();
     }).length;
 
-    const totalInspections = Object.values(statusCounts).reduce((sum, n) => sum + (n || 0), 0);
-
     return {
-      totalInspections,
+      totalInspections: totalInspectionsQuery.data || 0,
       totalRevenue,
       activeClients: clientsCountQuery.data || 0,
       overdueInvoices
     };
-  }, [statusCounts, clientsCountQuery.data, invoices]);
+  }, [totalInspectionsQuery.data, clientsCountQuery.data, invoices]);
 
   const containerVariants = {
     hidden: { opacity: 0 },

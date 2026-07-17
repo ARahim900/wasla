@@ -21,7 +21,7 @@ const FormField = ({ id, label, icon: Icon, error, value, onChange, required, ty
         type={type}
         value={value}
         onChange={onChange}
-        className={`ps-10 ${error ? "border-destructive focus-visible:ring-destructive" : ""}`}
+        className={`ps-10 text-base min-h-[44px] ${error ? "border-destructive focus-visible:ring-destructive" : ""}`}
         placeholder={placeholder}
         required={required}
         aria-invalid={Boolean(error)}
@@ -107,7 +107,7 @@ export default function ClientForm({ client, onSubmit, onCancel, isLoading }) {
             <Label htmlFor="notes" className="text-foreground font-medium">Notes</Label>
             <div className="relative">
               <FileText className="absolute start-3 top-3 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <Textarea id="notes" name="notes" value={formData.notes} onChange={handleChange} className="ps-10 min-h-[100px]" placeholder="Additional notes about the client..." />
+              <Textarea id="notes" name="notes" value={formData.notes} onChange={handleChange} className="ps-10 text-base min-h-[100px]" placeholder="Additional notes about the client..." />
             </div>
           </div>
 

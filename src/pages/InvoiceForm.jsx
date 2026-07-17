@@ -46,7 +46,7 @@ export default function InvoiceForm() {
             "id", "client_id", "property_id", "client_name", "inspection_type",
             "inspection_date", "area_sqm", "property_type", "property_address",
           ]),
-          Property.list(null, null, null, ["id", "address", "property_type", "client_id"]),
+          Property.list(null, null, null, ["id", "address", "property_type", "client_id", "area_sqm"]),
         ]);
         
         setClients(clientData || []);

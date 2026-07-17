@@ -233,11 +233,12 @@ export const AuthProvider = ({ children }) => {
 
     if (error) {
       // The registration allowlist is enforced by a BEFORE INSERT trigger on
-      // auth.users. Supabase surfaces a trigger rejection as a generic
-      // "Database error saving new user" — translate it into a clear message
-      // instead of a scary internal error.
-      const msg = (error.message || '').toLowerCase();
-      if (msg.includes('database error') || msg.includes('allowlist') || msg.includes('not_allowlisted')) {
+      // auth.users that raises 'not_allowlisted' with SQLSTATE check_violation.
+      // Match only that specific signal so unrelated sign-up failures (other
+      // constraint/trigger errors) surface with their own message instead of
+      // being mislabeled as an authorization problem.
+      const signal = `${error.code || ''} ${error.message || ''}`.toLowerCase();
+      if (signal.includes('not_allowlisted') || signal.includes('check_violation')) {
         throw new Error(
           "This email isn't authorized to register. Ask a team member to add you under Settings > Team Access."
         );
