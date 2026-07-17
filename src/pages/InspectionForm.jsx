@@ -756,7 +756,7 @@ export default function InspectionForm() {
                 value={inspection.client_name || ""}
                 onChange={(e) => handleUpdateField("client_name", e.target.value)}
                 placeholder="e.g. Ahmed Al-Rashid"
-                className="w-full h-10 text-sm"
+                className="w-full h-11 text-base"
                 autoComplete="off"
               />
               {willCreateClient && (
@@ -771,7 +771,7 @@ export default function InspectionForm() {
                 value={inspection.client_phone || ""}
                 onChange={(e) => handleUpdateField("client_phone", e.target.value)}
                 placeholder="+968 9123 4567"
-                className="w-full h-10 text-sm"
+                className="w-full h-11 text-base"
                 autoComplete="off"
               />
             </div>
@@ -782,7 +782,7 @@ export default function InspectionForm() {
                 value={inspection.property_address || ""}
                 onChange={(e) => handleUpdateField("property_address", e.target.value)}
                 placeholder="e.g. Villa 12, Al Mouj, Muscat"
-                className="w-full h-10 text-sm"
+                className="w-full h-11 text-base"
                 autoComplete="off"
               />
               {willCreateProperty && (
@@ -795,7 +795,7 @@ export default function InspectionForm() {
                 value={inspection.property_type}
                 onValueChange={(value) => handleUpdateField("property_type", value)}
               >
-                <SelectTrigger id="property_type" className="h-10">
+                <SelectTrigger id="property_type" className="h-11 text-base">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -817,7 +817,7 @@ export default function InspectionForm() {
                 value={inspection.area_sqm ?? ""}
                 onChange={(e) => handleUpdateField("area_sqm", e.target.value)}
                 placeholder="e.g. 350"
-                className="w-full h-10 text-sm"
+                className="w-full h-11 text-base"
               />
               <p className="text-xs text-muted-foreground">
                 Drives the invoice fee — measure on site if it differs from the listing.
@@ -829,7 +829,7 @@ export default function InspectionForm() {
                 id="inspector_name"
                 value={inspection.inspector_name || ""}
                 onChange={(e) => handleUpdateField("inspector_name", e.target.value)}
-                className="w-full h-10 text-sm"
+                className="w-full h-11 text-base"
               />
             </div>
             <div className="space-y-2">
@@ -839,7 +839,7 @@ export default function InspectionForm() {
                 type="date"
                 value={inspection.inspection_date || ""}
                 onChange={(e) => handleUpdateField("inspection_date", e.target.value)}
-                className="w-full h-10 text-sm"
+                className="w-full h-11 text-base"
               />
             </div>
             <div className="space-y-2">
@@ -848,7 +848,7 @@ export default function InspectionForm() {
                 value={inspection.inspection_type}
                 onValueChange={(value) => handleUpdateField("inspection_type", value)}
               >
-                <SelectTrigger id="inspection_type" className="h-10 text-sm">
+                <SelectTrigger id="inspection_type" className="h-11 text-base">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
