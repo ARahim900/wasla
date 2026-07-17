@@ -4,6 +4,8 @@
  * Version 6.0 - Security fixes, consistency improvements, and enhanced features
  */
 
+import { LOGO_URL } from "@/lib/brand";
+
 class InspectionReportGenerator {
   constructor() {
     this.config = {
@@ -13,7 +15,7 @@ class InspectionReportGenerator {
         registration: '1068375',
         email: 'info@waslaoman.com',
         phone: '+968 90699799',
-        logo: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b44f73a9997833d114376d/f255c3751_image.png',
+        logo: LOGO_URL,
         placeholderImage: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="150" viewBox="0 0 400 150"%3E%3Crect fill="%23f3f4f6" width="400" height="150"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="14" fill="%239ca3af"%3EImage Not Available%3C/text%3E%3C/svg%3E'
       }
     };

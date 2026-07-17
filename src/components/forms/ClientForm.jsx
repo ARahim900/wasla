@@ -14,14 +14,14 @@ const FormField = ({ id, label, icon: Icon, error, value, onChange, required, ty
       {label} {required && '*'}
     </Label>
     <div className="relative">
-      <Icon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+      <Icon className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
       <Input
         id={id}
         name={id}
         type={type}
         value={value}
         onChange={onChange}
-        className={`pl-10 ${error ? "border-destructive focus-visible:ring-destructive" : ""}`}
+        className={`ps-10 ${error ? "border-destructive focus-visible:ring-destructive" : ""}`}
         placeholder={placeholder}
         required={required}
         aria-invalid={Boolean(error)}
@@ -106,8 +106,8 @@ export default function ClientForm({ client, onSubmit, onCancel, isLoading }) {
           <div className="space-y-2">
             <Label htmlFor="notes" className="text-foreground font-medium">Notes</Label>
             <div className="relative">
-              <FileText className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-              <Textarea id="notes" name="notes" value={formData.notes} onChange={handleChange} className="pl-10 min-h-[100px]" placeholder="Additional notes about the client..." />
+              <FileText className="absolute start-3 top-3 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Textarea id="notes" name="notes" value={formData.notes} onChange={handleChange} className="ps-10 min-h-[100px]" placeholder="Additional notes about the client..." />
             </div>
           </div>
 

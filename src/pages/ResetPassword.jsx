@@ -8,9 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Lock, Loader2, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-
-const LOGO_URL =
-  "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b44f73a9997833d114376d/f255c3751_image.png";
+import { LOGO_URL } from "@/lib/brand";
 
 const PageShell = ({ children }) => (
   <div className="min-h-[100svh] flex items-center justify-center bg-background px-4 py-6 sm:py-10">

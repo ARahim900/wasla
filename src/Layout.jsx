@@ -23,6 +23,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { User } from "@/api/entities";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
+import { LOGO_URL } from "@/lib/brand";
 import MobileTabBar, { BOTTOM_NAV_HEIGHT } from "@/components/navigation/MobileTabBar";
 
 const initialThemeFromStorage = () => {
@@ -108,7 +109,7 @@ export default function Layout({ children, currentPageName }) {
               {/* Logo + Brand Name */}
               <Link to="/" className="flex items-center gap-2.5 group">
                 <img
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b44f73a9997833d114376d/f255c3751_image.png"
+                  src={LOGO_URL}
                   alt="Wasla Logo"
                   className="w-14 h-14 object-contain"
                 />
