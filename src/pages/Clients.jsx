@@ -98,11 +98,6 @@ export default function Clients() {
     setIsFormOpen(true);
   };
 
-  const handleEdit = (client) => {
-    setEditingClient(client);
-    setIsFormOpen(true);
-  };
-
   const closeForm = () => {
     setIsFormOpen(false);
     setEditingClient(null);

@@ -3,22 +3,20 @@ import pluginJs from "@eslint/js";
 import pluginReact from "eslint-plugin-react";
 import pluginReactHooks from "eslint-plugin-react-hooks";
 
+const SRC = ["src/**/*.{js,mjs,cjs,jsx}"];
+
 export default [
   {
-    files: [
-      "src/components/**/*.{js,mjs,cjs,jsx}",
-      "src/pages/**/*.{js,mjs,cjs,jsx}",
-      "src/Layout.jsx",
-    ],
-    languageOptions: { globals: globals.browser },
+    files: SRC,
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+      ecmaVersion: "latest",
+      sourceType: "module",
+    },
     ...pluginJs.configs.recommended,
   },
   {
-    files: [
-      "src/components/**/*.{js,mjs,cjs,jsx}",
-      "src/pages/**/*.{js,mjs,cjs,jsx}",
-      "src/Layout.jsx",
-    ],
+    files: SRC,
     ...pluginReact.configs.flat.recommended,
     settings: {
       react: {
@@ -30,14 +28,25 @@ export default [
       "react-hooks": pluginReactHooks,
     },
     rules: {
-      "no-unused-vars": "off",
+      // Underscore-prefixed names are intentional throwaways (destructure-omit,
+      // void _id patterns in preparePayload, etc.). `React` is allowed unused
+      // under the automatic JSX runtime, and unused catch bindings are fine.
+      "no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^(_|React$)", caughtErrors: "none" },
+      ],
       "react/prop-types": "off",
       "react/react-in-jsx-scope": "off",
+      // Required so no-unused-vars sees identifiers referenced only in JSX
+      // (otherwise every component import reads as unused).
+      "react/jsx-uses-vars": "error",
+      "react/jsx-uses-react": "off",
       "react/no-unknown-property": [
         "error",
         { ignore: ["cmdk-input-wrapper", "toast-close"] },
       ],
       "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
     },
   },
 ];

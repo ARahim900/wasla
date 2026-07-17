@@ -16,6 +16,9 @@ import { getInspectionStatusColor } from "@/lib/status";
 import { toast } from "sonner";
 
 const INSPECTION_STATUSES = ["scheduled", "in_progress", "completed", "cancelled"];
+// Stable reference so the metrics useMemo below doesn't re-run every render
+// while the status query is still loading.
+const EMPTY_COUNTS = {};
 // Metrics need only these invoice columns — never the items JSONB.
 const INVOICE_METRIC_FIELDS = ["id", "status", "issue_date", "total", "due_date"];
 const RECENT_FIELDS = ["id", "inspection_type", "status", "inspection_date", "created_at"];
@@ -63,7 +66,7 @@ export default function Dashboard() {
     }
   }, [statusQuery.isError, clientsCountQuery.isError, invoicesQuery.isError]);
 
-  const statusCounts = statusQuery.data || {};
+  const statusCounts = statusQuery.data || EMPTY_COUNTS;
   const invoices = useMemo(() => invoicesQuery.data || [], [invoicesQuery.data]);
   const recentInspections = recentQuery.data || [];
 

@@ -2,7 +2,18 @@
 
 **Date:** 17 July 2026
 **Scope:** Full application review (front end, data layer, Supabase schema/policies, deployment) plus backend storage integrity and capacity assessment.
-**Method:** Read-only. No code, configuration, or database changes were made. Every finding below was verified by reading the code at the cited location, by running the standard quality gates (`npm ci`, `npm run build`, `npm run lint`, `tsc`), or by live checks against production infrastructure (Vercel API, deployed site, keep-alive endpoint, Supabase documentation). Items that could **not** be verified with the access available in this session are explicitly labelled as such.
+
+> **Update — remediation applied (branch `claude/web-app-performance-audit-t8e88f`).**
+> Following the audit, the recommended fixes were implemented and verified
+> (build + ESLint + typecheck green; headless render smoke-test across all
+> routes with zero page errors). Status is tracked per finding below with
+> **[FIXED]**, **[FIXED — needs migration]**, or **[OPEN]** tags. One item
+> requires you to run a SQL migration in the Supabase dashboard
+> (`supabase/migrations/2026_07_17_registration_allowlist.sql`); the app
+> tolerates its absence until then. The sections below describe the original
+> audit; the tags record what changed.
+
+**Method of the original audit:** Read-only. No code, configuration, or database changes were made during the audit itself. Every finding below was verified by reading the code at the cited location, by running the standard quality gates (`npm ci`, `npm run build`, `npm run lint`, `tsc`), or by live checks against production infrastructure (Vercel API, deployed site, keep-alive endpoint, Supabase documentation). Items that could **not** be verified with the access available in this session are explicitly labelled as such.
 
 ---
 
@@ -26,6 +37,35 @@ However, the audit found **one critical access-control issue, four high-priority
 5. **(High)** The fix for the mobile report **Print button** (dead on phones) has been sitting un-merged in draft **PR #15 since 15 June** — production field users still have the broken behaviour.
 
 **Storage:** exact production byte counts could not be read this session (see §4 access note), but the capacity model built from verified code parameters shows the **Free-plan 1 GB storage ceiling is the binding constraint** — roughly 850–3,000 photos (≈ 30–100 photo-heavy inspections) — and two verified bugs cause storage to **only ever grow** (orphaned files are guaranteed in several flows and never cleaned up).
+
+---
+
+## 1b. Remediation Status (post-audit)
+
+| ID | Finding | Status | How |
+|---|---|---|---|
+| C-01 | Open sign-up → full access to all data | **FIXED — needs migration** | `allowed_emails` table + `auth.users` trigger; Settings → Team Access UI; friendly sign-up error. Apply `2026_07_17_registration_allowlist.sql`. |
+| H-01 | Anonymously-readable photo bucket | **OPEN (by design)** | Fully privating breaks client-shared report links. Private-bucket + signed-URL path shipped as a commented, reviewed-before-enable block in the migration. |
+| H-02 | recharts on every load for one chart | **FIXED** | Replaced with a dependency-free SVG donut; recharts removed. −102 KB gzip (~38%) initial JS. |
+| H-03 | Unbounded `select('*')`, 1000-row cap | **FIXED** | Server-side sort/limit + slim field selection on all lists; dashboard KPIs via `count()`; pagination added. |
+| H-04 | Mobile Print fix stuck in PR #15 | **OPEN (your call)** | Separate PR — review & merge #15. |
+| M-01 | Cross-user delete orphans photos + swallowed errors | **FIXED — needs migration** | `DeleteFile` now throws; storage DELETE policy aligned to the shared workspace in the migration. |
+| M-02 | Upload/persist ordering orphans/dangles | **FIXED** | Deferred deletion — files removed only after the removal is persisted (reconciled on successful save). |
+| M-03 | HEIC late-fail / PNG→black | **FIXED** | White-fill before JPEG encode; undecodable files rejected with a clear message. |
+| M-04 | PWA without service worker | **FIXED** | `vite-plugin-pwa` precaches the app shell; data left uncached. |
+| M-05 | Dashboard "Recent" unsorted | **FIXED** | Server-side `-created_at` sort + limit. |
+| M-06 | Redundant heavy work | **PARTIAL** | Clients property-count is now O(n); image compression stays on main thread (Worker deferred). |
+| M-07 | No pagination/virtualization | **FIXED** | Pagination on Clients/Properties/Invoices; `layout` animation dropped from long lists. |
+| M-08 | React Query mounted but unused | **FIXED** | All entity reads go through React Query (cache + dedup). |
+| M-09 | Hollow lint/typecheck gates | **PARTIAL** | ESLint widened to all of `src` + `exhaustive-deps`/`no-unused-vars` on. `checkJs:true` left off (546 pre-existing errors — needs a TS migration). |
+| M-10 / L-02 | Logo hot-linked, duplicated | **PARTIAL** | Centralized to `src/lib/brand.js`; self-hosting the asset into `public/` is a one-line follow-up (image bytes weren't fetchable from the audit sandbox). |
+| L-01 | Dead code + unused deps | **FIXED** | ~1,470 lines + 186 npm packages removed. |
+| L-02 | Per-write `getUser()` round-trip | **FIXED** | Switched to cached `getSession()`. |
+| L-05 | ClientForm RTL | **FIXED** | Logical CSS properties. |
+| L-06 | Redundant toast stack | **FIXED** | Radix Toaster removed; Sonner only. |
+| L-07 | No status CHECK constraints | **OPEN (optional)** | Shipped as commented blocks in the migration (verify-then-enable). |
+
+Everything tagged **FIXED** is on branch `claude/web-app-performance-audit-t8e88f` and verified by build + lint + typecheck + a headless render pass. Items needing the migration or a separate decision are called out above.
 
 ---
 
