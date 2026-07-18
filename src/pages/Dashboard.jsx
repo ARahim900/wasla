@@ -1,7 +1,7 @@
 
 import React, { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Inspection, Client, Invoice } from "@/api/entities";
+import { Inspection, Client, getInvoiceMetrics } from "@/api/entities";
 import { ClipboardList, Users, FileText, DollarSign } from "lucide-react";
 import { motion } from "framer-motion";
 import MetricCard from "../components/dashboard/MetricCard";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { format, getYear } from "date-fns";
+import { format } from "date-fns";
 import { getInspectionStatusColor } from "@/lib/status";
 import { toast } from "sonner";
 
@@ -19,8 +19,6 @@ const INSPECTION_STATUSES = ["scheduled", "in_progress", "completed", "cancelled
 // Stable reference so the metrics useMemo below doesn't re-run every render
 // while the status query is still loading.
 const EMPTY_COUNTS = {};
-// Metrics need only these invoice columns — never the items JSONB.
-const INVOICE_METRIC_FIELDS = ["id", "status", "issue_date", "total", "due_date"];
 const RECENT_FIELDS = ["id", "inspection_type", "status", "inspection_date", "created_at"];
 
 export default function Dashboard() {
@@ -48,10 +46,10 @@ export default function Dashboard() {
     queryFn: () => Client.count(),
   });
 
-  // Slim invoice rows (no items JSONB) for revenue + overdue math.
-  const invoicesQuery = useQuery({
+  // Revenue + overdue aggregated server-side (correct past the 1000-row cap).
+  const invoiceMetricsQuery = useQuery({
     queryKey: ["dashboard", "invoiceMetrics"],
-    queryFn: () => Invoice.list(null, null, null, INVOICE_METRIC_FIELDS),
+    queryFn: getInvoiceMetrics,
   });
 
   const recentQuery = useQuery({
@@ -61,45 +59,29 @@ export default function Dashboard() {
 
   const isLoading =
     statusQuery.isLoading || totalInspectionsQuery.isLoading || clientsCountQuery.isLoading ||
-    invoicesQuery.isLoading || recentQuery.isLoading;
+    invoiceMetricsQuery.isLoading || recentQuery.isLoading;
 
   useEffect(() => {
     const failed = [
       (statusQuery.isError || totalInspectionsQuery.isError) && "inspections",
       clientsCountQuery.isError && "clients",
-      invoicesQuery.isError && "invoices",
+      invoiceMetricsQuery.isError && "invoices",
       recentQuery.isError && "recent inspections",
     ].filter(Boolean);
     if (failed.length) {
       toast.error(`Could not load ${failed.join(", ")}. Please refresh.`);
     }
-  }, [statusQuery.isError, totalInspectionsQuery.isError, clientsCountQuery.isError, invoicesQuery.isError, recentQuery.isError]);
+  }, [statusQuery.isError, totalInspectionsQuery.isError, clientsCountQuery.isError, invoiceMetricsQuery.isError, recentQuery.isError]);
 
   const statusCounts = statusQuery.data || EMPTY_COUNTS;
-  const invoices = useMemo(() => invoicesQuery.data || [], [invoicesQuery.data]);
   const recentInspections = recentQuery.data || [];
 
-  const metrics = useMemo(() => {
-    const currentYear = getYear(new Date());
-    const totalRevenue = invoices.
-    filter((inv) => inv.status === 'paid' && getYear(new Date(inv.issue_date)) === currentYear).
-    reduce((sum, inv) => sum + (inv.total || 0), 0);
-
-    const overdueInvoices = invoices.filter((inv) => {
-      if (inv.status === 'paid' || inv.status === 'cancelled' || inv.status === 'draft') return false;
-      if (!inv.due_date) return false;
-      const due = new Date(inv.due_date);
-      if (isNaN(due.getTime())) return false;
-      return due < new Date();
-    }).length;
-
-    return {
-      totalInspections: totalInspectionsQuery.data || 0,
-      totalRevenue,
-      activeClients: clientsCountQuery.data || 0,
-      overdueInvoices
-    };
-  }, [totalInspectionsQuery.data, clientsCountQuery.data, invoices]);
+  const metrics = useMemo(() => ({
+    totalInspections: totalInspectionsQuery.data || 0,
+    totalRevenue: invoiceMetricsQuery.data?.revenueYtd || 0,
+    activeClients: clientsCountQuery.data || 0,
+    overdueInvoices: invoiceMetricsQuery.data?.overdueCount || 0,
+  }), [totalInspectionsQuery.data, clientsCountQuery.data, invoiceMetricsQuery.data]);
 
   const containerVariants = {
     hidden: { opacity: 0 },

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Invoice, Client } from "@/api/entities";
+import { Invoice, Client, getInvoiceMetrics } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,23 +85,19 @@ export default function Invoices() {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [currentPage, totalPages]);
 
-  // Computed over ALL invoices (not the filtered view) so the headline
-  // numbers don't silently change meaning while a search/filter is active.
-  // Drafts and cancelled invoices are not money: revenue counts billed
-  // invoices (sent/paid/overdue), outstanding counts billed-but-unpaid.
-  const totals = useMemo(() => {
-    return invoices.reduce((acc, inv) => {
-        const total = inv.total || 0;
-        if (inv.status === 'draft' || inv.status === 'cancelled') return acc;
-        acc.total += total;
-        if (inv.status === 'paid') {
-            acc.paid += total;
-        } else {
-            acc.outstanding += total;
-        }
-        return acc;
-    }, { total: 0, paid: 0, outstanding: 0 });
-  }, [invoices]);
+  // Headline money figures aggregated server-side over ALL invoices, so they
+  // stay correct past the 1000-row page cap and don't change meaning while a
+  // search/filter narrows the list below. Falls back to a client-side sum if
+  // the aggregation RPC isn't deployed yet.
+  const { data: metrics } = useQuery({
+    queryKey: ["invoices", "metrics"],
+    queryFn: getInvoiceMetrics,
+  });
+  const totals = {
+    total: metrics?.totalBilled || 0,
+    paid: metrics?.totalPaid || 0,
+    outstanding: metrics?.totalOutstanding || 0,
+  };
 
   return (
     <div className="space-y-6 lg:space-y-8">

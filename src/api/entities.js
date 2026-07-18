@@ -504,6 +504,64 @@ function createSupabaseEntityHandler(tableName) {
   };
 }
 
+// Aggregate money figures over ALL invoices. Preferentially computed
+// server-side via the get_invoice_metrics() RPC so totals stay correct past the
+// 1000-row PostgREST page cap. If the RPC isn't deployed yet, it transparently
+// falls back to a client-side sum over a slim fetch — so the app behaves exactly
+// as before until the migration is applied, then upgrades automatically.
+function computeInvoiceMetrics(rows) {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const year = new Date().getFullYear();
+  const m = { revenueYtd: 0, overdueCount: 0, totalBilled: 0, totalPaid: 0, totalOutstanding: 0 };
+  for (const inv of rows || []) {
+    const total = Number(inv.total) || 0;
+    const status = inv.status;
+    if (status === 'paid' && inv.issue_date && new Date(inv.issue_date).getFullYear() === year) {
+      m.revenueYtd += total;
+    }
+    if (status !== 'draft' && status !== 'cancelled') {
+      m.totalBilled += total;
+      if (status === 'paid') m.totalPaid += total;
+      else m.totalOutstanding += total;
+    }
+    if (status !== 'paid' && status !== 'cancelled' && status !== 'draft' && inv.due_date && inv.due_date < today) {
+      m.overdueCount += 1;
+    }
+  }
+  return m;
+}
+
+export async function getInvoiceMetrics() {
+  if (isDemoMode) {
+    return computeInvoiceMetrics(getDemoData('invoices'));
+  }
+
+  const { data, error } = await supabase.rpc('get_invoice_metrics');
+  if (!error && Array.isArray(data) && data.length > 0) {
+    const r = data[0];
+    return {
+      revenueYtd: Number(r.revenue_ytd) || 0,
+      overdueCount: Number(r.overdue_count) || 0,
+      totalBilled: Number(r.total_billed) || 0,
+      totalPaid: Number(r.total_paid) || 0,
+      totalOutstanding: Number(r.total_outstanding) || 0,
+    };
+  }
+
+  // RPC missing (migration not applied) or errored — fall back to a client-side
+  // sum over a slim projection (bounded by the 1000-row cap, same as before).
+  if (error) {
+    console.warn('get_invoice_metrics RPC unavailable; computing client-side:', error.message);
+  }
+  const { data: rows, error: listErr } = await supabase
+    .from('invoices')
+    .select('status, issue_date, total, due_date');
+  if (listErr) {
+    throw new Error(listErr.message);
+  }
+  return computeInvoiceMetrics(rows || []);
+}
+
 // Factory function that returns the appropriate handler
 function createEntityHandler(tableName) {
   if (isDemoMode) {
