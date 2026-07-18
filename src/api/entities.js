@@ -511,12 +511,14 @@ function createSupabaseEntityHandler(tableName) {
 // as before until the migration is applied, then upgrades automatically.
 function computeInvoiceMetrics(rows) {
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  const year = new Date().getFullYear();
+  const year = today.slice(0, 4);
   const m = { revenueYtd: 0, overdueCount: 0, totalBilled: 0, totalPaid: 0, totalOutstanding: 0 };
   for (const inv of rows || []) {
     const total = Number(inv.total) || 0;
     const status = inv.status;
-    if (status === 'paid' && inv.issue_date && new Date(inv.issue_date).getFullYear() === year) {
+    // Compare the serialized year directly — new Date('YYYY-MM-DD').getFullYear()
+    // can roll a Jan 1 date back to Dec 31 in negative-offset timezones.
+    if (status === 'paid' && inv.issue_date?.slice(0, 4) === year) {
       m.revenueYtd += total;
     }
     if (status !== 'draft' && status !== 'cancelled') {

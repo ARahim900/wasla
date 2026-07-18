@@ -41,10 +41,27 @@ export default function Invoices() {
     queryFn: () => Client.list(null, null, null, ["id", "name"]),
   });
 
+  // Headline money figures aggregated server-side over ALL invoices, so they
+  // stay correct past the 1000-row page cap and don't change meaning while a
+  // search/filter narrows the list below. Falls back to a client-side sum if
+  // the aggregation RPC isn't deployed yet.
+  const {
+    data: metrics,
+    isLoading: metricsLoading,
+    isError: metricsError,
+  } = useQuery({
+    queryKey: ["invoices", "metrics"],
+    queryFn: getInvoiceMetrics,
+  });
+  // Show a dash (not a misleading 0.000 OMR) when the figures genuinely can't
+  // be loaded — both the RPC and its client-side fallback failed.
+  const money = (v) => (metricsError ? "—" : `${(v || 0).toFixed(3)} OMR`);
+
   useEffect(() => {
     if (invoicesError) toast.error("Could not load invoices. Check your connection and try again.");
     if (clientsError) toast.error("Could not load clients. Check your connection and try again.");
-  }, [invoicesError, clientsError]);
+    if (metricsError) toast.error("Could not load invoice totals. Check your connection and try again.");
+  }, [invoicesError, clientsError, metricsError]);
 
   const clientsMap = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients]);
 
@@ -85,20 +102,6 @@ export default function Invoices() {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [currentPage, totalPages]);
 
-  // Headline money figures aggregated server-side over ALL invoices, so they
-  // stay correct past the 1000-row page cap and don't change meaning while a
-  // search/filter narrows the list below. Falls back to a client-side sum if
-  // the aggregation RPC isn't deployed yet.
-  const { data: metrics } = useQuery({
-    queryKey: ["invoices", "metrics"],
-    queryFn: getInvoiceMetrics,
-  });
-  const totals = {
-    total: metrics?.totalBilled || 0,
-    paid: metrics?.totalPaid || 0,
-    outstanding: metrics?.totalOutstanding || 0,
-  };
-
   return (
     <div className="space-y-6 lg:space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -115,37 +118,37 @@ export default function Invoices() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
         <MetricCard
           title="Total Revenue"
-          value={`${totals.total.toFixed(3)} OMR`}
+          value={money(metrics?.totalBilled)}
           icon={DollarSign}
           iconTone="emerald"
-          isLoading={isLoading}
+          isLoading={metricsLoading}
         />
         <MetricCard
           title="Paid"
-          value={`${totals.paid.toFixed(3)} OMR`}
+          value={money(metrics?.totalPaid)}
           icon={CheckCircle2}
           iconTone="blue"
           intent="success"
-          isLoading={isLoading}
+          isLoading={metricsLoading}
         />
         <MetricCard
           title="Outstanding"
-          value={`${totals.outstanding.toFixed(3)} OMR`}
+          value={money(metrics?.totalOutstanding)}
           icon={Clock}
           iconTone="amber"
           intent="warning"
-          isLoading={isLoading}
+          isLoading={metricsLoading}
         />
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1 w-full sm:max-w-sm">
           <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search by client or invoice #" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="ps-10" />
+          <Input placeholder="Search by client or invoice #" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="ps-10 text-base min-h-[44px]" />
         </div>
         <div className="flex gap-2 overflow-x-auto pb-2">
           {STATUS_OPTIONS.map((status) => (
-            <Button key={status} variant={statusFilter === status ? "default" : "outline"} size="sm" onClick={() => { setStatusFilter(status); setCurrentPage(1); }} className="whitespace-nowrap capitalize">
+            <Button key={status} variant={statusFilter === status ? "default" : "outline"} size="sm" onClick={() => { setStatusFilter(status); setCurrentPage(1); }} className="whitespace-nowrap capitalize min-h-[44px]">
               {status}
             </Button>
           ))}

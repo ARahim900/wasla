@@ -1,5 +1,6 @@
 import './App.css'
 import { Suspense } from "react";
+import { MotionConfig } from "framer-motion";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -145,6 +146,10 @@ function App() {
     <ErrorBoundary>
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
+          {/* reducedMotion="user" makes every framer-motion animation across the
+              app honor the OS "reduce motion" setting (disables transforms, keeps
+              opacity) without gating each component by hand. */}
+          <MotionConfig reducedMotion="user">
           <Router>
             {/* Base44 sandbox tooling: dev-only. In production these exposed an
                 origin-unchecked postMessage surface and leaked URLs to any
@@ -154,6 +159,7 @@ function App() {
           </Router>
           <SonnerToaster />
           {import.meta.env.DEV && <VisualEditAgent />}
+          </MotionConfig>
         </QueryClientProvider>
       </AuthProvider>
     </ErrorBoundary>

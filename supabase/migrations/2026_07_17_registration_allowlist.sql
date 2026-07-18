@@ -68,8 +68,9 @@ BEGIN
   -- No empty-table bypass: an empty allowlist must block ALL registration, not
   -- open it (otherwise deleting the last entry would silently reopen sign-up).
   -- Bootstrapping is handled by seeding existing users above; on a brand-new
-  -- project, insert the first admin email into allowed_emails (or create that
-  -- user via Dashboard > Authentication) before anyone can self-register.
+  -- project, insert the first admin email into allowed_emails BEFORE creating
+  -- that user. (This trigger also fires for Dashboard/Admin-created users, so
+  -- creating a user there does not bypass the allowlist.)
   IF EXISTS (
     SELECT 1 FROM public.allowed_emails
     WHERE email = lower(trim(NEW.email))
