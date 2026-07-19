@@ -367,7 +367,7 @@ class InspectionReportGenerator {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=794, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Property Inspection Report - ${this.escapeHTML(data.client)}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -393,8 +393,13 @@ class InspectionReportGenerator {
             --brand-grey-900: #111827;
         }
 
+        /* Screen: fit the viewport (phones included) so the preview never
+           overflows. Print re-pins this to a fixed 210mm A4 page below, and
+           the narrow-screen overrides live near the end of this sheet (after
+           the base rules) so they actually win the cascade. */
         html, body {
-            width: 210mm;
+            width: 100%;
+            max-width: 210mm;
             margin-left: auto;
             margin-right: auto;
         }
@@ -592,8 +597,8 @@ class InspectionReportGenerator {
             background: var(--brand-grey-100);
             border: 1px solid var(--brand-grey-200);
             border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
@@ -603,7 +608,7 @@ class InspectionReportGenerator {
             font-size: 11pt;
             font-weight: 700;
             color: var(--brand-primary);
-            margin-bottom: 10px;
+            margin-bottom: 6px;
             border-bottom: 2px solid var(--brand-accent);
             padding-bottom: 5px;
             letter-spacing: 0.3px;
@@ -613,7 +618,7 @@ class InspectionReportGenerator {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 0;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .two-column > .column {
@@ -631,11 +636,11 @@ class InspectionReportGenerator {
 
         .column {
             font-size: 7.8pt;
-            line-height: 1.45;
+            line-height: 1.4;
         }
 
         .column p {
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
 
         .column strong {
@@ -1072,6 +1077,42 @@ class InspectionReportGenerator {
             border-bottom: none;
         }
 
+        /* ---- Narrow screens (phones/tablets) ----
+           Placed after all base rules so these overrides win the cascade.
+           Screen-only: print keeps the full fixed A4 layout below. Makes the
+           on-screen preview fit any device width with no horizontal scroll. */
+        @media screen and (max-width: 820px) {
+            .report-container,
+            .page {
+                max-width: 100%;
+            }
+            .page {
+                padding: 16px 14px;
+            }
+            /* The faint 400px watermark is centered and bleeds past a phone's
+               width; scale it down so it never forces horizontal scroll. */
+            .page::before {
+                width: min(60vw, 400px);
+                height: min(60vw, 400px);
+            }
+            /* Stack the cover header (logo / title / info) so its fixed
+               200px info column can't push the page wider than the phone. */
+            .cover-header {
+                grid-template-columns: 1fr;
+            }
+            .cover-header-info {
+                min-width: 0;
+                border-left: 0;
+                padding-left: 0;
+                border-top: 1px solid var(--brand-grey-200);
+                padding-top: 8px;
+            }
+            /* Signature blocks stack instead of sitting side by side. */
+            .signature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         @media print {
             html, body {
                 width: 210mm;
@@ -1408,7 +1449,7 @@ ${resultFlagBanner}
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 8px;">
+            <div class="two-column" style="margin-top: 5px;">
                 <div class="column">
                     <h3>No property is perfect.</h3>
                     <p>Every building has imperfections or items that are ready for maintenance. It's the inspector's task to discover and report these so you can make informed decisions. This report should not be used as a tool to demean property, but rather as a way to illuminate the realities of the property.</p>
@@ -1419,7 +1460,7 @@ ${resultFlagBanner}
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 8px;">
+            <div class="two-column" style="margin-top: 5px;">
                 <div class="column">
                     <h3>This report is not an appraisal.</h3>
                     <p>When an appraiser determines worth, only the most obvious conditions of a property are taken into account to establish a safe loan amount. In effect, the appraiser is representing the interests of the lender. Home inspectors focus more on the interests of the prospective buyer; and, although inspectors must be careful not to make any statements relating to property value, their findings can help buyers more completely understand the true costs of ownership.</p>
@@ -1430,7 +1471,7 @@ ${resultFlagBanner}
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 8px;">
+            <div class="two-column" style="margin-top: 5px;">
                 <div class="column">
                     <h3>Maintenance costs are normal.</h3>
                     <p>Homeowners should plan to spend around 1% of the total value of a property in maintenance costs, annually. (Annual costs of rental property maintenance are often 2%, or more.) If considerably less than this percentage has been invested during several years preceding an inspection, the property will usually show the obvious signs of neglect; and the new property owners may be required to invest significant time and money to address accumulated maintenance needs.</p>
@@ -1467,7 +1508,7 @@ ${resultFlagBanner}
                 </div>
             </div>
 
-            <div class="two-column" style="margin-top: 8px;">
+            <div class="two-column" style="margin-top: 5px;">
                 <div class="column">
                     <h3 style="font-size: 10pt; font-weight: 700; color: #4b5563; margin-bottom: 6px;">CONFIDENTIALITY OF THE REPORT:</h3>
                     <p>The inspection report is to be prepared for the Client for the purpose of informing of the major deficiencies in the condition of the subject property and is solely and exclusively for Client's own information and may not be relied upon by any other person. Client may distribute copies of the inspection report to the seller and the real estate agents directly involved in this transaction, but Client and Inspector do not in any way intend to benefit said seller or the real estate agents directly or indirectly through this Agreement or the inspection report. In the event that the inspection report has been prepared for the SELLER of the subject property, an authorized representative of ${this.escapeHTML(this.config.company.name)} will return to the property, for a fee, to meet with the BUYER for a consultation to provide a better understanding of the reported conditions and answer.</p>
@@ -1720,6 +1761,15 @@ export async function generateInspectionReport(inspectionData, options = {}) {
 export async function buildInspectionReportHTML(inspectionData, options = {}) {
   const generator = new InspectionReportGenerator();
   return await generator.buildHTML(inspectionData, { ...options, embedMode: true });
+}
+
+// Standalone, full-page report document (NOT embedded/sandboxed): includes the
+// print toolbar and a top-level window.print() handler. Used for the "Print /
+// Save PDF" flow, which opens this in a new tab — printing a top-level document
+// works reliably on mobile, unlike iframe.contentWindow.print().
+export async function buildPrintableReportHTML(inspectionData, options = {}) {
+  const generator = new InspectionReportGenerator();
+  return await generator.buildHTML(inspectionData, { ...options, embedMode: false });
 }
 
 export { InspectionReportGenerator };
